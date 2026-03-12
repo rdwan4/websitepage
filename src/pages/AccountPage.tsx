@@ -1,0 +1,387 @@
+import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  ArrowLeft,
+  Camera,
+  FileText,
+  Loader2,
+  MessageCircle,
+  PenSquare,
+  Shield,
+  UserRound,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { cn } from '../lib/utils';
+import { useAuth } from '../context/AuthContext';
+import { postService } from '../services/postService';
+import { Activity, Comment, Post, PostProgress, QuizScore } from '../types';
+
+const labels = {
+  en: {
+    back: 'Back to Home',
+    title: 'My Account',
+    subtitle: 'Manage your profile, view your activity, and keep your Islamic learning journey in sync.',
+    displayName: 'Display name',
+    email: 'Email',
+    role: 'Role',
+    joined: 'Joined',
+    save: 'Save Changes',
+    posts: 'My Posts',
+    comments: 'My Comments',
+    reminders: 'My Reminders',
+    activity: 'Recent Activity',
+    quizScores: 'Quiz Scores',
+    noPosts: 'No posts yet.',
+    noComments: 'No comments yet.',
+    noReminders: 'No reminders yet.',
+    noActivity: 'No recent activity yet.',
+    noScores: 'No quiz scores yet.',
+    updated: 'Profile updated successfully.',
+    avatarUpdated: 'Profile photo updated successfully.',
+  },
+  ar: {
+    back: 'العودة إلى الرئيسية',
+    title: 'حسابي',
+    subtitle: 'أدر ملفك الشخصي وراجع نشاطك وحافظ على مزامنة رحلتك التعليمية.',
+    displayName: 'الاسم الظاهر',
+    email: 'البريد الإلكتروني',
+    role: 'الدور',
+    joined: 'تاريخ الانضمام',
+    save: 'حفظ التغييرات',
+    posts: 'منشوراتي',
+    comments: 'تعليقاتي',
+    reminders: 'تذكيراتي',
+    activity: 'آخر النشاط',
+    quizScores: 'نتائج الاختبارات',
+    noPosts: 'لا توجد منشورات بعد.',
+    noComments: 'لا توجد تعليقات بعد.',
+    noReminders: 'لا توجد تذكيرات بعد.',
+    noActivity: 'لا يوجد نشاط حديث بعد.',
+    noScores: 'لا توجد نتائج اختبارات بعد.',
+    updated: 'تم تحديث الملف الشخصي بنجاح.',
+    avatarUpdated: 'تم تحديث الصورة الشخصية بنجاح.',
+  },
+};
+
+export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
+  const t = labels[lang];
+  const { profile, updateProfile, uploadAvatar } = useAuth();
+  const [displayName, setDisplayName] = useState(profile?.display_name || '');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [scores, setScores] = useState<QuizScore[]>([]);
+  const [progress, setProgress] = useState<Array<PostProgress & { post?: Post }>>([]);
+
+  useEffect(() => {
+    setDisplayName(profile?.display_name || '');
+  }, [profile?.display_name]);
+
+  useEffect(() => {
+    const loadAccountData = async () => {
+      if (!profile) return;
+
+      setLoading(true);
+      setError('');
+
+      try {
+        const [postsData, commentsData, activitiesData, scoresData, progressData] = await Promise.all([
+          postService.getUserPosts(profile.id, 100),
+          postService.getCommentsByUser(profile.id, 6),
+          postService.getActivitiesByUser(profile.id, 8),
+          postService.getQuizScoresByUser(profile.id, 6),
+          postService.getUserProgress(profile.id, 100),
+        ]);
+
+        setPosts(postsData);
+        setComments(commentsData);
+        setActivities(activitiesData);
+        setScores(scoresData);
+        const postsById = new Map(postsData.map((post) => [post.id, post]));
+        setProgress(
+          progressData
+            .map((item) => ({ ...item, post: postsById.get(item.post_id) }))
+            .filter((item) => Boolean(item.post))
+            .slice(0, 8)
+        );
+      } catch (err: any) {
+        setError(err.message || 'Failed to load account data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAccountData();
+  }, [profile]);
+
+  if (!profile) {
+    return null;
+  }
+
+  const handleSaveProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await updateProfile({
+        display_name: displayName.trim() || profile.display_name,
+        avatar_url: profile.avatar_url,
+      });
+      setMessage(t.updated);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await uploadAvatar(file);
+      setMessage(t.avatarUpdated);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile image.');
+    } finally {
+      setSaving(false);
+      event.target.value = '';
+    }
+  };
+
+  const stats = [
+    { label: t.posts, value: posts.length, icon: PenSquare },
+    { label: t.comments, value: comments.length, icon: MessageCircle },
+    { label: t.quizScores, value: scores.length, icon: FileText },
+  ];
+
+  return (
+    <div className="min-h-screen bg-app-bg pt-32 pb-20">
+      <div className="container mx-auto px-6">
+        <div className={cn('flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10', lang === 'ar' && 'md:flex-row-reverse text-right')}>
+          <div className="max-w-3xl">
+            <Link to="/" className={cn('inline-flex items-center gap-2 text-app-accent mb-6 hover:underline group', lang === 'ar' && 'flex-row-reverse')}>
+              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              {t.back}
+            </Link>
+            <h1 className="text-5xl md:text-6xl font-serif text-app-text mb-4">{t.title}</h1>
+            <p className="text-app-muted text-lg">{t.subtitle}</p>
+          </div>
+        </div>
+
+        {error && <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">{error}</div>}
+        {message && <div className="mb-6 rounded-2xl border border-app-accent/20 bg-app-accent/10 px-5 py-4 text-sm text-app-accent">{message}</div>}
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-1 space-y-6">
+            <div className="bg-app-card border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="relative mb-5">
+                  <div className="w-28 h-28 rounded-[2rem] overflow-hidden bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent text-4xl font-bold">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                    ) : (
+                      profile.display_name[0]
+                    )}
+                  </div>
+                  <label className="absolute -bottom-2 -right-2 w-11 h-11 rounded-2xl bg-app-accent text-app-bg flex items-center justify-center cursor-pointer shadow-lg shadow-app-accent/20">
+                    <Camera className="w-4 h-4" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                  </label>
+                </div>
+
+                <h2 className="text-2xl font-bold text-app-text">{profile.display_name}</h2>
+                <p className="text-sm text-app-muted mt-1">{profile.email}</p>
+                <div className="mt-4 flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-widest text-app-text">
+                  {profile.role === 'admin' && <Shield className="w-3.5 h-3.5 text-app-accent" />}
+                  {profile.role}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-app-card border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+              <form onSubmit={handleSaveProfile} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.displayName}</label>
+                  <input
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-app-text focus:outline-none focus:border-app-accent/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.email}</label>
+                  <input value={profile.email} disabled className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-app-muted" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-left">
+                  <InfoBadge label={t.role} value={profile.role} />
+                  <InfoBadge label={t.joined} value={new Date(profile.created_at).toLocaleDateString()} />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full rounded-2xl bg-app-accent px-5 py-3 text-sm font-bold uppercase tracking-widest text-app-bg transition-all hover:scale-[1.01] disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t.save}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="xl:col-span-2 space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="bg-app-card border border-white/10 rounded-3xl p-5">
+                  <stat.icon className="w-5 h-5 text-app-accent mb-4" />
+                  <div className="text-3xl font-bold text-app-text">{stat.value}</div>
+                  <div className="text-xs uppercase tracking-widest text-app-muted mt-2">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="py-20 flex justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-app-accent" />
+              </div>
+            ) : (
+              <>
+                <SectionCard title={t.activity}>
+                  {activities.length ? (
+                    <div className="space-y-3">
+                      {activities.map((activity) => (
+                        <motion.div key={activity.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-sm text-app-text">{activity.content}</p>
+                          <div className="mt-2 text-xs text-app-muted">{new Date(activity.created_at).toLocaleString()}</div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState text={t.noActivity} />
+                  )}
+                </SectionCard>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <SectionCard title={t.posts}>
+                    {posts.length ? (
+                      <div className="space-y-3">
+                        {posts.slice(0, 6).map((post) => (
+                          <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="font-semibold text-app-text">{post.title}</p>
+                              {!post.is_approved && (
+                                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                                  {lang === 'en' ? 'Pending Admin Approval' : 'بانتظار موافقة المشرف'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm text-app-muted line-clamp-2">{post.excerpt || post.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text={t.noPosts} />
+                    )}
+                  </SectionCard>
+
+                  <SectionCard title={t.comments}>
+                    {comments.length ? (
+                      <div className="space-y-3">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <p className="text-sm text-app-text">{comment.content}</p>
+                            <p className="mt-2 text-xs text-app-muted">{comment.post?.title || 'Activity comment'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text={t.noComments} />
+                    )}
+                  </SectionCard>
+
+                  <SectionCard title={t.quizScores}>
+                    {scores.length ? (
+                      <div className="space-y-3">
+                        {scores.map((score) => (
+                          <div key={score.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-app-text">{score.category}</p>
+                              <span className="text-xs text-app-muted">
+                                {score.score}/{score.total_questions}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-xs text-app-muted">{new Date(score.created_at).toLocaleDateString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text={t.noScores} />
+                    )}
+                  </SectionCard>
+
+                  <SectionCard title={lang === 'en' ? 'Continue Learning' : 'مواصلة التعلم'}>
+                    {progress.length ? (
+                      <div className="space-y-3">
+                        {progress.map((item) => (
+                          <div key={`${item.user_id}-${item.post_id}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-app-text">
+                                {item.post?.series_title || item.post?.title}
+                              </p>
+                              <span className="text-xs text-app-accent">{item.last_position_seconds}s</span>
+                            </div>
+                            <p className="mt-1 text-xs text-app-muted">
+                              {lang === 'en' ? 'Lesson' : 'الدرس'} {item.post?.lesson_order || 1} · {item.post?.title}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text={lang === 'en' ? 'No lesson progress saved yet.' : 'لا توجد بيانات تقدم محفوظة بعد.'} />
+                    )}
+                  </SectionCard>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="bg-app-card border border-white/10 rounded-[2.5rem] p-6 shadow-xl">
+    <h3 className="text-xl font-bold text-app-text mb-4">{title}</h3>
+    {children}
+  </div>
+);
+
+const InfoBadge = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="text-[11px] uppercase tracking-widest text-app-muted mb-2">{label}</div>
+    <div className="text-sm font-semibold text-app-text flex items-center gap-2">
+      <UserRound className="w-4 h-4 text-app-accent" />
+      {value}
+    </div>
+  </div>
+);
+
+const EmptyState = ({ text }: { text: string }) => (
+  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-app-muted">
+    {text}
+  </div>
+);

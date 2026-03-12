@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Theme Variables */
+  --color-app-bg: var(--bg);
+  --color-app-card: var(--card);
+  --color-app-accent: var(--accent);
+  --color-app-accent-hover: var(--accent-hover);
+  --color-app-text: var(--text);
+  --color-app-muted: var(--muted);
+  --color-app-border: var(--border);
+  --color-gold: #fbbf24;
+}
+
+:root {
+  --app-font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --app-font-serif: "Playfair Display", serif;
+
+  /* Dark Bluish (Default) */
+  --bg: #020617;
+  --card: #0f172a;
+  --accent: #10b981;
+  --accent-hover: #059669;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+}
+
+html[lang='ar'] {
+  --app-font-sans: "Noto Naskh Arabic", "Amiri", ui-sans-serif, system-ui, sans-serif;
+  --app-font-serif: "Amiri", "Noto Naskh Arabic", serif;
+}
+
+[data-theme='light'] {
+  --bg: #f5f1e8;
+  --card: #fffdf7;
+  --accent: #059669;
+  --accent-hover: #047857;
+  --text: #111827;
+  --muted: #5b6472;
+  --border: rgba(17, 24, 39, 0.08);
+  color-scheme: light;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-app-bg text-app-text font-sans antialiased transition-colors duration-500;
+    font-family: var(--app-font-sans);
+  }
+
+  .font-serif {
+    font-family: var(--app-font-serif);
+  }
+  
+  ::selection {
+    @apply bg-app-accent text-white;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-app-card/40 backdrop-blur-2xl border border-app-border shadow-2xl;
+  }
+  
+  .glass-light {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10;
+  }
+  
+  .mask-gradient-en {
+    mask-image: linear-gradient(to left, black, transparent);
+  }
+  
+  .mask-gradient-ar {
+    mask-image: linear-gradient(to right, black, transparent);
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+[data-theme='light'] .glass {
+  background: rgba(255, 253, 247, 0.82);
+  border-color: rgba(17, 24, 39, 0.08);
+  box-shadow: 0 24px 60px -32px rgba(15, 23, 42, 0.24);
+}
