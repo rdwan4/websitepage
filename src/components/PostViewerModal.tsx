@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Send, X } from 'lucide-react';
+import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
@@ -64,6 +64,7 @@ export const PostViewerModal = ({
   onClose,
   onUpdated,
   onAuthClick,
+  onRequestEdit,
 }: {
   isOpen: boolean;
   post: Post | null;
@@ -72,6 +73,7 @@ export const PostViewerModal = ({
   onClose: () => void;
   onUpdated?: () => void;
   onAuthClick?: () => void;
+  onRequestEdit?: (post: Post) => void;
 }) => {
   const { profile } = useAuth();
   const t = copy[lang];
@@ -83,6 +85,7 @@ export const PostViewerModal = ({
   const [liking, setLiking] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [viewsCount, setViewsCount] = useState(0);
+  const [deleting, setDeleting] = useState(false);
   const [seriesLessons, setSeriesLessons] = useState<Post[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const viewedPostIds = useRef<Set<string>>(new Set());
@@ -316,6 +319,28 @@ export const PostViewerModal = ({
     }
   };
 
+  const canManageCurrentPost = Boolean(
+    profile && currentPost && (profile.role === 'admin' || profile.id === currentPost.author_id)
+  );
+
+  const handleDelete = async () => {
+    if (!currentPost?.id || deleting) return;
+    const confirmed = window.confirm(lang === 'en' ? 'Delete this post?' : 'هل تريد حذف هذا المنشور؟');
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await postService.deletePost(currentPost.id);
+      onUpdated?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      window.alert(lang === 'en' ? 'Unable to delete this post.' : 'تعذر حذف هذا المنشور.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!isOpen || !currentPost) return null;
 
   return (
@@ -440,6 +465,27 @@ export const PostViewerModal = ({
                     {viewsCount}
                   </div>
                 </div>
+                {canManageCurrentPost && (
+                  <div className="mt-4 flex items-center gap-2">
+                    {onRequestEdit && (
+                      <button
+                        onClick={() => onRequestEdit(currentPost)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-app-text hover:bg-white/10"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        {lang === 'en' ? 'Edit' : 'تعديل'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => void handleDelete()}
+                      disabled={deleting}
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {lang === 'en' ? 'Delete' : 'حذف'}
+                    </button>
+                  </div>
+                )}
                 {!profile && <p className="mt-4 text-xs text-app-muted">{t.signIn}</p>}
               </div>
 

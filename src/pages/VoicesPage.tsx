@@ -1,11 +1,13 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Globe, ArrowLeft, Search, Clock, User, Share2, Heart } from 'lucide-react';
+import { Globe, ArrowLeft, Search, Clock, User, Share2, Heart, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 import { PostViewerModal } from '../components/PostViewerModal';
+import { useAuth } from '../context/AuthContext';
+import { CreatePostModal } from '../components/CreatePostModal';
 
 interface VoicesPageProps {
   lang: 'en' | 'ar';
@@ -20,28 +22,56 @@ interface CourseGroup {
 }
 
 export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
+  const { profile } = useAuth();
   const [blogs, setBlogs] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchBlogs = async () => {
+    try {
+      setLoading(true);
+      const data = await postService.getPosts({
+        is_approved: true,
+        orderBy: 'created_at',
+      });
+      setBlogs(data.filter((p) => p.post_type === 'blog' || p.post_type === 'blogger'));
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchBlogs = async () => {
-      try {
-        const data = await postService.getPosts({
-          is_approved: true,
-          orderBy: 'created_at',
-        });
-        setBlogs(data.filter((p) => p.post_type === 'blog' || p.post_type === 'blogger'));
-      } catch (error) {
-        console.error('Error fetching blogs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     void fetchBlogs();
   }, []);
+
+  const canManagePost = (post: Post) => Boolean(profile && (profile.role === 'admin' || profile.id === post.author_id));
+
+  const handleDeleteBlog = async (postId: string) => {
+    if (deletingId) return;
+    const confirmed = window.confirm(lang === 'en' ? 'Delete this post?' : 'هل تريد حذف هذا المنشور؟');
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(postId);
+      await postService.deletePost(postId);
+      if (activePost?.id === postId) {
+        setActivePost(null);
+        setActiveCoursePosts(null);
+      }
+      await fetchBlogs();
+    } catch (error) {
+      console.error('Error deleting blog post:', error);
+      window.alert(lang === 'en' ? 'Unable to delete this post.' : 'تعذر حذف هذا المنشور.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filteredBlogs = blogs.filter(
     (blog) =>
@@ -95,6 +125,8 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
         post={activePost}
         coursePosts={activeCoursePosts}
         lang={lang}
+        onUpdated={() => void fetchBlogs()}
+        onRequestEdit={(post) => setEditingPost(post)}
       />
 
       <div className="container mx-auto px-6">
@@ -179,6 +211,25 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
                       {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
                     </button>
                     <div className="flex items-center gap-4">
+                      {canManagePost(course.startPost) && (
+                        <>
+                          <button
+                            onClick={() => setEditingPost(course.startPost)}
+                            className="p-2 text-app-muted hover:text-app-accent transition-colors"
+                            title={lang === 'en' ? 'Edit' : 'تعديل'}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteBlog(course.startPost.id)}
+                            disabled={deletingId === course.startPost.id}
+                            className="p-2 text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                            title={lang === 'en' ? 'Delete' : 'حذف'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       <button className="p-2 text-app-muted hover:text-app-accent transition-colors"><Heart className="w-4 h-4" /></button>
                       <button className="p-2 text-app-muted hover:text-app-accent transition-colors"><Share2 className="w-4 h-4" /></button>
                     </div>
@@ -193,6 +244,18 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
           </div>
         )}
       </div>
+
+      <CreatePostModal
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        lang={lang}
+        postToEdit={editingPost}
+        categoryFilter="non-sidebar"
+        onSuccess={() => {
+          setEditingPost(null);
+          void fetchBlogs();
+        }}
+      />
     </div>
   );
 };

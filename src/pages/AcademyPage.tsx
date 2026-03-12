@@ -27,6 +27,7 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -95,6 +96,8 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
     });
   }, [filteredLessons]);
 
+  const canManagePost = (post: Post) => Boolean(profile && (profile.role === 'admin' || profile.id === post.author_id));
+
   const handleDeleteLesson = async (postId: string) => {
     if (deletingId) return;
 
@@ -136,6 +139,7 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
         coursePosts={activeCoursePosts}
         lang={lang}
         onUpdated={() => void fetchLessons()}
+        onRequestEdit={(post) => setEditingPost(post)}
       />
 
       <div className="min-h-screen bg-app-bg pt-32 pb-20">
@@ -248,7 +252,7 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
                     >
                       {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
                     </button>
-                    {profile?.role === 'admin' && (
+                    {canManagePost(course.startPost) && (
                       <button
                         onClick={() => void handleDeleteLesson(course.startPost.id)}
                         disabled={deletingId === course.startPost.id}
@@ -256,7 +260,7 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
                       >
                         <span className="inline-flex items-center gap-2">
                           <Trash2 className="w-4 h-4" />
-                          {lang === 'en' ? 'Delete Course Root' : 'حذف أصل الدورة'}
+                          {lang === 'en' ? 'Delete' : 'حذف'}
                         </span>
                       </button>
                     )}
@@ -285,6 +289,18 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
         onSuccess={() => {
           setIsCreateOpen(false);
           window.dispatchEvent(new Event('posts-updated'));
+          void fetchLessons();
+        }}
+      />
+
+      <CreatePostModal
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        lang={lang}
+        postToEdit={editingPost}
+        categoryFilter="non-sidebar"
+        onSuccess={() => {
+          setEditingPost(null);
           void fetchLessons();
         }}
       />

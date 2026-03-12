@@ -20,6 +20,34 @@ const makeEmptyOptions = (): QuizQuestionOption[] => [0, 1, 2, 3].map((i) => ({ 
 const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', accent_label_en: '', accent_label_ar: '', source_type: 'quran', source_reference: '', category: 'reflection', position: 0, is_published: true };
 const emptyDaily: DailyForm = { id: '', category: 'dua', title: '', title_ar: '', arabic_text: '', english_text: '', transliteration: '', source_type: 'quran', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: false };
 const emptyQuestion: QuestionForm = { id: '', question_en: '', question_ar: '', explanation_en: '', explanation_ar: '', source_type: 'quran', source_reference: '', difficulty: 'beginner', category: '', correct_option_id: '', is_published: true, is_verified: false, options: makeEmptyOptions() };
+const QUESTION_DRAFT_KEY = 'admin-question-draft-v1';
+
+const normalizeQuestionDraft = (raw: any): QuestionForm => {
+  const fallbackOptions = makeEmptyOptions();
+  const parsedOptions = Array.isArray(raw?.options)
+    ? raw.options.map((option: any, index: number) => ({
+        id: option?.id || crypto.randomUUID(),
+        label_en: option?.label_en || '',
+        label_ar: option?.label_ar || '',
+        sort_order: Number.isFinite(option?.sort_order) ? option.sort_order : index,
+      }))
+    : fallbackOptions;
+
+  const options = parsedOptions.length ? parsedOptions : fallbackOptions;
+
+  return {
+    ...emptyQuestion,
+    ...raw,
+    question_en: raw?.question_en || '',
+    question_ar: raw?.question_ar || '',
+    explanation_en: raw?.explanation_en || '',
+    explanation_ar: raw?.explanation_ar || '',
+    source_reference: raw?.source_reference || '',
+    category: raw?.category || '',
+    options,
+    correct_option_id: raw?.correct_option_id || options[0]?.id || '',
+  };
+};
 
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = text[lang];
@@ -35,6 +63,25 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [guidanceForm, setGuidanceForm] = useState(emptyGuidance);
   const [dailyForm, setDailyForm] = useState(emptyDaily);
   const [questionForm, setQuestionForm] = useState(emptyQuestion);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(QUESTION_DRAFT_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      setQuestionForm(normalizeQuestionDraft(parsed));
+    } catch (error) {
+      console.warn('Failed to restore question draft:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(QUESTION_DRAFT_KEY, JSON.stringify(questionForm));
+    } catch (error) {
+      console.warn('Failed to store question draft:', error);
+    }
+  }, [questionForm]);
 
   useEffect(() => {
     const load = async () => {
@@ -83,6 +130,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     const saved = await contentService.saveQuestion({ ...questionForm, correct_option_id: questionForm.correct_option_id || questionForm.options[0].id, options: questionForm.options });
     setQuestions((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
     setQuestionForm(emptyQuestion);
+    window.localStorage.removeItem(QUESTION_DRAFT_KEY);
   });
 
   const removeGuidance = async (id: string) => runSave(async () => { await contentService.deleteGuidanceItem(id); setGuidance((current) => current.filter((item) => item.id !== id)); });

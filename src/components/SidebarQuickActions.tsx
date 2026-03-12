@@ -98,10 +98,11 @@ const groupSidebarPosts = (items: Post[]): Post[] => {
 
   items.forEach((post) => {
     const key =
-      post.parent_post_id ||
-      (post.series_slug
-        ? `series:${post.series_slug}`
-        : `category:${post.category?.slug || post.category_id || 'uncategorized'}`);
+      post.parent_post_id
+        ? `parent:${post.parent_post_id}`
+        : post.series_slug
+          ? `series:${post.series_slug}`
+          : `post:${post.id}`;
     const list = grouped.get(key) || [];
     list.push(post);
     grouped.set(key, list);
@@ -115,7 +116,16 @@ const groupSidebarPosts = (items: Post[]): Post[] => {
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
 
-    return key.startsWith('post:') ? sorted[0] : sorted.find((item) => item.id === key) || sorted[0];
+    if (key.startsWith('post:')) {
+      return sorted[0];
+    }
+
+    if (key.startsWith('parent:')) {
+      const parentId = key.replace('parent:', '');
+      return sorted.find((item) => item.id === parentId) || sorted[0];
+    }
+
+    return sorted[0];
   });
 };
 

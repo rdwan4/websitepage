@@ -259,6 +259,29 @@ export const CreatePostModal = ({
     }
   };
 
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError(lang === 'en' ? 'Please upload an image file for the cover.' : 'يرجى رفع ملف صورة للغلاف.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const url = await postService.uploadMedia(file);
+      setImageUrl(url);
+    } catch (uploadError: any) {
+      setError(uploadError.message || (lang === 'en' ? 'Error uploading cover image' : 'حدث خطأ أثناء رفع صورة الغلاف'));
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
   const resetForm = () => {
     const fallbackCategory = initialCategorySlug
       ? categories.find((category) => category.slug === initialCategorySlug)
@@ -508,21 +531,46 @@ export const CreatePostModal = ({
                       </div>
                     )}
                   </div>
+
+                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
+                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
+                      {lang === 'en' ? 'Upload Cover/Thumbnail (Optional)' : 'رفع غلاف/صورة مصغرة (اختياري)'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="cover-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="cover-upload"
+                        className={cn(
+                          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all hover:bg-white/5',
+                          uploading && 'cursor-wait opacity-50'
+                        )}
+                      >
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                        <span className="text-sm">{lang === 'en' ? 'Choose Cover Image' : 'اختر صورة الغلاف'}</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {(type === 'image' || type === 'article') && (
-                    <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                      <label className="text-xs font-bold uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Image URL' : 'رابط الصورة'}</label>
-                      <input
-                        type="url"
-                        value={imageUrl}
-                        onChange={(event) => setImageUrl(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                        placeholder="https://..."
-                      />
-                    </div>
-                  )}
+                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
+                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
+                      {lang === 'en' ? 'Cover/Thumbnail URL (Optional)' : 'رابط الغلاف/الصورة المصغرة (اختياري)'}
+                    </label>
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(event) => setImageUrl(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
+                      placeholder="https://..."
+                    />
+                  </div>
 
                   {type !== 'article' && type !== 'image' && (
                     <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
