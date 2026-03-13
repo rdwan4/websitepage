@@ -65,14 +65,16 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [resultMessage, setResultMessage] = useState('');
+  const [completedAnswers, setCompletedAnswers] = useState<Record<string, string>>({});
 
   const questions = bundle?.questions || [];
   const activeQuestion = questions[currentIndex];
   const selectedOptionId = activeQuestion ? answers[activeQuestion.id] : null;
+  const reviewAnswers = step === 'result' ? completedAnswers : answers;
   const answerReview = useMemo(
     () =>
       questions.map((question) => {
-        const selectedId = answers[question.id];
+        const selectedId = reviewAnswers[question.id];
         const selectedOption = question.options.find((option) => option.id === selectedId) || null;
         const correctOption = question.options.find((option) => option.id === question.correct_option_id) || null;
         return {
@@ -82,24 +84,26 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
           isCorrect: selectedId === question.correct_option_id,
         };
       }),
-    [answers, questions]
+    [questions, reviewAnswers]
   );
 
   const score = useMemo(
     () =>
       questions.reduce(
-        (total, question) => total + (answers[question.id] === question.correct_option_id ? 1 : 0),
+        (total, question) => total + (reviewAnswers[question.id] === question.correct_option_id ? 1 : 0),
         0
       ),
-    [answers, questions]
+    [questions, reviewAnswers]
   );
 
-  const loadQuiz = async () => {
+  const loadQuiz = async (
+    options: { excludeQuestionIds?: string[]; includeAnswers?: boolean; seed?: string } = {}
+  ) => {
     setLoading(true);
     setError('');
     try {
       const [quizBundle, leaderboardData] = await Promise.all([
-        contentService.getDailyQuiz(profile?.id),
+        contentService.getDailyQuiz(profile?.id, undefined, options),
         postService.getLeaderboard(3),
       ]);
 
@@ -112,7 +116,8 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
 
       setBundle(quizBundle);
       setLeaderboard(leaderboardData);
-      setAnswers(nextAnswers);
+      setAnswers({});
+      setCompletedAnswers(allAnswered ? nextAnswers : {});
       setCurrentIndex(0);
       setStep(allAnswered ? 'result' : 'quiz');
       setResultMessage('');
@@ -153,10 +158,13 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
 
     if (!profile) {
       const correct = selectedOptionId === activeQuestion.correct_option_id;
+      const nextAnswers = { ...answers, [activeQuestion.id]: selectedOptionId };
+      setAnswers(nextAnswers);
       setResultMessage(correct ? t.correct : t.incorrect);
       if (currentIndex < questions.length - 1) {
         setCurrentIndex((current) => current + 1);
       } else {
+        setCompletedAnswers(nextAnswers);
         setStep('result');
       }
       return;
@@ -168,14 +176,19 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
     try {
       const saved = await contentService.submitAnswer(profile.id, activeQuestion, selectedOptionId, bundle?.dateKey);
       const correct = saved.selected_option_id === activeQuestion.correct_option_id;
-      setAnswers((current) => ({ ...current, [activeQuestion.id]: saved.selected_option_id }));
+      const nextAnswers = { ...answers, [activeQuestion.id]: saved.selected_option_id };
+      setAnswers(nextAnswers);
       setResultMessage(correct ? t.correct : t.incorrect);
 
       if (currentIndex === questions.length - 1) {
+        setCompletedAnswers(nextAnswers);
         setStep('result');
         await postService.saveQuizScore({
           user_id: profile.id,
-          score: score * 20 + (correct ? 20 : 0),
+          score: questions.reduce(
+            (total, question) => total + (nextAnswers[question.id] === question.correct_option_id ? 20 : 0),
+            0
+          ),
           total_questions: questions.length,
           category: 'daily-quiz',
         });
@@ -194,11 +207,21 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
   const handleReviewAnswers = () => {
     setCurrentIndex(0);
     setResultMessage('');
+    setAnswers({ ...completedAnswers });
     setStep('quiz');
   };
 
   const handleLoadNextSet = async () => {
-    await loadQuiz();
+    setAnswers({});
+    setCompletedAnswers({});
+    setCurrentIndex(0);
+    setResultMessage('');
+    setStep('quiz');
+    await loadQuiz({
+      excludeQuestionIds: questions.map((question) => question.id),
+      includeAnswers: false,
+      seed: `fresh:${Date.now()}`,
+    });
   };
 
   return (
