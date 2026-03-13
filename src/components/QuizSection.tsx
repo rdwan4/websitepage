@@ -90,12 +90,14 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
     [answers, questions]
   );
 
-  const loadQuiz = async () => {
+  const loadQuiz = async (
+    options: { excludeQuestionIds?: string[]; includeAnswers?: boolean; seed?: string } = {}
+  ) => {
     setLoading(true);
     setError('');
     try {
       const [quizBundle, leaderboardData] = await Promise.all([
-        contentService.getDailyQuiz(profile?.id),
+        contentService.getDailyQuiz(profile?.id, undefined, options),
         postService.getLeaderboard(5),
       ]);
 
@@ -180,7 +182,11 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
     setCurrentQuestion(0);
     setSelectedOption(null);
     setAnswers({});
-    await loadQuiz();
+    await loadQuiz({
+      excludeQuestionIds: questions.map((question) => question.id),
+      includeAnswers: false,
+      seed: `fresh:${Date.now()}`,
+    });
   };
 
   return (
