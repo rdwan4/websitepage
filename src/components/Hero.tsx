@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ArrowRight, ArrowLeft, BookOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 type Language = 'en' | 'ar';
@@ -99,13 +100,13 @@ export const Hero = ({ lang }: { lang: Language }) => {
               transition={{ delay: 0.4 }}
               className={cn("flex flex-wrap gap-6", lang === 'ar' && "justify-start flex-row-reverse")}
             >
-              <button className="bg-app-accent text-app-bg px-10 py-5 rounded-2xl font-bold hover:bg-app-accent-hover transition-all flex items-center gap-3 group shadow-2xl shadow-app-accent/20 text-lg">
+              <Link to="/academy" className="bg-app-accent text-app-bg px-10 py-5 rounded-2xl font-bold hover:bg-app-accent-hover transition-all flex items-center gap-3 group shadow-2xl shadow-app-accent/20 text-lg">
                 {t.cta1}
                 {lang === 'en' ? <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> : <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />}
-              </button>
-              <button className="bg-white/5 backdrop-blur-md text-app-text border border-white/10 px-10 py-5 rounded-2xl font-bold hover:bg-white/10 transition-all text-lg">
+              </Link>
+              <Link to="/library" className="bg-white/5 backdrop-blur-md text-app-text border border-white/10 px-10 py-5 rounded-2xl font-bold hover:bg-white/10 transition-all text-lg">
                 {t.cta2}
-              </button>
+              </Link>
             </motion.div>
           </div>
 

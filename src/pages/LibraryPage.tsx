@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface LibraryPageProps {
   lang: 'en' | 'ar';
@@ -244,15 +245,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({ lang }) => {
                     </h3>
                     <p className="text-app-muted text-sm line-clamp-2 mb-6 flex-1">{course.previewPost.content}</p>
                     <div className={cn('flex items-center justify-between pt-6 border-t border-white/5', lang === 'ar' && 'flex-row-reverse')}>
-                      <button
-                        onClick={() => {
-                          setActivePost(course.startPost);
-                          setActiveCoursePosts(course.posts);
-                        }}
+                      <Link
+                        to={buildPostPath(course.startPost)}
                         className="text-app-accent text-xs font-bold hover:underline flex items-center gap-2"
                       >
                         {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
-                      </button>
+                      </Link>
                       <div className="flex items-center gap-3">
                         {canManagePost(course.startPost) && (
                           <button

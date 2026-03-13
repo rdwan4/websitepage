@@ -71,6 +71,19 @@ const toSeriesSlug = (value: string) =>
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s+/g, '-');
 
+const buildDraftKey = (
+  categoryFilter: CategoryFilterMode,
+  initialCategorySlug?: string | null,
+  initialType?: PostType,
+  postToEdit?: Post | null
+) => {
+  if (postToEdit?.id) {
+    return `post-modal-draft-edit-${postToEdit.id}`;
+  }
+
+  return `post-modal-draft-create-${categoryFilter}-${initialCategorySlug || 'none'}-${initialType || 'article'}`;
+};
+
 export const CreatePostModal = ({
   isOpen,
   onClose,
@@ -119,6 +132,10 @@ export const CreatePostModal = ({
   const selectedCategory = categories.find((category) => category.id === categoryId);
   const activeAccept = typeUploadAccept[type] || '';
   const canUploadForType = Boolean(activeAccept);
+  const draftKey = useMemo(
+    () => buildDraftKey(categoryFilter, initialCategorySlug, initialType, postToEdit),
+    [categoryFilter, initialCategorySlug, initialType, postToEdit]
+  );
 
   const computedTitle = useMemo(() => {
     if (modalTitle) return modalTitle;
@@ -211,6 +228,73 @@ export const CreatePostModal = ({
     setError(null);
   }, [categories, initialCategorySlug, initialType, postToEdit]);
 
+  useEffect(() => {
+    if (!isOpen || postToEdit || categories.length === 0) return;
+
+    try {
+      const stored = window.localStorage.getItem(draftKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+
+      setType(parsed.type || initialType || 'article');
+      setPostLanguage(parsed.postLanguage || (lang === 'ar' ? 'ar' : 'en'));
+      setTitle(parsed.title || '');
+      setContent(parsed.content || '');
+      setSecondaryTitle(parsed.secondaryTitle || '');
+      setSecondaryContent(parsed.secondaryContent || '');
+      setCategoryId(parsed.categoryId || categoryId || '');
+      setImageUrl(parsed.imageUrl || '');
+      setMediaUrl(parsed.mediaUrl || '');
+      setSeriesTitle(parsed.seriesTitle || '');
+      setLessonOrder(Math.max(1, Number(parsed.lessonOrder) || 1));
+      setParentPostId(parsed.parentPostId || '');
+    } catch (draftError) {
+      console.warn('Failed to restore post modal draft:', draftError);
+    }
+  }, [categoryId, categories.length, draftKey, initialType, isOpen, lang, postToEdit]);
+
+  useEffect(() => {
+    if (!isOpen || postToEdit) return;
+
+    try {
+      window.localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          type,
+          postLanguage,
+          title,
+          content,
+          secondaryTitle,
+          secondaryContent,
+          categoryId,
+          imageUrl,
+          mediaUrl,
+          seriesTitle,
+          lessonOrder,
+          parentPostId,
+        })
+      );
+    } catch (draftError) {
+      console.warn('Failed to store post modal draft:', draftError);
+    }
+  }, [
+    categoryId,
+    content,
+    draftKey,
+    imageUrl,
+    isOpen,
+    lessonOrder,
+    mediaUrl,
+    parentPostId,
+    postLanguage,
+    postToEdit,
+    secondaryContent,
+    secondaryTitle,
+    seriesTitle,
+    title,
+    type,
+  ]);
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -300,6 +384,7 @@ export const CreatePostModal = ({
     setLessonOrder(1);
     setParentPostId('');
     setError(null);
+    window.localStorage.removeItem(draftKey);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {

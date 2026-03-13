@@ -70,6 +70,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient.js';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface CommunityHighlight {
   id: string;
@@ -347,7 +348,8 @@ export const CommunityHighlightsPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   };
 
   const handleShare = async (post: CommunityHighlight) => {
-    const url = `${window.location.origin}/post/${post.id}`;
+    const fullPost = getPostById(post.id);
+    const url = fullPost ? `${window.location.origin}${buildPostPath(fullPost)}` : `${window.location.origin}/community`;
     if (navigator.share) {
       try {
         await navigator.share({
@@ -554,18 +556,16 @@ export const CommunityHighlightsPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                                 <Heart className="w-4 h-4" />
                                 {highlight.engagement.likes}
                               </button>
-                              <button 
-                                onClick={() => {
+                              <Link
+                                to={(() => {
                                   const post = getPostById(highlight.id);
-                                  if (post) {
-                                    setActivePost(post);
-                                  }
-                                }}
+                                  return post ? buildPostPath(post) : '/community';
+                                })()}
                                 className="flex items-center gap-2 text-app-muted hover:text-app-accent transition-colors text-sm font-bold"
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 {highlight.engagement.comments}
-                              </button>
+                              </Link>
                               <button 
                                 onClick={() => handleShare(highlight)}
                                 className="flex items-center gap-2 text-app-muted hover:text-app-accent transition-colors text-sm font-bold"
@@ -575,18 +575,15 @@ export const CommunityHighlightsPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                               </button>
                             </div>
                             
-                            <button 
-                              onClick={() => {
+                            <Link
+                              to={(() => {
                                 const post = getPostById(highlight.id);
-                                if (post) {
-                                  setActivePost(post);
-                                } else {
-                                  toggleContent(highlight.id);
-                                }
-                              }}
-                              className="bg-app-accent text-app-bg px-6 py-3 rounded-xl font-bold text-sm hover:scale-105 transition-all">
+                                return post ? buildPostPath(post) : '/community';
+                              })()}
+                              className="bg-app-accent text-app-bg px-6 py-3 rounded-xl font-bold text-sm hover:scale-105 transition-all"
+                            >
                               {t.actions.view}
-                            </button>
+                            </Link>
                           </div>
                         </div>
                       </motion.div>

@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface ArticlesPageProps {
   lang: 'en' | 'ar';
@@ -140,7 +141,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
   };
 
   const handleShareArticle = async (post: Post) => {
-    const shareUrl = `${window.location.origin}/articles#${post.id}`;
+    const shareUrl = `${window.location.origin}${buildPostPath(post)}`;
     if (navigator.share) {
       try {
         await navigator.share({
@@ -265,15 +266,12 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                     )}
                     <p className="text-app-muted text-sm line-clamp-3 mb-8 flex-1 leading-relaxed">{course.previewPost.content}</p>
                     <div className={cn('flex items-center justify-between pt-6 border-t border-white/5', lang === 'ar' && 'flex-row-reverse')}>
-                      <button
-                        onClick={() => {
-                          setActivePost(course.startPost);
-                          setActiveCoursePosts(course.posts);
-                        }}
+                      <Link
+                        to={buildPostPath(course.startPost)}
                         className="text-app-accent text-sm font-bold hover:underline flex items-center gap-2"
                       >
                         {lang === 'en' ? 'Open Article' : 'فتح المقال'}
-                      </button>
+                      </Link>
                       <div className="flex items-center gap-4">
                         {canManagePost(course.startPost) && (
                           <button

@@ -340,6 +340,34 @@ export const postService = {
     return attachPostCounts(mappedPosts);
   },
 
+  async getPostById(postId: string): Promise<Post | null> {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(buildPostSelect())
+      .eq('id', postId)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTableError(error, 'profiles')) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('id', postId)
+          .maybeSingle();
+        if (fallbackError) throw fallbackError;
+        if (!fallbackData) return null;
+        const [withCounts] = await attachPostCounts([fallbackData as Post]);
+        return withCounts || null;
+      }
+      throw error;
+    }
+
+    if (!data) return null;
+
+    const [withCounts] = await attachPostCounts([(withAuthorName(data))]);
+    return withCounts || null;
+  },
+
   async getSeriesPosts(seriesSlug: string, categoryId?: string): Promise<Post[]> {
     let query = supabase
       .from('posts')

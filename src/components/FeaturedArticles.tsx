@@ -1,159 +1,268 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, ArrowLeft, Clock, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Play, ScrollText, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
+import { buildPostPath } from '../lib/postRoutes';
 
 type Language = 'en' | 'ar';
+type HomeSectionKey = 'articles' | 'academy' | 'library' | 'community';
 
-const translations = {
-  en: {
-    articles: {
-      title: 'Insightful Articles',
-      subtitle: 'Deep dives into Islamic jurisprudence, history, and contemporary issues.',
-      viewAll: 'Read All Articles'
-    }
-  },
-  ar: {
-    articles: {
-      title: 'مقالات ملهمة',
-      subtitle: 'تعمق في الفقه الإسلامي والتاريخ والقضايا المعاصرة.',
-      viewAll: 'اقرأ جميع المقالات'
-    }
-  }
-};
-
-interface CourseGroup {
-  key: string;
+interface HomeSectionGroup {
+  key: HomeSectionKey;
+  route: string;
   title: string;
+  subtitle: string;
+  cta: string;
+  icon: typeof ScrollText;
   posts: Post[];
-  startPost: Post;
   previewPost: Post;
 }
 
-const isArticlesCategory = (post: Post) => {
-  const value = (post.category?.slug || post.category?.name || post.category?.name_ar || '').trim().toLowerCase();
-  return value === 'articles' || value === 'article' || value === 'مقالات' || value === 'المقالات';
+const translations = {
+  en: {
+    eyebrow: 'Platform Preview',
+    title: 'Explore the Main Sections',
+    subtitle: 'A quick view of articles, academy lessons, library resources, and community posts so visitors understand the platform immediately.',
+    browseAll: 'Open Full Platform',
+    sections: {
+      articles: {
+        title: 'Articles',
+        subtitle: 'Deep Islamic reading and reflection.',
+        cta: 'Open Articles',
+      },
+      academy: {
+        title: 'Academy',
+        subtitle: 'Video and audio lessons organized as courses.',
+        cta: 'Open Academy',
+      },
+      library: {
+        title: 'Library',
+        subtitle: 'Books, PDFs, and study audio in one place.',
+        cta: 'Open Library',
+      },
+      community: {
+        title: 'Community',
+        subtitle: 'Posts, discussions, and shared learning.',
+        cta: 'Open Community',
+      },
+    },
+  },
+  ar: {
+    eyebrow: 'نظرة على المنصة',
+    title: 'استكشف الأقسام الرئيسية',
+    subtitle: 'عرض سريع للمقالات والأكاديمية والمكتبة والمجتمع حتى يفهم الزائر فكرة المنصة مباشرة.',
+    browseAll: 'فتح المنصة كاملة',
+    sections: {
+      articles: {
+        title: 'المقالات',
+        subtitle: 'قراءة وتأملات إسلامية معمقة.',
+        cta: 'فتح المقالات',
+      },
+      academy: {
+        title: 'الأكاديمية',
+        subtitle: 'دروس فيديو وصوت منظمة كدورات.',
+        cta: 'فتح الأكاديمية',
+      },
+      library: {
+        title: 'المكتبة',
+        subtitle: 'كتب وملفات PDF ومواد صوتية في مكان واحد.',
+        cta: 'فتح المكتبة',
+      },
+      community: {
+        title: 'المجتمع',
+        subtitle: 'منشورات ونقاشات ومشاركة في التعلم.',
+        cta: 'فتح المجتمع',
+      },
+    },
+  },
 };
 
+const sectionMeta: Record<HomeSectionKey, { route: string; icon: typeof ScrollText }> = {
+  articles: { route: '/articles', icon: ScrollText },
+  academy: { route: '/academy', icon: Play },
+  library: { route: '/library', icon: BookOpen },
+  community: { route: '/community', icon: Users },
+};
+
+const getCategorySlug = (post: Post) =>
+  (post.category?.slug || post.category?.name || post.category?.name_ar || '').trim().toLowerCase();
+
+const getSectionKey = (post: Post): HomeSectionKey | null => {
+  const slug = getCategorySlug(post);
+  if (slug === 'articles' || slug === 'article' || slug === 'المقالات' || slug === 'مقالات') return 'articles';
+  if (slug === 'academy' || slug === 'الأكاديمية') return 'academy';
+  if (slug === 'library' || slug === 'المكتبة') return 'library';
+  if (slug === 'community' || slug === 'المجتمع') return 'community';
+  return null;
+};
+
+const sortPosts = (posts: Post[]) =>
+  [...posts].sort((a, b) => {
+    const orderA = a.lesson_order || 1;
+    const orderB = b.lesson_order || 1;
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
 export const FeaturedArticles = ({ lang }: { lang: Language }) => {
-  const [articles, setArticles] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const t = translations[lang].articles;
+  const t = translations[lang];
 
   useEffect(() => {
-    const fetchArticles = async () => {
+    const fetchPosts = async () => {
       try {
         const data = await postService.getPosts({
           is_approved: true,
-          limit: 24,
+          limit: 40,
           orderBy: 'created_at',
         });
-        setArticles(data.filter((item) => isArticlesCategory(item)));
+        setPosts(data);
       } catch (error) {
-        console.error('Error fetching featured articles:', error);
+        console.error('Error fetching homepage featured content:', error);
       } finally {
         setLoading(false);
       }
     };
-    void fetchArticles();
+
+    void fetchPosts();
   }, []);
 
-  const groupedCourses = useMemo<CourseGroup[]>(() => {
-    const grouped = new Map<string, Post[]>();
+  const featuredSections = useMemo<HomeSectionGroup[]>(() => {
+    const grouped = new Map<HomeSectionKey, Post[]>();
 
-    articles.forEach((post) => {
-      const key =
-        post.parent_post_id ||
-        (post.series_slug
-          ? `series:${post.series_slug}`
-          : `category:${post.category?.slug || post.category_id || 'uncategorized'}`);
-      const list = grouped.get(key) || [];
+    posts.forEach((post) => {
+      const sectionKey = getSectionKey(post);
+      if (!sectionKey) return;
+
+      if (sectionKey === 'academy' && post.post_type !== 'video' && post.post_type !== 'audio') return;
+      if (sectionKey === 'library' && post.post_type !== 'pdf' && post.post_type !== 'audio') return;
+
+      const list = grouped.get(sectionKey) || [];
       list.push(post);
-      grouped.set(key, list);
+      grouped.set(sectionKey, list);
     });
 
-    return Array.from(grouped.entries())
-      .map(([key, posts]) => {
-        const sorted = [...posts].sort((a, b) => {
-          const orderA = a.lesson_order || 1;
-          const orderB = b.lesson_order || 1;
-          if (orderA !== orderB) return orderA - orderB;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        });
-
-        const startPost = key.startsWith('post:') ? sorted[0] : sorted.find((item) => item.id === key) || sorted[0];
-        const previewPost = sorted[0];
+    return (['articles', 'academy', 'library', 'community'] as HomeSectionKey[])
+      .map((key) => {
+        const sectionPosts = sortPosts(grouped.get(key) || []);
+        if (sectionPosts.length === 0) return null;
 
         return {
           key,
-          title: previewPost.series_title || startPost.title,
-          posts: sorted,
-          startPost,
-          previewPost,
+          route: sectionMeta[key].route,
+          title: t.sections[key].title,
+          subtitle: t.sections[key].subtitle,
+          cta: t.sections[key].cta,
+          icon: sectionMeta[key].icon,
+          posts: sectionPosts,
+          previewPost: sectionPosts[0],
         };
       })
-      .slice(0, 3);
-  }, [articles]);
+      .filter(Boolean) as HomeSectionGroup[];
+  }, [posts, t]);
 
-  if (loading && groupedCourses.length === 0) return null;
-  if (!loading && groupedCourses.length === 0) return null;
+  if (loading && featuredSections.length === 0) return null;
+  if (!loading && featuredSections.length === 0) return null;
 
   return (
-    <section className="py-32 bg-app-bg/50 relative overflow-hidden">
+    <section className="relative overflow-hidden bg-app-bg/50 py-32">
       <div className="container mx-auto px-6">
-        <div className={cn('flex flex-col md:flex-row justify-between items-end mb-20 gap-8', lang === 'ar' && 'md:flex-row-reverse text-right')}>
-          <div className="max-w-2xl">
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              className="text-app-accent font-bold uppercase tracking-widest text-xs mb-4 block"
-            >
-              {lang === 'en' ? 'Knowledge Base' : 'قاعدة المعرفة'}
+        <div
+          className={cn(
+            'mb-20 flex flex-col items-end justify-between gap-8 md:flex-row',
+            lang === 'ar' && 'text-right md:flex-row-reverse'
+          )}
+        >
+          <div className="max-w-3xl">
+            <motion.span initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="mb-4 block text-xs font-bold uppercase tracking-widest text-app-accent">
+              {t.eyebrow}
             </motion.span>
-            <h2 className="font-serif text-5xl md:text-6xl text-app-text mb-6 leading-tight">{t.title}</h2>
-            <p className="text-app-muted text-lg">{t.subtitle}</p>
+            <h2 className="mb-6 font-serif text-5xl leading-tight text-app-text md:text-6xl">{t.title}</h2>
+            <p className="text-lg text-app-muted">{t.subtitle}</p>
           </div>
-          <Link to="/articles" className={cn('group flex items-center gap-3 text-app-text font-bold text-lg hover:text-app-accent transition-all', lang === 'ar' && 'flex-row-reverse')}>
-            <span className="border-b-2 border-white/10 group-hover:border-app-accent transition-all pb-1">{t.viewAll}</span>
-            <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:bg-app-accent group-hover:text-app-bg group-hover:border-app-accent transition-all">
-              {lang === 'en' ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
+          <Link
+            to="/community"
+            className={cn(
+              'group flex items-center gap-3 text-lg font-bold text-app-text transition-all hover:text-app-accent',
+              lang === 'ar' && 'flex-row-reverse'
+            )}
+          >
+            <span className="border-b-2 border-white/10 pb-1 transition-all group-hover:border-app-accent">{t.browseAll}</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 transition-all group-hover:border-app-accent group-hover:bg-app-accent group-hover:text-app-bg">
+              {lang === 'en' ? <ArrowRight className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
             </div>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {groupedCourses.map((course, i) => (
-            <motion.div
-              key={course.key}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              viewport={{ once: true }}
-              className={cn('group cursor-pointer bg-app-card rounded-[3rem] p-8 border border-white/5 hover:border-app-accent/30 transition-all shadow-xl', lang === 'ar' && 'text-right')}
-            >
-              <div className="relative aspect-video rounded-[2rem] overflow-hidden mb-8 border border-white/5">
-                <img
-                  src={course.previewPost.image_url || `https://picsum.photos/seed/${course.startPost.id}/800/600`}
-                  alt={course.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className={cn('flex items-center gap-4 text-[10px] text-app-muted mb-4 uppercase tracking-widest font-bold', lang === 'ar' && 'flex-row-reverse')}>
-                <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {course.posts.length} {lang === 'en' ? 'Lessons' : 'دروس'}</span>
-                <span className="w-1 h-1 bg-white/10 rounded-full" />
-                <span className="flex items-center gap-1.5"><User className="w-3 h-3 text-app-accent" /> {course.startPost.author_name || 'Scholar'}</span>
-              </div>
-              <h3 className="text-2xl font-bold text-app-text mb-4 group-hover:text-app-accent transition-colors leading-tight line-clamp-2">{course.title}</h3>
-              <p className="text-app-muted text-sm line-clamp-3 mb-6 leading-relaxed">{course.previewPost.content}</p>
-              <Link to="/articles" className="text-app-accent text-xs font-bold hover:underline flex items-center gap-2">
-                {lang === 'en' ? 'Open Article' : 'فتح المقال'}
-              </Link>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-4">
+          {featuredSections.map((section, i) => {
+            const SectionIcon = section.icon;
+            return (
+              <motion.div
+                key={section.key}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                viewport={{ once: true }}
+                className={cn(
+                  'group flex h-full flex-col rounded-[3rem] border border-white/5 bg-app-card p-8 shadow-xl transition-all hover:border-app-accent/30',
+                  lang === 'ar' && 'text-right'
+                )}
+              >
+                <div className="relative mb-8 aspect-video overflow-hidden rounded-[2rem] border border-white/5">
+                  {section.previewPost.image_url ? (
+                    <img
+                      src={section.previewPost.image_url}
+                      alt={section.previewPost.title}
+                      className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-100"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-app-accent/10 via-white/5 to-app-bg">
+                      <SectionIcon className="h-14 w-14 text-app-accent/70" />
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className={cn(
+                    'mb-4 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-app-muted',
+                    lang === 'ar' && 'flex-row-reverse'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <SectionIcon className="h-3.5 w-3.5 text-app-accent" />
+                    {section.title}
+                  </span>
+                  <span className="h-1 w-1 rounded-full bg-white/10" />
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {section.posts.length} {lang === 'en' ? 'items' : 'عناصر'}
+                  </span>
+                </div>
+
+                <h3 className="mb-3 text-2xl font-bold leading-tight text-app-text transition-colors group-hover:text-app-accent">
+                  {section.previewPost.series_title || section.previewPost.title}
+                </h3>
+                <p className="mb-6 text-sm leading-relaxed text-app-muted">{section.subtitle}</p>
+                <p className="mb-8 line-clamp-4 flex-1 text-sm leading-relaxed text-app-muted">{section.previewPost.content}</p>
+
+                <Link
+                  to={buildPostPath(section.previewPost)}
+                  className={cn(
+                    'inline-flex items-center gap-2 text-xs font-bold text-app-accent hover:underline',
+                    lang === 'ar' && 'flex-row-reverse justify-end'
+                  )}
+                >
+                  {section.cta}
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>

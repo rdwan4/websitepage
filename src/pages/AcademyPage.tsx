@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface AcademyPageProps {
   lang: 'en' | 'ar';
@@ -243,15 +244,12 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
                       {course.title}
                     </h3>
                     <p className="text-app-muted text-sm line-clamp-2 mb-8 flex-1 leading-relaxed">{course.previewPost.content}</p>
-                    <button
-                      onClick={() => {
-                        setActivePost(course.startPost);
-                        setActiveCoursePosts(course.posts);
-                      }}
-                      className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-app-text text-sm font-bold hover:bg-app-accent hover:text-app-bg hover:border-app-accent transition-all shadow-xl"
+                    <Link
+                      to={buildPostPath(course.startPost)}
+                      className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-app-text text-sm font-bold hover:bg-app-accent hover:text-app-bg hover:border-app-accent transition-all shadow-xl flex items-center justify-center"
                     >
                       {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
-                    </button>
+                    </Link>
                     {canManagePost(course.startPost) && (
                       <button
                         onClick={() => void handleDeleteLesson(course.startPost.id)}

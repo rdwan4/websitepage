@@ -28,6 +28,7 @@ import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { AdminPostApprovalsPage } from './pages/AdminPostApprovalsPage';
 import { QuranReaderPage } from './pages/QuranReaderPage';
+import { PostDetailPage } from './pages/PostDetailPage';
 import { ContentCategory, QuizQuestion } from './types';
 
 import { Hero } from './components/Hero';
@@ -129,9 +130,13 @@ function App() {
         <Routes location={location} key={location.pathname}>
           <Route index element={<HomePage lang={lang} onAuthClick={() => setIsAuthModalOpen(true)} />} />
           <Route path="/academy" element={<AcademyPage lang={lang} />} />
+          <Route path="/academy/:postId/:slug?" element={<PostDetailPage lang={lang} />} />
           <Route path="/community" element={<CommunityHighlightsPage lang={lang} />} />
+          <Route path="/community/:postId/:slug?" element={<PostDetailPage lang={lang} />} />
           <Route path="/library" element={<LibraryPage lang={lang} />} />
+          <Route path="/library/:postId/:slug?" element={<PostDetailPage lang={lang} />} />
           <Route path="/articles" element={<ArticlesPage lang={lang} />} />
+          <Route path="/articles/:postId/:slug?" element={<PostDetailPage lang={lang} />} />
           <Route path="/quran" element={<QuranReaderPage lang={lang} />} />
           <Route path="/guidance" element={<DailyGuidancePage lang={lang} />} />
           <Route path="/voices" element={<VoicesPage lang={lang} />} />

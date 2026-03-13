@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Award, BookOpen, Loader2, Plus } from 'lucide-react';
+import { Award, BookOpen, Loader2, Plus, RotateCcw, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { contentService } from '../services/contentService';
@@ -18,6 +18,10 @@ const translations = {
     finish: 'Finish Quiz',
     correct: 'Correct! Well done.',
     incorrect: 'Incorrect. Better luck next time.',
+    complete: 'Quiz Completed!',
+    resultSignedIn: "Your final answers were saved to today's record.",
+    resultGuest: 'You finished the quiz. Sign in if you want future results saved.',
+    review: 'Review Questions',
     addQuestion: 'Add Quiz Question',
     points: 'pts',
     loading: 'Loading quiz...',
@@ -26,20 +30,24 @@ const translations = {
     explanation: 'Explanation',
   },
   ar: {
-    title: 'الاختبار اليومي',
-    leaderboard: 'أعلى 3 نتائج',
-    noQuestion: 'اختبار اليوم غير متاح بعد. يرجى المحاولة لاحقاً.',
-    submit: 'إرسال الإجابة',
-    next: 'السؤال التالي',
-    finish: 'إنهاء الاختبار',
-    correct: 'إجابة صحيحة.',
-    incorrect: 'إجابة خاطئة.',
-    addQuestion: 'إضافة سؤال',
-    points: 'نقطة',
-    loading: 'جاري تحميل الاختبار...',
-    empty: 'لا توجد أسئلة يومية موثقة منشورة بعد.',
-    source: 'المصدر',
-    explanation: 'الشرح',
+    title: '\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u064a\u0648\u0645\u064a',
+    leaderboard: '\u0623\u0639\u0644\u0649 3 \u0646\u062a\u0627\u0626\u062c',
+    noQuestion: '\u0627\u062e\u062a\u0628\u0627\u0631 \u0627\u0644\u064a\u0648\u0645 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0628\u0639\u062f. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0644\u0627\u062d\u0642\u0627.',
+    submit: '\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0625\u062c\u0627\u0628\u0629',
+    next: '\u0627\u0644\u0633\u0624\u0627\u0644 \u0627\u0644\u062a\u0627\u0644\u064a',
+    finish: '\u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+    correct: '\u0625\u062c\u0627\u0628\u0629 \u0635\u062d\u064a\u062d\u0629.',
+    incorrect: '\u0625\u062c\u0627\u0628\u0629 \u062e\u0627\u0637\u0626\u0629.',
+    complete: '\u0627\u0643\u062a\u0645\u0644 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631',
+    resultSignedIn: '\u062a\u0645 \u062d\u0641\u0638 \u0625\u062c\u0627\u0628\u0627\u062a\u0643 \u0627\u0644\u0646\u0647\u0627\u0626\u064a\u0629 \u0641\u064a \u0633\u062c\u0644 \u0627\u0644\u064a\u0648\u0645.',
+    resultGuest: '\u0623\u0646\u0647\u064a\u062a \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631. \u0633\u062c\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0625\u0630\u0627 \u0623\u0631\u062f\u062a \u062d\u0641\u0638 \u0627\u0644\u0646\u062a\u0627\u0626\u062c \u0644\u0627\u062d\u0642\u0627.',
+    review: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0623\u0633\u0626\u0644\u0629',
+    addQuestion: '\u0625\u0636\u0627\u0641\u0629 \u0633\u0624\u0627\u0644',
+    points: '\u0646\u0642\u0637\u0629',
+    loading: '\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631...',
+    empty: '\u0644\u0627 \u062a\u0648\u062c\u062f \u0623\u0633\u0626\u0644\u0629 \u064a\u0648\u0645\u064a\u0629 \u0645\u0648\u062b\u0642\u0629 \u0645\u0646\u0634\u0648\u0631\u0629 \u0628\u0639\u062f.',
+    source: '\u0627\u0644\u0645\u0635\u062f\u0631',
+    explanation: '\u0627\u0644\u0634\u0631\u062d',
   },
 };
 
@@ -50,6 +58,7 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [step, setStep] = useState<'quiz' | 'result'>('quiz');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -77,12 +86,18 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
         postService.getLeaderboard(3),
       ]);
 
+      const nextAnswers = Object.fromEntries(
+        (quizBundle.answers || []).map((answer) => [answer.question_id, answer.selected_option_id])
+      );
+      const allAnswered =
+        quizBundle.questions.length > 0 &&
+        quizBundle.questions.every((question) => Boolean(nextAnswers[question.id]));
+
       setBundle(quizBundle);
       setLeaderboard(leaderboardData);
-      setAnswers(
-        Object.fromEntries((quizBundle.answers || []).map((answer) => [answer.question_id, answer.selected_option_id]))
-      );
+      setAnswers(nextAnswers);
       setCurrentIndex(0);
+      setStep(allAnswered ? 'result' : 'quiz');
       setResultMessage('');
     } catch (loadError: any) {
       setError(loadError.message || 'Failed to load quiz.');
@@ -124,6 +139,8 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
       setResultMessage(correct ? t.correct : t.incorrect);
       if (currentIndex < questions.length - 1) {
         setCurrentIndex((current) => current + 1);
+      } else {
+        setStep('result');
       }
       return;
     }
@@ -146,6 +163,7 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
         });
         const refreshed = await postService.getLeaderboard(3);
         setLeaderboard(refreshed);
+        setStep('result');
       } else {
         setCurrentIndex((current) => current + 1);
       }
@@ -156,6 +174,12 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
     }
   };
 
+  const handleReviewAnswers = () => {
+    setCurrentIndex(0);
+    setResultMessage('');
+    setStep('quiz');
+  };
+
   return (
     <motion.div
       className="min-h-screen bg-app-bg pb-20 pt-32"
@@ -164,14 +188,21 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
       exit={{ opacity: 0 }}
     >
       <div className="container mx-auto px-6">
-        <div className={cn('mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-center', lang === 'ar' && 'md:flex-row-reverse')}>
+        <div
+          className={cn(
+            'mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-center',
+            lang === 'ar' && 'md:flex-row-reverse'
+          )}
+        >
           <div>
             <h1 className="mb-3 font-serif text-6xl text-app-text">{t.title}</h1>
             {bundle?.questions?.length ? (
               <p className="text-app-muted">
-                {lang === 'en'
-                  ? `Question ${Math.min(currentIndex + 1, bundle.questions.length)} of ${bundle.questions.length}`
-                  : `\u0627\u0644\u0633\u0624\u0627\u0644 ${Math.min(currentIndex + 1, bundle.questions.length)} \u0645\u0646 ${bundle.questions.length}`}
+                {step === 'result'
+                  ? `${t.complete} ${score}/${bundle.questions.length}`
+                  : lang === 'en'
+                    ? `Question ${Math.min(currentIndex + 1, bundle.questions.length)} of ${bundle.questions.length}`
+                    : `\u0627\u0644\u0633\u0624\u0627\u0644 ${Math.min(currentIndex + 1, bundle.questions.length)} \u0645\u0646 ${bundle.questions.length}`}
               </p>
             ) : (
               <p className="text-app-muted">{t.noQuestion}</p>
@@ -203,6 +234,25 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
                   <div className="flex flex-col items-center gap-4 text-app-muted">
                     <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
                     <p>{t.loading}</p>
+                  </div>
+                </div>
+              ) : step === 'result' ? (
+                <div className="flex h-full items-center justify-center text-center">
+                  <div>
+                    <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gold/10 text-gold">
+                      <Trophy className="h-12 w-12" />
+                    </div>
+                    <h2 className="mb-3 text-3xl font-bold text-app-text">{t.complete}</h2>
+                    <p className="mb-8 text-app-muted">
+                      {score} / {questions.length}. {profile ? t.resultSignedIn : t.resultGuest}
+                    </p>
+                    <button
+                      onClick={handleReviewAnswers}
+                      className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-bold text-app-text transition-colors hover:bg-white/10"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      {t.review}
+                    </button>
                   </div>
                 </div>
               ) : activeQuestion ? (

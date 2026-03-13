@@ -20,7 +20,38 @@ const makeEmptyOptions = (): QuizQuestionOption[] => [0, 1, 2, 3].map((i) => ({ 
 const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', accent_label_en: '', accent_label_ar: '', source_type: 'quran', source_reference: '', category: 'reflection', position: 0, is_published: true };
 const emptyDaily: DailyForm = { id: '', category: 'dua', title: '', title_ar: '', arabic_text: '', english_text: '', transliteration: '', source_type: 'quran', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: false };
 const emptyQuestion: QuestionForm = { id: '', question_en: '', question_ar: '', explanation_en: '', explanation_ar: '', source_type: 'quran', source_reference: '', difficulty: 'beginner', category: '', correct_option_id: '', is_published: true, is_verified: false, options: makeEmptyOptions() };
+const TAB_DRAFT_KEY = 'admin-tab-draft-v1';
+const GUIDANCE_DRAFT_KEY = 'admin-guidance-draft-v1';
+const DAILY_DRAFT_KEY = 'admin-daily-draft-v1';
 const QUESTION_DRAFT_KEY = 'admin-question-draft-v1';
+
+const normalizeGuidanceDraft = (raw: any): GuidanceForm => ({
+  ...emptyGuidance,
+  ...raw,
+  title_en: raw?.title_en || '',
+  title_ar: raw?.title_ar || '',
+  summary_en: raw?.summary_en || '',
+  summary_ar: raw?.summary_ar || '',
+  body_en: raw?.body_en || '',
+  body_ar: raw?.body_ar || '',
+  accent_label_en: raw?.accent_label_en || '',
+  accent_label_ar: raw?.accent_label_ar || '',
+  source_reference: raw?.source_reference || '',
+});
+
+const normalizeDailyDraft = (raw: any): DailyForm => ({
+  ...emptyDaily,
+  ...raw,
+  title: raw?.title || '',
+  title_ar: raw?.title_ar || '',
+  arabic_text: raw?.arabic_text || '',
+  english_text: raw?.english_text || '',
+  transliteration: raw?.transliteration || '',
+  source_reference: raw?.source_reference || '',
+  authenticity_notes: raw?.authenticity_notes || '',
+  image_url: raw?.image_url || '',
+  tags: raw?.tags || '',
+});
 
 const normalizeQuestionDraft = (raw: any): QuestionForm => {
   const fallbackOptions = makeEmptyOptions();
@@ -51,7 +82,14 @@ const normalizeQuestionDraft = (raw: any): QuestionForm => {
 
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = text[lang];
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const stored = window.localStorage.getItem(TAB_DRAFT_KEY);
+      return stored === 'users' || stored === 'guidance' || stored === 'daily' || stored === 'questions' ? stored : 'overview';
+    } catch {
+      return 'overview';
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -66,6 +104,16 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   useEffect(() => {
     try {
+      const storedGuidance = window.localStorage.getItem(GUIDANCE_DRAFT_KEY);
+      if (storedGuidance) {
+        setGuidanceForm(normalizeGuidanceDraft(JSON.parse(storedGuidance)));
+      }
+
+      const storedDaily = window.localStorage.getItem(DAILY_DRAFT_KEY);
+      if (storedDaily) {
+        setDailyForm(normalizeDailyDraft(JSON.parse(storedDaily)));
+      }
+
       const stored = window.localStorage.getItem(QUESTION_DRAFT_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored);
@@ -74,6 +122,30 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
       console.warn('Failed to restore question draft:', error);
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TAB_DRAFT_KEY, tab);
+    } catch (error) {
+      console.warn('Failed to store admin tab:', error);
+    }
+  }, [tab]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(GUIDANCE_DRAFT_KEY, JSON.stringify(guidanceForm));
+    } catch (error) {
+      console.warn('Failed to store guidance draft:', error);
+    }
+  }, [guidanceForm]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(dailyForm));
+    } catch (error) {
+      console.warn('Failed to store daily draft:', error);
+    }
+  }, [dailyForm]);
 
   useEffect(() => {
     try {
@@ -118,12 +190,14 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     const saved = await contentService.saveGuidanceItem({ ...guidanceForm, slug: guidanceForm.slug || guidanceForm.title_en.toLowerCase().replace(/\s+/g, '-'), accent_label_en: guidanceForm.accent_label_en || null, accent_label_ar: guidanceForm.accent_label_ar || null, source_reference: guidanceForm.source_reference || null, image_url: null });
     setGuidance((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
     setGuidanceForm(emptyGuidance);
+    window.localStorage.removeItem(GUIDANCE_DRAFT_KEY);
   });
 
   const saveDaily = async () => runSave(async () => {
     const saved = await contentService.saveDailyContent({ ...dailyForm, title_ar: dailyForm.title_ar || null, arabic_text: dailyForm.arabic_text || null, transliteration: dailyForm.transliteration || null, authenticity_notes: dailyForm.authenticity_notes || null, image_url: dailyForm.image_url || null, tags: dailyForm.tags ? dailyForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [] });
     setDaily((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
     setDailyForm(emptyDaily);
+    window.localStorage.removeItem(DAILY_DRAFT_KEY);
   });
 
   const saveQuestion = async () => runSave(async () => {
