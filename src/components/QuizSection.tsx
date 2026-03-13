@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy,
@@ -23,16 +23,17 @@ const copy = {
     title: 'Daily Knowledge Quiz',
     subtitle: 'Five verified questions rotate each day from the Supabase question bank.',
     ready: 'Ready to start?',
-    startBody: 'Answer today’s 5 questions. Results are saved to your profile when you are signed in.',
+    startBody: "Answer today's 5 questions. Results are saved to your profile when you are signed in.",
     start: 'Start Quiz',
     question: 'Question',
     of: 'of',
     finish: 'Finish Quiz',
     next: 'Next Question',
     complete: 'Quiz Completed!',
-    resultSignedIn: 'Your answers were saved to today’s record.',
-    resultGuest: 'Sign in to save today’s answers.',
+    resultSignedIn: "Your answers were saved to today's record.",
+    resultGuest: "Sign in to save today's answers.",
     tryAgain: 'Review Again',
+    nextSet: 'Take New Quiz',
     signInToSave: 'Sign In to Save',
     leaderboard: 'Leaderboard',
     noScores: 'No scores yet',
@@ -55,13 +56,14 @@ const copy = {
     next: 'السؤال التالي',
     complete: 'اكتمل الاختبار',
     resultSignedIn: 'تم حفظ إجاباتك في سجل اليوم.',
-    resultGuest: 'سجّل الدخول لحفظ إجابات اليوم.',
+    resultGuest: 'سجل الدخول لحفظ إجابات اليوم.',
     tryAgain: 'مراجعة من جديد',
-    signInToSave: 'سجّل الدخول للحفظ',
+    nextSet: 'خذ اختبارا جديدا',
+    signInToSave: 'سجل الدخول للحفظ',
     leaderboard: 'لوحة المتصدرين',
     noScores: 'لا توجد نتائج بعد',
     points: 'نقاط',
-    loading: 'جار تحميل اختبار اليوم...',
+    loading: 'جاري تحميل اختبار اليوم...',
     empty: 'لا توجد أسئلة موثقة منشورة بعد.',
     minimumWarning: 'بنك الأسئلة أقل من الحد الموصى به. أضف 150+ سؤالا موثقا.',
     explanation: 'الشرح',
@@ -88,31 +90,31 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
     [answers, questions]
   );
 
+  const loadQuiz = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [quizBundle, leaderboardData] = await Promise.all([
+        contentService.getDailyQuiz(profile?.id),
+        postService.getLeaderboard(5),
+      ]);
+
+      setBundle(quizBundle);
+      setLeaderboard(leaderboardData);
+
+      const answerMap = Object.fromEntries(
+        (quizBundle.answers || []).map((answer) => [answer.question_id, answer.selected_option_id])
+      );
+      setAnswers(answerMap);
+    } catch (loadError: any) {
+      setError(loadError.message || 'Failed to load quiz.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [quizBundle, leaderboardData] = await Promise.all([
-          contentService.getDailyQuiz(profile?.id),
-          postService.getLeaderboard(5),
-        ]);
-
-        setBundle(quizBundle);
-        setLeaderboard(leaderboardData);
-
-        const answerMap = Object.fromEntries(
-          (quizBundle.answers || []).map((answer) => [answer.question_id, answer.selected_option_id])
-        );
-        setAnswers(answerMap);
-      } catch (loadError: any) {
-        setError(loadError.message || 'Failed to load quiz.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
+    void loadQuiz();
   }, [profile?.id]);
 
   const activeQuestion = questions[currentQuestion];
@@ -173,6 +175,14 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
     setSelectedOption(null);
   };
 
+  const loadNextQuiz = async () => {
+    setStep('start');
+    setCurrentQuestion(0);
+    setSelectedOption(null);
+    setAnswers({});
+    await loadQuiz();
+  };
+
   return (
     <section id="quiz" className="py-32 bg-app-bg relative overflow-hidden">
       <div className="container mx-auto px-6">
@@ -199,7 +209,6 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
                 <div className="text-center">
                   <BookOpen className="mx-auto mb-6 h-14 w-14 text-app-muted/40" />
                   <h3 className="mb-3 text-2xl font-bold text-app-text">{t.empty}</h3>
-                  
                 </div>
               ) : (
                 <AnimatePresence mode="wait">
@@ -216,7 +225,7 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
                       </div>
                       <h3 className="text-2xl font-bold text-app-text mb-4">{t.ready}</h3>
                       <p className="text-app-muted mb-8 max-w-sm mx-auto">{t.startBody}</p>
-                      
+
                       <button
                         onClick={() => setStep('quiz')}
                         className="px-12 py-4 bg-app-accent text-app-bg rounded-2xl font-bold hover:scale-105 transition-all shadow-lg shadow-app-accent/20"
@@ -345,10 +354,16 @@ export const QuizSection = ({ lang, onAuthClick }: { lang: 'en' | 'ar'; onAuthCl
                         >
                           <RotateCcw className="w-4 h-4" /> {t.tryAgain}
                         </button>
+                        <button
+                          onClick={() => void loadNextQuiz()}
+                          className="w-full sm:w-auto px-8 py-4 bg-app-accent text-app-bg rounded-2xl font-bold hover:scale-105 transition-all flex items-center justify-center gap-2"
+                        >
+                          <RotateCcw className="w-4 h-4" /> {t.nextSet}
+                        </button>
                         {!profile && (
                           <button
                             onClick={onAuthClick}
-                            className="w-full sm:w-auto px-8 py-4 bg-app-accent text-app-bg rounded-2xl font-bold hover:scale-105 transition-all"
+                            className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-bold text-app-text hover:bg-white/10 transition-all"
                           >
                             {t.signInToSave}
                           </button>
