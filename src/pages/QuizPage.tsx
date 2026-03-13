@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Award, BookOpen, Loader2, Plus, RotateCcw, Trophy } from 'lucide-react';
+import { Award, BookOpen, CheckCircle2, Loader2, Plus, RotateCcw, Trophy, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { contentService } from '../services/contentService';
@@ -22,6 +22,7 @@ const translations = {
     resultSignedIn: "Your final answers were saved to today's record.",
     resultGuest: 'You finished the quiz. Sign in if you want future results saved.',
     review: 'Review Questions',
+    nextSet: 'Load 5 New Questions',
     addQuestion: 'Add Quiz Question',
     points: 'pts',
     loading: 'Loading quiz...',
@@ -42,6 +43,7 @@ const translations = {
     resultSignedIn: '\u062a\u0645 \u062d\u0641\u0638 \u0625\u062c\u0627\u0628\u0627\u062a\u0643 \u0627\u0644\u0646\u0647\u0627\u0626\u064a\u0629 \u0641\u064a \u0633\u062c\u0644 \u0627\u0644\u064a\u0648\u0645.',
     resultGuest: '\u0623\u0646\u0647\u064a\u062a \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631. \u0633\u062c\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0625\u0630\u0627 \u0623\u0631\u062f\u062a \u062d\u0641\u0638 \u0627\u0644\u0646\u062a\u0627\u0626\u062c \u0644\u0627\u062d\u0642\u0627.',
     review: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0623\u0633\u0626\u0644\u0629',
+    nextSet: '\u062a\u062d\u0645\u064a\u0644 5 \u0623\u0633\u0626\u0644\u0629 \u062c\u062f\u064a\u062f\u0629',
     addQuestion: '\u0625\u0636\u0627\u0641\u0629 \u0633\u0624\u0627\u0644',
     points: '\u0646\u0642\u0637\u0629',
     loading: '\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631...',
@@ -67,6 +69,21 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
   const questions = bundle?.questions || [];
   const activeQuestion = questions[currentIndex];
   const selectedOptionId = activeQuestion ? answers[activeQuestion.id] : null;
+  const answerReview = useMemo(
+    () =>
+      questions.map((question) => {
+        const selectedId = answers[question.id];
+        const selectedOption = question.options.find((option) => option.id === selectedId) || null;
+        const correctOption = question.options.find((option) => option.id === question.correct_option_id) || null;
+        return {
+          question,
+          selectedOption,
+          correctOption,
+          isCorrect: selectedId === question.correct_option_id,
+        };
+      }),
+    [answers, questions]
+  );
 
   const score = useMemo(
     () =>
@@ -155,6 +172,7 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
       setResultMessage(correct ? t.correct : t.incorrect);
 
       if (currentIndex === questions.length - 1) {
+        setStep('result');
         await postService.saveQuizScore({
           user_id: profile.id,
           score: score * 20 + (correct ? 20 : 0),
@@ -163,7 +181,6 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
         });
         const refreshed = await postService.getLeaderboard(3);
         setLeaderboard(refreshed);
-        setStep('result');
       } else {
         setCurrentIndex((current) => current + 1);
       }
@@ -178,6 +195,10 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
     setCurrentIndex(0);
     setResultMessage('');
     setStep('quiz');
+  };
+
+  const handleLoadNextSet = async () => {
+    await loadQuiz();
   };
 
   return (
@@ -246,13 +267,49 @@ export const QuizPage = ({ lang = 'en' }: { lang: 'en' | 'ar' }) => {
                     <p className="mb-8 text-app-muted">
                       {score} / {questions.length}. {profile ? t.resultSignedIn : t.resultGuest}
                     </p>
-                    <button
-                      onClick={handleReviewAnswers}
-                      className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-bold text-app-text transition-colors hover:bg-white/10"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      {t.review}
-                    </button>
+                    <div className="mx-auto mb-8 max-w-3xl space-y-4 text-left">
+                      {answerReview.map(({ question, selectedOption, correctOption, isCorrect }, index) => (
+                        <div key={question.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="mb-2 flex items-center justify-between gap-4">
+                            <p className="font-bold text-app-text">
+                              {index + 1}. {lang === 'ar' ? question.question_ar || question.question_en : question.question_en}
+                            </p>
+                            <span className={cn('inline-flex items-center gap-2 text-sm font-bold', isCorrect ? 'text-emerald-400' : 'text-red-400')}>
+                              {isCorrect ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                              {isCorrect ? (lang === 'en' ? 'Correct' : 'صحيح') : (lang === 'en' ? 'Wrong' : 'خطأ')}
+                            </span>
+                          </div>
+                          <p className="text-sm text-app-muted">
+                            {lang === 'en' ? 'Your answer: ' : 'إجابتك: '}
+                            <span className="font-semibold text-app-text">
+                              {selectedOption ? (lang === 'ar' ? selectedOption.label_ar || selectedOption.label_en : selectedOption.label_en) : '-'}
+                            </span>
+                          </p>
+                          <p className="mt-1 text-sm text-app-muted">
+                            {lang === 'en' ? 'Correct answer: ' : 'الإجابة الصحيحة: '}
+                            <span className="font-semibold text-app-accent">
+                              {correctOption ? (lang === 'ar' ? correctOption.label_ar || correctOption.label_en : correctOption.label_en) : '-'}
+                            </span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                      <button
+                        onClick={handleReviewAnswers}
+                        className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-bold text-app-text transition-colors hover:bg-white/10"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        {t.review}
+                      </button>
+                      <button
+                        onClick={() => void handleLoadNextSet()}
+                        className="inline-flex items-center gap-3 rounded-2xl bg-app-accent px-6 py-4 font-bold text-app-bg transition-colors hover:bg-app-accent-hover"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        {t.nextSet}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : activeQuestion ? (

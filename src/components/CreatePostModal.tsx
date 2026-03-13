@@ -129,7 +129,10 @@ export const CreatePostModal = ({
   const isEditing = Boolean(postToEdit);
   const isAdmin = profile?.role === 'admin';
   const isCategoryLocked = Boolean(initialCategorySlug) && !isEditing;
-  const selectedCategory = categories.find((category) => category.id === categoryId);
+  const lockedCategory = isCategoryLocked
+    ? categories.find((category) => category.slug === initialCategorySlug)
+    : null;
+  const selectedCategory = lockedCategory || categories.find((category) => category.id === categoryId);
   const activeAccept = typeUploadAccept[type] || '';
   const canUploadForType = Boolean(activeAccept);
   const draftKey = useMemo(
@@ -229,6 +232,13 @@ export const CreatePostModal = ({
   }, [categories, initialCategorySlug, initialType, postToEdit]);
 
   useEffect(() => {
+    if (!isOpen || !lockedCategory) return;
+    if (categoryId !== lockedCategory.id) {
+      setCategoryId(lockedCategory.id);
+    }
+  }, [categoryId, isOpen, lockedCategory]);
+
+  useEffect(() => {
     if (!isOpen || postToEdit || categories.length === 0) return;
 
     try {
@@ -242,7 +252,7 @@ export const CreatePostModal = ({
       setContent(parsed.content || '');
       setSecondaryTitle(parsed.secondaryTitle || '');
       setSecondaryContent(parsed.secondaryContent || '');
-      setCategoryId(parsed.categoryId || categoryId || '');
+      setCategoryId(lockedCategory?.id || parsed.categoryId || categoryId || '');
       setImageUrl(parsed.imageUrl || '');
       setMediaUrl(parsed.mediaUrl || '');
       setSeriesTitle(parsed.seriesTitle || '');
@@ -251,7 +261,7 @@ export const CreatePostModal = ({
     } catch (draftError) {
       console.warn('Failed to restore post modal draft:', draftError);
     }
-  }, [categoryId, categories.length, draftKey, initialType, isOpen, lang, postToEdit]);
+  }, [categories.length, categoryId, draftKey, initialType, isOpen, lang, lockedCategory?.id, postToEdit]);
 
   useEffect(() => {
     if (!isOpen || postToEdit) return;
@@ -266,7 +276,7 @@ export const CreatePostModal = ({
           content,
           secondaryTitle,
           secondaryContent,
-          categoryId,
+          categoryId: lockedCategory?.id || categoryId,
           imageUrl,
           mediaUrl,
           seriesTitle,
@@ -395,7 +405,9 @@ export const CreatePostModal = ({
       return;
     }
 
-    if (!categoryId) {
+    const effectiveCategoryId = lockedCategory?.id || categoryId;
+
+    if (!effectiveCategoryId) {
       setError(lang === 'en' ? 'Choose a category.' : 'اختر فئة.');
       return;
     }
@@ -418,7 +430,7 @@ export const CreatePostModal = ({
 
     const payload = {
       author_id: profile.id,
-      category_id: categoryId,
+      category_id: effectiveCategoryId,
       title: finalTitle,
       content: finalContent,
       post_type: type,

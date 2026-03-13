@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { postService } from '../services/postService';
 import { Comment, Post } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { buildPostPath, getPostSection, PublicPostSection } from '../lib/postRoutes';
+import { CreatePostModal } from '../components/CreatePostModal';
 
 const getEmbeddableVideoUrl = (url: string) => {
   if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
@@ -77,6 +78,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [likesCount, setLikesCount] = useState(0);
   const [viewsCount, setViewsCount] = useState(0);
   const viewedPostIds = useRef<Set<string>>(new Set());
@@ -151,6 +154,22 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
       setComments(loadedComments);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const canManagePost = Boolean(profile && post && (profile.role === 'admin' || profile.id === post.author_id));
+
+  const handleDelete = async () => {
+    if (!post?.id || deleting) return;
+    const confirmed = window.confirm(lang === 'en' ? 'Delete this post?' : 'هل تريد حذف هذا المنشور؟');
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await postService.deletePost(post.id);
+      navigate(backPath, { replace: true });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -260,6 +279,25 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                   {viewsCount}
                 </div>
               </div>
+              {canManagePost && (
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingPost(post)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-app-text hover:bg-white/10"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {lang === 'en' ? 'Edit' : 'تعديل'}
+                  </button>
+                  <button
+                    onClick={() => void handleDelete()}
+                    disabled={deleting}
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                  >
+                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    {lang === 'en' ? 'Delete' : 'حذف'}
+                  </button>
+                </div>
+              )}
               {!profile && <p className="mt-4 text-xs text-app-muted">{t.signIn}</p>}
             </div>
 
@@ -302,6 +340,24 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           </div>
         </div>
       </div>
+
+      <CreatePostModal
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        lang={lang}
+        postToEdit={editingPost}
+        categoryFilter="non-sidebar"
+        onSuccess={async () => {
+          setEditingPost(null);
+          if (!postId) return;
+          const refreshed = await postService.getPostById(postId);
+          setPost(refreshed);
+          if (refreshed) {
+            setLikesCount(refreshed.likes_count || 0);
+            setViewsCount(refreshed.views_count || 0);
+          }
+        }}
+      />
     </div>
   );
 };

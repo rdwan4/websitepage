@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Play, Clock, Star, ArrowLeft, Search, Plus, Trash2, Music } from 'lucide-react';
+import { Play, Clock, Star, ArrowLeft, Search, Plus, Trash2, Music, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
@@ -251,16 +251,27 @@ export const AcademyPage: React.FC<AcademyPageProps> = ({ lang }) => {
                       {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
                     </Link>
                     {canManagePost(course.startPost) && (
-                      <button
-                        onClick={() => void handleDeleteLesson(course.startPost.id)}
-                        disabled={deletingId === course.startPost.id}
-                        className="mt-3 w-full py-3 rounded-2xl border border-red-500/40 bg-red-500/10 text-red-300 text-xs font-bold uppercase tracking-wider hover:bg-red-500/20 disabled:opacity-50"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Trash2 className="w-4 h-4" />
-                          {lang === 'en' ? 'Delete' : 'حذف'}
-                        </span>
-                      </button>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => setEditingPost(course.startPost)}
+                          className="w-full py-3 rounded-2xl border border-white/15 bg-white/5 text-app-text text-xs font-bold uppercase tracking-wider hover:bg-white/10"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Pencil className="w-4 h-4" />
+                            {lang === 'en' ? 'Edit' : 'تعديل'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => void handleDeleteLesson(course.startPost.id)}
+                          disabled={deletingId === course.startPost.id}
+                          className="w-full py-3 rounded-2xl border border-red-500/40 bg-red-500/10 text-red-300 text-xs font-bold uppercase tracking-wider hover:bg-red-500/20 disabled:opacity-50"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Trash2 className="w-4 h-4" />
+                            {lang === 'en' ? 'Delete' : 'حذف'}
+                          </span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </motion.div>

@@ -37,6 +37,25 @@ const rotateDaily = <T extends { id: string }>(items: T[], dateKey: string, coun
   return slice;
 };
 
+const buildQuizSlice = <T extends { id: string }>(items: T[], answeredIds: string[], dateKey: string, count = DAILY_SLICE) => {
+  if (items.length === 0) return [];
+
+  const answeredSet = new Set(answeredIds);
+  const unanswered = items.filter((item) => !answeredSet.has(item.id));
+  const primary = rotateDaily(unanswered, `${dateKey}:unanswered`, count);
+
+  if (primary.length >= count || items.length <= count) {
+    return primary.length ? primary : rotateDaily(items, `${dateKey}:fallback`, count);
+  }
+
+  const used = new Set(primary.map((item) => item.id));
+  const fallback = rotateDaily(items, `${dateKey}:fallback`, items.length)
+    .filter((item) => !used.has(item.id))
+    .slice(0, count - primary.length);
+
+  return [...primary, ...fallback];
+};
+
 const normalizeGuidanceItem = (row: any): GuidanceItem => ({
   id: row.id,
   slug: row.slug,
@@ -394,8 +413,6 @@ export const contentService = {
 
       allQuestions = await hydrateQuestions(publishedQuestions || []);
     }
-    const questions: QuizQuestion[] = rotateDaily<QuizQuestion>(allQuestions, `quiz:${dateKey}`);
-
     let answers: UserAnswer[] = [];
     if (userId) {
       const { data: answerData, error: answerError } = await supabase
@@ -415,6 +432,13 @@ export const contentService = {
         answers = answerData || [];
       }
     }
+
+    const questions: QuizQuestion[] = buildQuizSlice(
+      allQuestions,
+      answers.map((answer) => answer.question_id),
+      `quiz:${dateKey}`,
+      DAILY_SLICE
+    );
 
     return {
       dateKey,

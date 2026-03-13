@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, ArrowLeft, Search, Download, Star, Share2, Heart, Book, Plus, Trash2, Music } from 'lucide-react';
+import { BookOpen, ArrowLeft, Search, Download, Star, Share2, Heart, Book, Plus, Trash2, Music, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
@@ -252,6 +252,15 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({ lang }) => {
                         {lang === 'en' ? 'Open Course' : 'فتح الدورة'}
                       </Link>
                       <div className="flex items-center gap-3">
+                        {canManagePost(course.startPost) && (
+                          <button
+                            onClick={() => setEditingPost(course.startPost)}
+                            className="p-2 text-app-muted hover:text-app-accent transition-colors"
+                            title={lang === 'en' ? 'Edit' : 'تعديل'}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         {canManagePost(course.startPost) && (
                           <button
                             onClick={() => void handleDeleteBook(course.startPost.id)}
