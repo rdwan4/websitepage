@@ -37,23 +37,37 @@ const rotateDaily = <T extends { id: string }>(items: T[], dateKey: string, coun
   return slice;
 };
 
-const buildQuizSlice = <T extends { id: string }>(items: T[], answeredIds: string[], dateKey: string, count = DAILY_SLICE) => {
+const buildQuizSlice = <T extends { id: string }>(
+  items: T[],
+  answeredIds: string[],
+  dateKey: string,
+  count = DAILY_SLICE,
+  excludedIds: string[] = []
+) => {
   if (items.length === 0) return [];
 
   const answeredSet = new Set(answeredIds);
-  const unanswered = items.filter((item) => !answeredSet.has(item.id));
+  const excludedSet = new Set(excludedIds);
+  const available = items.filter((item) => !excludedSet.has(item.id));
+  const unanswered = available.filter((item) => !answeredSet.has(item.id));
   const primary = rotateDaily(unanswered, `${dateKey}:unanswered`, count);
 
-  if (primary.length >= count || items.length <= count) {
-    return primary.length ? primary : rotateDaily(items, `${dateKey}:fallback`, count);
+  if (primary.length >= count || available.length <= count) {
+    return primary.length ? primary : rotateDaily(available.length ? available : items, `${dateKey}:fallback`, count);
   }
 
   const used = new Set(primary.map((item) => item.id));
-  const fallback = rotateDaily(items, `${dateKey}:fallback`, items.length)
+  const fallback = rotateDaily(available, `${dateKey}:fallback`, available.length)
     .filter((item) => !used.has(item.id))
     .slice(0, count - primary.length);
 
   return [...primary, ...fallback];
+};
+
+type DailyQuizOptions = {
+  excludeQuestionIds?: string[];
+  includeAnswers?: boolean;
+  seed?: string;
 };
 
 const normalizeGuidanceItem = (row: any): GuidanceItem => ({
@@ -369,7 +383,7 @@ export const contentService = {
     return hydrateQuestions(data || []);
   },
 
-  async getDailyQuiz(userId?: string, dateKey = getUtcDateKey()): Promise<DailyQuizBundle> {
+  async getDailyQuiz(userId?: string, dateKey = getUtcDateKey(), options: DailyQuizOptions = {}): Promise<DailyQuizBundle> {
     const { data: verifiedQuestions, error } = await supabase
       .from('questions')
       .select('*')
@@ -436,8 +450,9 @@ export const contentService = {
     const questions: QuizQuestion[] = buildQuizSlice(
       allQuestions,
       answers.map((answer) => answer.question_id),
-      `quiz:${dateKey}`,
-      DAILY_SLICE
+      options.seed || `quiz:${dateKey}`,
+      DAILY_SLICE,
+      options.excludeQuestionIds || []
     );
 
     return {
@@ -445,7 +460,7 @@ export const contentService = {
       questions,
       totalAvailable: allQuestions.length,
       hasMinimumDataset: allQuestions.length >= DAILY_QUESTION_MINIMUM,
-      answers,
+      answers: options.includeAnswers === false ? [] : answers,
     };
   },
 
