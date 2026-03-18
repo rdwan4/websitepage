@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://www.islamiclight.online/sitemap.xml
-
+Host: www.islamiclight.online
