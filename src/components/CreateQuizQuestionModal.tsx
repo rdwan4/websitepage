@@ -1,43 +1,44 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X, HelpCircle, Lightbulb, BookOpen, Layers, MessageSquare, ChevronRight } from 'lucide-react';
 import { contentService } from '../services/contentService';
 import { QuizQuestion, QuizQuestionOption, SourceType } from '../types';
+import { cn } from '../lib/utils';
 
 const translations = {
   en: {
-    title: 'Create Daily Quiz Question',
+    title: 'Daily Quiz Question',
+    subtitle: 'Create engaging knowledge tests',
     questionEn: 'Question (English)',
     questionAr: 'Question (Arabic)',
-    option: 'Option',
-    correctOption: 'Correct Option',
-    addOption: 'Add Option',
+    correctOption: 'Mark the correct answer',
+    addOption: 'Add New Option',
     sourceType: 'Source Type',
-    sourceReference: 'Source Reference',
-    difficulty: 'Difficulty',
+    sourceReference: 'Reference',
+    difficulty: 'Level',
     category: 'Category',
     explanationEn: 'Explanation (English)',
     explanationAr: 'Explanation (Arabic)',
-    publish: 'Publish Question',
-    cancel: 'Cancel',
-    error: 'Failed to create question.',
+    publish: 'Publish to Platform',
+    cancel: 'Discard',
+    error: 'An unexpected error occurred.',
   },
   ar: {
-    title: 'إنشاء سؤال الاختبار اليومي',
+    title: 'سؤال الاختبار اليومي',
+    subtitle: 'أنشئ اختبارات معرفية تفاعلية',
     questionEn: 'السؤال (إنجليزي)',
     questionAr: 'السؤال (عربي)',
-    option: 'خيار',
-    correctOption: 'الخيار الصحيح',
-    addOption: 'إضافة خيار',
+    correctOption: 'حدد الإجابة الصحيحة',
+    addOption: 'إضافة خيار جديد',
     sourceType: 'نوع المصدر',
-    sourceReference: 'مرجع المصدر',
-    difficulty: 'الصعوبة',
+    sourceReference: 'المرجع',
+    difficulty: 'المستوى',
     category: 'الفئة',
     explanationEn: 'الشرح (إنجليزي)',
     explanationAr: 'الشرح (عربي)',
-    publish: 'نشر السؤال',
+    publish: 'نشر على المنصة',
     cancel: 'إلغاء',
-    error: 'فشل إنشاء السؤال.',
+    error: 'حدث خطأ غير متوقع.',
   },
 };
 
@@ -75,15 +76,13 @@ export const CreateQuizQuestionModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleAddOption = () => {
-    if (options.length >= 5) return;
-    setOptions((current) => [...current, createEmptyOption(current.length)]);
+  const handleOptionChange = (idx: number, field: 'label_en' | 'label_ar', val: string) => {
+    setOptions(curr => curr.map((opt, i) => (i === idx ? { ...opt, [field]: val } : opt)));
   };
 
-  const handleOptionChange = (index: number, field: 'label_en' | 'label_ar', value: string) => {
-    setOptions((current) =>
-      current.map((option, optionIndex) => (optionIndex === index ? { ...option, [field]: value } : option))
-    );
+  const handleAddOption = () => {
+    if (options.length >= 5) return;
+    setOptions(current => [...current, createEmptyOption(current.length)]);
   };
 
   const resetForm = () => {
@@ -100,21 +99,20 @@ export const CreateQuizQuestionModal = ({
     setError('');
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
     setError('');
 
     try {
-      const preparedOptions = options
-        .filter((option) => option.label_en.trim())
+      const prepared = options
+        .filter(option => option.label_en.trim())
         .map((option, index) => ({ ...option, sort_order: index }));
 
-      if (preparedOptions.length < 2) {
-        throw new Error(lang === 'en' ? 'Add at least two options.' : '\u0623\u0636\u0641 \u062e\u064a\u0627\u0631\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644.');
+      if (prepared.length < 2) {
+        throw new Error(lang === 'en' ? 'Add at least two options.' : 'أضف خيارين على الأقل.');
       }
 
-      const fallbackCorrectId = correctOptionId || preparedOptions[0].id;
       const savedQuestion = await contentService.saveQuestion({
         question_en: questionEn,
         question_ar: questionAr || null,
@@ -124,10 +122,10 @@ export const CreateQuizQuestionModal = ({
         source_reference: sourceReference,
         difficulty,
         category,
-        correct_option_id: fallbackCorrectId,
+        correct_option_id: correctOptionId || prepared[0].id,
         is_published: true,
         is_verified: true,
-        options: preparedOptions,
+        options: prepared,
       });
 
       onSuccess(savedQuestion);
@@ -144,140 +142,192 @@ export const CreateQuizQuestionModal = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/50 p-4">
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl md:p-10"
+        onClick={onClose}
+      >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-app-card p-8 shadow-xl"
+          onClick={e => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.9, y: 40 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 40 }}
+          className="relative flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden bg-app-card border border-white/10 shadow-2xl rounded-[3rem]"
         >
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-app-text">{t.title}</h2>
-            <button onClick={onClose} className="text-app-muted transition-colors hover:text-app-text">
-              <X />
-            </button>
+          {/* HEADER */}
+          <div className="p-8 md:p-10 border-b border-white/5 bg-white/[0.02]">
+             <div className={cn("flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
+                <div className={cn("flex items-center gap-5", lang === 'ar' && "flex-row-reverse text-right")}>
+                   <div className="h-14 w-14 rounded-[1.2rem] bg-app-accent flex items-center justify-center text-app-bg shadow-2xl shadow-app-accent/20">
+                      <HelpCircle className="h-7 w-7" />
+                   </div>
+                   <div>
+                      <h2 className="text-2xl font-bold text-app-text md:text-3xl tracking-tight">{t.title}</h2>
+                      <p className="text-sm text-app-muted font-medium mt-1">{t.subtitle}</p>
+                   </div>
+                </div>
+                <button onClick={onClose} className="p-2.5 rounded-full bg-white/5 text-app-muted hover:text-app-text transition-all active:scale-90">
+                   <X className="h-5 w-5" />
+                </button>
+             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              placeholder={t.questionEn}
-              value={questionEn}
-              onChange={(event) => setQuestionEn(event.target.value)}
-              required
-              className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-            />
-            <input
-              type="text"
-              placeholder={t.questionAr}
-              value={questionAr}
-              onChange={(event) => setQuestionAr(event.target.value)}
-              className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-            />
-            <textarea
-              placeholder={t.explanationEn}
-              value={explanationEn}
-              onChange={(event) => setExplanationEn(event.target.value)}
-              rows={3}
-              className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-            />
-            <textarea
-              placeholder={t.explanationAr}
-              value={explanationAr}
-              onChange={(event) => setExplanationAr(event.target.value)}
-              rows={3}
-              className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-            />
+          <div className="overflow-y-auto flex-1 p-8 md:p-10">
+            <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-12">
 
-            <hr className="border-white/10" />
-            <h3 className="font-bold text-app-text">{t.correctOption}</h3>
+               {/* LEFT COLUMN: MAIN CONTENT */}
+               <div className="lg:col-span-7 space-y-6">
+                  <div className="space-y-3">
+                     <div className={cn("flex items-center gap-3 text-app-accent mb-1", lang === 'ar' && "flex-row-reverse")}>
+                        <MessageSquare className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'The Question' : 'نص السؤال'}</span>
+                     </div>
+                     <div className="space-y-3">
+                        <input
+                          required
+                          value={questionEn}
+                          onChange={e => setQuestionEn(e.target.value)}
+                          placeholder={t.questionEn}
+                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50 font-bold"
+                        />
+                        <input
+                          value={questionAr}
+                          onChange={e => setQuestionAr(e.target.value)}
+                          placeholder={t.questionAr}
+                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50 font-bold"
+                        />
+                     </div>
+                  </div>
 
-            {options.map((option, index) => (
-              <div key={option.id} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="correct_option"
-                  checked={(correctOptionId || options[0]?.id) === option.id}
-                  onChange={() => setCorrectOptionId(option.id)}
-                />
-                <input
-                  type="text"
-                  placeholder={`${t.option} ${index + 1} (EN)`}
-                  value={option.label_en}
-                  onChange={(event) => handleOptionChange(index, 'label_en', event.target.value)}
-                  required
-                  className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-                />
-                <input
-                  type="text"
-                  placeholder={`${t.option} ${index + 1} (AR)`}
-                  value={option.label_ar || ''}
-                  onChange={(event) => handleOptionChange(index, 'label_ar', event.target.value)}
-                  className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-                />
-              </div>
-            ))}
+                  <div className="space-y-3">
+                     <div className={cn("flex items-center gap-3 text-indigo-400 mb-1", lang === 'ar' && "flex-row-reverse")}>
+                        <Lightbulb className="h-4 w-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'Explanation' : 'شرح الإجابة'}</span>
+                     </div>
+                     <div className="space-y-3">
+                        <textarea
+                          value={explanationEn}
+                          onChange={e => setExplanationEn(e.target.value)}
+                          placeholder={t.explanationEn}
+                          rows={3}
+                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50"
+                        />
+                        <textarea
+                          value={explanationAr}
+                          onChange={e => setExplanationAr(e.target.value)}
+                          placeholder={t.explanationAr}
+                          rows={3}
+                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50"
+                        />
+                     </div>
+                  </div>
+               </div>
 
-            <button type="button" onClick={handleAddOption} className="text-sm text-app-accent">
-              {t.addOption}
-            </button>
+               {/* RIGHT COLUMN: OPTIONS & SETTINGS */}
+               <div className="lg:col-span-5 space-y-6">
+                  <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5">
+                     <div className={cn("flex items-center justify-between mb-4", lang === 'ar' && "flex-row-reverse")}>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-app-text">{t.correctOption}</h3>
+                        <span className="text-[10px] font-bold text-app-accent">{options.length}/5</span>
+                     </div>
+                     <div className="space-y-2.5">
+                        {options.map((opt, i) => (
+                          <div
+                            key={opt.id}
+                            className={cn(
+                              "group flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all cursor-pointer",
+                              correctOptionId === opt.id ? "bg-app-accent/10 border-app-accent/30" : "bg-app-bg border-white/5 hover:border-white/20"
+                            )}
+                            onClick={() => setCorrectOptionId(opt.id)}
+                          >
+                             <div className={cn("flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
+                                <span className="text-[9px] font-bold text-app-muted">Option {i+1}</span>
+                                <div className={cn("h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors", correctOptionId === opt.id ? "border-app-accent bg-app-accent" : "border-white/20")}>
+                                   {correctOptionId === opt.id && <Check className="h-2.5 w-2.5 text-app-bg stroke-[4]" />}
+                                </div>
+                             </div>
+                             <input
+                               required
+                               onClick={e => e.stopPropagation()}
+                               value={opt.label_en}
+                               onChange={e => handleOptionChange(i, 'label_en', e.target.value)}
+                               placeholder="Answer (EN)"
+                               className="bg-transparent outline-none text-sm text-app-text font-bold"
+                             />
+                             <input
+                               onClick={e => e.stopPropagation()}
+                               value={opt.label_ar || ''}
+                               onChange={e => handleOptionChange(i, 'label_ar', e.target.value)}
+                               placeholder="الإجابة (AR)"
+                               className="bg-transparent outline-none text-sm text-right text-app-text font-bold"
+                             />
+                          </div>
+                        ))}
+                     </div>
+                     <button
+                       type="button"
+                       onClick={handleAddOption}
+                       className="w-full mt-3 py-2.5 rounded-xl border border-dashed border-white/10 text-[9px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent transition-all"
+                     >
+                        {t.addOption}
+                     </button>
+                  </div>
 
-            <hr className="border-white/10" />
+                  <div className="grid grid-cols-2 gap-3">
+                     <div className="space-y-1.5">
+                        <div className={cn("flex items-center gap-2 text-app-muted", lang === 'ar' && "flex-row-reverse")}>
+                           <BookOpen className="h-3 w-3" />
+                           <span className="text-[9px] font-black uppercase tracking-widest">{t.sourceType}</span>
+                        </div>
+                        <select value={sourceType} onChange={e => setSourceType(e.target.value as any)} className="w-full rounded-xl bg-app-bg border border-white/10 p-2.5 text-xs text-app-text outline-none">
+                           <option value="quran">Quran</option>
+                           <option value="hadith">Hadith</option>
+                           <option value="scholar">Scholar</option>
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <div className={cn("flex items-center gap-2 text-app-muted", lang === 'ar' && "flex-row-reverse")}>
+                           <Layers className="h-3 w-3" />
+                           <span className="text-[9px] font-black uppercase tracking-widest">{t.difficulty}</span>
+                        </div>
+                        <select value={difficulty} onChange={e => setDifficulty(e.target.value as any)} className="w-full rounded-xl bg-app-bg border border-white/10 p-2.5 text-xs text-app-text outline-none">
+                           <option value="beginner">Beginner</option>
+                           <option value="intermediate">Medium</option>
+                           <option value="advanced">Expert</option>
+                        </select>
+                     </div>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <select
-                value={sourceType}
-                onChange={(event) => setSourceType(event.target.value as SourceType)}
-                className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-              >
-                <option value="quran">Quran</option>
-                <option value="hadith">Hadith</option>
-                <option value="scholar">Scholar</option>
-                <option value="athar">Athar</option>
-              </select>
-              <input
-                type="text"
-                placeholder={t.sourceReference}
-                value={sourceReference}
-                onChange={(event) => setSourceReference(event.target.value)}
-                className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-              />
-              <select
-                value={difficulty}
-                onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}
-                className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-              >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-              <input
-                type="text"
-                placeholder={t.category}
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-xl bg-white/5 p-3 text-app-text"
-              />
-            </div>
+                  {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] text-center">{error}</div>}
 
-            {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
-
-            <div className="mt-6 flex justify-end gap-4">
-              <button type="button" onClick={onClose} className="rounded-xl bg-white/10 px-4 py-2">
-                {t.cancel}
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 rounded-xl bg-app-accent px-4 py-2 text-app-bg disabled:opacity-50"
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                {t.publish}
-              </button>
-            </div>
-          </form>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-4 rounded-2xl bg-app-accent text-app-bg font-black uppercase tracking-widest text-sm shadow-xl shadow-app-accent/20 active:scale-[0.98] transition-all"
+                  >
+                     {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : t.publish}
+                  </button>
+               </div>
+            </form>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
   );
 };
+
+const Check = ({ className }: { className?: string; strokeWidth?: number }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={3}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);

@@ -1,4 +1,4 @@
-import { Post } from '../types';
+﻿import { Post } from '../types';
 
 export type PublicPostSection = 'articles' | 'academy' | 'library' | 'community';
 
@@ -15,12 +15,11 @@ export const getPostSection = (post: Pick<Post, 'category' | 'post_type'>): Publ
   const slug = (post.category?.slug || post.category?.name || post.category?.name_ar || '').trim().toLowerCase();
 
   if (slug === 'articles' || slug === 'article' || slug === 'مقالات' || slug === 'المقالات') return 'articles';
-  if (slug === 'academy' || slug === 'الأكاديمية') return 'academy';
+  if (slug === 'academy' || slug === 'الأكاديمية') return 'community';
   if (slug === 'library' || slug === 'المكتبة') return 'library';
   if (slug === 'community' || slug === 'المجتمع') return 'community';
 
-  // Fallbacks keep non-standard category names routable.
-  if (post.post_type === 'video' || post.post_type === 'audio') return 'academy';
+  if (post.post_type === 'video' || post.post_type === 'audio') return 'community';
   if (post.post_type === 'pdf') return 'library';
   return 'articles';
 };

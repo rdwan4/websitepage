@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { isNativeApp } from '../lib/runtime';
 import { useAuth } from '../context/AuthContext';
 
 interface AuthModalProps {
@@ -67,7 +68,8 @@ const copy = {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onSuccess }) => {
   const navigate = useNavigate();
-  const { login, register, loginWithGoogle, loading: authLoading } = useAuth();
+  const { login, register, loginWithGoogle, loading: authLoading, user } = useAuth();
+  const nativeApp = isNativeApp();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,6 +84,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
   const isArabic = lang === 'ar';
 
   useEffect(() => {
+    if (user && isOpen) {
+      finalizeSuccess();
+    }
+  }, [user, isOpen]);
+
+  useEffect(() => {
     if (!isOpen) {
       setError('');
       setMessage('');
@@ -90,6 +98,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
       setShowPassword(false);
     }
   }, [isOpen]);
+
+  
 
   const resetFeedback = () => {
     setError('');
@@ -149,8 +159,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
 
     try {
       await loginWithGoogle();
+      finalizeSuccess();
     } catch (err: any) {
       setError(err?.message || t.googleFailed);
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -160,12 +172,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
             className="absolute inset-0 bg-app-bg/80 backdrop-blur-xl"
           />
 
@@ -173,12 +184,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to backdrop
             className={cn(
-              'relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-2xl',
+              'relative w-full overflow-hidden border border-white/10 bg-white/[0.02] shadow-2xl',
+              nativeApp ? 'max-w-[24rem] rounded-[2rem]' : 'max-w-md rounded-[2.5rem]',
               isArabic && 'text-right'
             )}
           >
-            <div className="p-8 sm:p-12">
+            <div className={cn(nativeApp ? 'p-6 sm:p-7' : 'p-8 sm:p-12')}>
               <button
                 onClick={onClose}
                 className={cn(
@@ -189,16 +202,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
                 <X className="h-5 w-5" />
               </button>
 
-              <div className="mb-10 text-center">
-                <h2 className="mb-2 text-3xl font-bold tracking-tight text-app-text">
+              <div className={cn(nativeApp ? 'mb-7 text-center' : 'mb-10 text-center')}>
+                <h2 className={cn('font-bold tracking-tight text-app-text', nativeApp ? 'mb-1 text-2xl' : 'mb-2 text-3xl')}>
                   {mode === 'login' ? t.welcomeBack : t.createAccount}
                 </h2>
-                <p className="text-sm text-app-text/60">
+                <p className={cn('text-app-text/60', nativeApp ? 'text-xs leading-5' : 'text-sm')}>
                   {mode === 'login' ? t.loginSubtitle : t.signupSubtitle}
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className={cn(nativeApp ? 'space-y-3' : 'space-y-4')}>
                 {mode === 'signup' && (
                   <Field
                     icon={<User className="h-5 w-5" />}
@@ -251,7 +264,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
                 <button
                   type="submit"
                   disabled={busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent py-4 text-sm font-bold uppercase tracking-widest text-app-bg shadow-xl shadow-app-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                  className={cn(
+                    'flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent font-bold uppercase tracking-widest text-app-bg shadow-xl shadow-app-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70',
+                    nativeApp ? 'py-3.5 text-[11px]' : 'py-4 text-sm'
+                  )}
                 >
                   {busy ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -277,7 +293,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
                 )}
               </form>
 
-              <div className="relative my-10">
+              <div className={cn('relative', nativeApp ? 'my-7' : 'my-10')}>
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-white/10" />
                 </div>
@@ -289,7 +305,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
               <button
                 onClick={handleGoogleLogin}
                 disabled={googleLoading || busy}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-medium text-app-text transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className={cn(
+                  'flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 font-medium text-app-text transition-all hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50',
+                  nativeApp ? 'py-3.5 text-[13px]' : 'py-4 text-sm'
+                )}
               >
                 {googleLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
@@ -301,7 +320,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang, onS
                 )}
               </button>
 
-              <p className="mt-10 text-center text-sm text-app-text/40">
+              <p className={cn('text-center text-app-text/40', nativeApp ? 'mt-7 text-xs' : 'mt-10 text-sm')}>
                 {mode === 'login' ? t.dontHaveAccount : t.alreadyHaveAccount}{' '}
                 <button
                   onClick={() => {

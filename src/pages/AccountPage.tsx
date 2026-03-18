@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { isNativeApp } from '../lib/runtime';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
 import { Activity, Comment, Post, PostProgress, QuizScore } from '../types';
@@ -65,6 +66,7 @@ const labels = {
 
 export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = labels[lang];
+  const nativeApp = isNativeApp();
   const { profile, updateProfile, uploadAvatar } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [loading, setLoading] = useState(true);
@@ -167,28 +169,30 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-app-bg pt-32 pb-20">
-      <div className="container mx-auto px-6">
-        <div className={cn('flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10', lang === 'ar' && 'md:flex-row-reverse text-right')}>
+    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-32 pb-20')}>
+      <div className={cn('container mx-auto', nativeApp ? 'px-4 md:px-6' : 'px-6')}>
+        <div className={cn('flex flex-col md:flex-row md:items-center justify-between', nativeApp ? 'gap-5 mb-8' : 'gap-8 mb-10', lang === 'ar' && 'md:flex-row-reverse text-right')}>
           <div className="max-w-3xl">
-            <Link to="/" className={cn('inline-flex items-center gap-2 text-app-accent mb-6 hover:underline group', lang === 'ar' && 'flex-row-reverse')}>
-              <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              {t.back}
-            </Link>
-            <h1 className="text-5xl md:text-6xl font-serif text-app-text mb-4">{t.title}</h1>
-            <p className="text-app-muted text-lg">{t.subtitle}</p>
+            {!nativeApp && (
+              <Link to="/" className={cn('inline-flex items-center gap-2 text-app-accent mb-6 hover:underline group', lang === 'ar' && 'flex-row-reverse')}>
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                {t.back}
+              </Link>
+            )}
+            <h1 className={cn('font-serif text-app-text', nativeApp ? 'mb-2 text-3xl md:text-4xl' : 'mb-4 text-5xl md:text-6xl')}>{t.title}</h1>
+            {!nativeApp && <p className="text-app-muted text-lg">{t.subtitle}</p>}
           </div>
         </div>
 
         {error && <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">{error}</div>}
         {message && <div className="mb-6 rounded-2xl border border-app-accent/20 bg-app-accent/10 px-5 py-4 text-sm text-app-accent">{message}</div>}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className={cn('grid grid-cols-1 xl:grid-cols-3', nativeApp ? 'gap-4 md:gap-6' : 'gap-6')}>
           <div className="xl:col-span-1 space-y-6">
-            <div className="bg-app-card border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+            <div className={cn('bg-app-card border border-white/10 shadow-xl', nativeApp ? 'rounded-[1.6rem] p-5 md:rounded-[2.5rem] md:p-8' : 'rounded-[2.5rem] p-8')}>
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-5">
-                  <div className="w-28 h-28 rounded-[2rem] overflow-hidden bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent text-4xl font-bold">
+                  <div className={cn('overflow-hidden bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-bold', nativeApp ? 'h-24 w-24 rounded-[1.4rem] text-3xl md:h-28 md:w-28 md:rounded-[2rem] md:text-4xl' : 'h-28 w-28 rounded-[2rem] text-4xl')}>
                     {profile.avatar_url ? (
                       <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
                     ) : (
@@ -201,7 +205,7 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                   </label>
                 </div>
 
-                <h2 className="text-2xl font-bold text-app-text">{profile.display_name}</h2>
+                <h2 className={cn('font-bold text-app-text', nativeApp ? 'text-xl' : 'text-2xl')}>{profile.display_name}</h2>
                 <p className="text-sm text-app-muted mt-1">{profile.email}</p>
                 <div className="mt-4 flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-widest text-app-text">
                   {profile.role === 'admin' && <Shield className="w-3.5 h-3.5 text-app-accent" />}
@@ -210,7 +214,7 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
               </div>
             </div>
 
-            <div className="bg-app-card border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+            <div className={cn('bg-app-card border border-white/10 shadow-xl', nativeApp ? 'rounded-[1.6rem] p-5 md:rounded-[2.5rem] md:p-8' : 'rounded-[2.5rem] p-8')}>
               <form onSubmit={handleSaveProfile} className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.displayName}</label>
@@ -243,9 +247,9 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           </div>
 
           <div className="xl:col-span-2 space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={cn('grid grid-cols-2 lg:grid-cols-4', nativeApp ? 'gap-3 md:gap-4' : 'gap-4')}>
               {stats.map((stat) => (
-                <div key={stat.label} className="bg-app-card border border-white/10 rounded-3xl p-5">
+                <div key={stat.label} className={cn('bg-app-card border border-white/10', nativeApp ? 'rounded-[1.25rem] p-4 md:rounded-3xl md:p-5' : 'rounded-3xl p-5')}>
                   <stat.icon className="w-5 h-5 text-app-accent mb-4" />
                   <div className="text-3xl font-bold text-app-text">{stat.value}</div>
                   <div className="text-xs uppercase tracking-widest text-app-muted mt-2">{stat.label}</div>

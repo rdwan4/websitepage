@@ -70,6 +70,47 @@ export interface Reminder {
   created_at: string;
 }
 
+export type BroadcastNotificationType = 'dua' | 'hadith' | 'general';
+
+export interface BroadcastNotification {
+  id: string;
+  type: BroadcastNotificationType;
+  title_en: string;
+  title_ar: string | null;
+  body_en: string;
+  body_ar: string | null;
+  send_at: string;
+  is_active: boolean;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface UserNotificationPreference {
+  user_id: string;
+  allow_broadcast: boolean;
+  reminder_mode: 'auto' | 'manual';
+  manual_time: string | null;
+  preferred_language: 'app' | 'en' | 'ar';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BroadcastDeliveryMetric {
+  notification_id: string;
+  delivered_count: number;
+  pending_count: number;
+  target_count: number;
+}
+
+export interface BroadcastAdminMetrics {
+  total_users: number;
+  opted_in_users: number;
+  opted_out_users: number;
+  delivered_total: number;
+  pending_total: number;
+  by_notification: BroadcastDeliveryMetric[];
+}
+
 export interface ProfileRow {
   id: string;
   email: string;
@@ -78,6 +119,7 @@ export interface ProfileRow {
   avatar_url: string | null;
   score: number;
   role: UserRole;
+  fcm_token?: string | null;
   created_at: string;
   updated_at: string;
 }

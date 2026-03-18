@@ -31,6 +31,10 @@ export const quranService = {
     return `${this.baseUrl}/page${padPage(safePage)}.png`;
   },
 
+  getRemotePageImageUrl(page: number) {
+    return this.getPageImageUrl(page);
+  },
+
   getLocalPageImageUrl(page: number) {
     const safePage = this.clampPage(page);
     return `${localBaseUrl}/page${padPage(safePage)}.png`;

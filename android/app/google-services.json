@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475524829642",
+    "project_id": "islamic-47bc9",
+    "storage_bucket": "islamic-47bc9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475524829642:android:8cbc574ed77f74c906ff33",
+        "android_client_info": {
+          "package_name": "online.islamiclight.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBglSTED10Xd9UFhCkCoASYtslxpad2jto"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

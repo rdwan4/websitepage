@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Browser } from '@capacitor/browser';
 import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { isNativeApp } from '../lib/runtime';
 import { postService } from '../services/postService';
 import { Comment, Post } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +34,15 @@ const getViewerSessionId = () => {
   return generated;
 };
 
+const openExternalUrl = async (url: string) => {
+  if (isNativeApp()) {
+    await Browser.open({ url });
+    return;
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
 const copy = {
   en: {
     notFound: 'Post not found.',
@@ -57,7 +68,7 @@ const copy = {
     postComment: 'إرسال التعليق',
     openExternal: 'افتح في تبويب جديد',
     noComments: 'لا توجد تعليقات بعد.',
-    signIn: 'سجل الدخول للإعجاب أو التعليق.',
+    signIn: 'سجّل الدخول للإعجاب أو التعليق.',
     back: {
       articles: 'العودة إلى المقالات',
       academy: 'العودة إلى الأكاديمية',
@@ -86,7 +97,9 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   const normalizedSection = (section as PublicPostSection) || 'articles';
   const backPath = `/${normalizedSection}`;
+  const nativeApp = isNativeApp();
   const embeddedVideoUrl = useMemo(() => (post?.media_url ? getEmbeddableVideoUrl(post.media_url) : ''), [post?.media_url]);
+  const shouldEmbedPdf = !isNativeApp() && typeof window !== 'undefined' && window.innerWidth >= 768;
 
   useEffect(() => {
     const load = async () => {
@@ -175,8 +188,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-app-bg pt-32 text-app-text">
-        <div className="container mx-auto px-6 py-20">
+      <div className={cn('min-h-screen bg-app-bg text-app-text', nativeApp ? 'pt-24' : 'pt-32')}>
+        <div className={cn('container mx-auto', nativeApp ? 'px-4 py-14 md:px-6' : 'px-6 py-20')}>
           <div className="flex items-center gap-3 text-app-muted">
             <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
             {t.loading}
@@ -188,12 +201,14 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-app-bg pt-32 text-app-text">
-        <div className="container mx-auto px-6 py-20">
-          <Link to={backPath} className="mb-6 inline-flex items-center gap-2 text-app-accent hover:underline">
-            <ArrowLeft className="h-4 w-4" />
-            {t.back[normalizedSection]}
-          </Link>
+      <div className={cn('min-h-screen bg-app-bg text-app-text', nativeApp ? 'pt-24' : 'pt-32')}>
+        <div className={cn('container mx-auto', nativeApp ? 'px-4 py-14 md:px-6' : 'px-6 py-20')}>
+          {!nativeApp && (
+            <Link to={backPath} className="mb-6 inline-flex items-center gap-2 text-app-accent hover:underline">
+              <ArrowLeft className="h-4 w-4" />
+              {t.back[normalizedSection]}
+            </Link>
+          )}
           <p className="text-app-muted">{t.notFound}</p>
         </div>
       </div>
@@ -201,22 +216,24 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   }
 
   return (
-    <div className="min-h-screen bg-app-bg pt-32 pb-20">
-      <div className="container mx-auto px-6">
+    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pb-28 pt-24 md:pb-20' : 'pb-20 pt-32')}>
+      <div className={cn('container mx-auto', nativeApp ? 'px-4 md:px-6' : 'px-6')}>
         <div className={cn('mb-10', lang === 'ar' && 'text-right')}>
-          <Link to={backPath} className={cn('mb-6 inline-flex items-center gap-2 text-app-accent hover:underline', lang === 'ar' && 'flex-row-reverse')}>
-            <ArrowLeft className="h-4 w-4" />
-            {t.back[normalizedSection]}
-          </Link>
+          {!nativeApp && (
+            <Link to={backPath} className={cn('mb-6 inline-flex items-center gap-2 text-app-accent hover:underline', lang === 'ar' && 'flex-row-reverse')}>
+              <ArrowLeft className="h-4 w-4" />
+              {t.back[normalizedSection]}
+            </Link>
+          )}
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-app-accent">{post.category?.name || post.post_type}</p>
-          <h1 className="mb-4 text-4xl font-serif text-app-text md:text-5xl">{post.title}</h1>
+          <h1 className={cn('font-serif text-app-text', nativeApp ? 'mb-3 text-[1.9rem] leading-tight md:text-4xl' : 'mb-4 text-4xl md:text-5xl')}>{post.title}</h1>
           <p className="text-sm text-app-muted">{post.author_name || 'Admin'}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
+        <div className={cn('grid grid-cols-1 lg:grid-cols-3', nativeApp ? 'gap-5 md:gap-6' : 'gap-8')}>
+          <div className={cn('lg:col-span-2', nativeApp ? 'space-y-4 md:space-y-5' : 'space-y-6')}>
             {post.post_type === 'video' && post.media_url && (
-              <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black">
+              <div className={cn('overflow-hidden border border-white/10 bg-black', nativeApp ? 'rounded-[1.2rem] md:rounded-[2rem]' : 'rounded-[2rem]')}>
                 <div className="aspect-video">
                   <iframe
                     src={embeddedVideoUrl}
@@ -230,23 +247,39 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             )}
 
             {post.post_type === 'pdf' && post.media_url && (
-              <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white">
-                <iframe src={post.media_url} title={post.title} className="h-[70vh] w-full" />
+              <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-app-muted">
+                    {lang === 'en' ? 'PDF files open in the device viewer on mobile.' : 'ملفات PDF تفتح في عارض الجهاز على الهاتف.'}
+                  </p>
+                  <button
+                    onClick={() => void openExternalUrl(post.media_url!)}
+                    className={cn('inline-flex items-center gap-2 rounded-xl bg-app-accent font-bold text-app-bg', nativeApp ? 'px-3.5 py-2 text-xs md:px-4 md:py-2.5 md:text-sm' : 'px-4 py-2.5 text-sm')}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {t.openExternal}
+                  </button>
+                </div>
+                {shouldEmbedPdf && (
+                  <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-white">
+                    <iframe src={post.media_url} title={post.title} className="h-[70vh] w-full" />
+                  </div>
+                )}
               </div>
             )}
 
             {post.post_type === 'audio' && post.media_url && (
-              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+              <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
                 <audio src={post.media_url} controls className="w-full" />
               </div>
             )}
 
             {post.image_url && post.post_type !== 'pdf' && (
-              <img src={post.image_url} alt={post.title} className="max-h-[30rem] w-full rounded-[2rem] object-cover" referrerPolicy="no-referrer" />
+              <img src={post.image_url} alt={post.title} className={cn('w-full object-cover', nativeApp ? 'max-h-[18rem] rounded-[1.2rem] md:max-h-[24rem] md:rounded-[2rem]' : 'max-h-[30rem] rounded-[2rem]')} referrerPolicy="no-referrer" />
             )}
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <div className="prose prose-invert max-w-none whitespace-pre-wrap text-base leading-relaxed text-app-text">
+            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
+              <div className={cn('prose prose-invert max-w-none whitespace-pre-wrap text-app-text', nativeApp ? 'text-[0.96rem] leading-7' : 'text-base leading-relaxed')}>
                 {post.content}
               </div>
             </div>
@@ -259,8 +292,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             )}
           </div>
 
-          <div className="space-y-6">
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+          <div className={cn(nativeApp ? 'space-y-4 md:space-y-5' : 'space-y-6')}>
+            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => void handleLike()}
@@ -283,7 +316,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 <div className="mt-4 flex items-center gap-2">
                   <button
                     onClick={() => setEditingPost(post)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-app-text hover:bg-white/10"
+                    className={cn('inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 font-bold text-app-text hover:bg-white/10', nativeApp ? 'px-2.5 py-1.5 text-[11px] md:px-3 md:py-2 md:text-xs' : 'px-3 py-2 text-xs')}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     {lang === 'en' ? 'Edit' : 'تعديل'}
@@ -291,7 +324,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                   <button
                     onClick={() => void handleDelete()}
                     disabled={deleting}
-                    className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50"
+                    className={cn('inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50', nativeApp ? 'px-2.5 py-1.5 text-[11px] md:px-3 md:py-2 md:text-xs' : 'px-3 py-2 text-xs')}
                   >
                     {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                     {lang === 'en' ? 'Delete' : 'حذف'}
@@ -301,12 +334,12 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
               {!profile && <p className="mt-4 text-xs text-app-muted">{t.signIn}</p>}
             </div>
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
               <h2 className="mb-4 text-lg font-bold text-app-text">{t.comments}</h2>
               <div className="mb-4 space-y-4">
                 {comments.length ? (
                   comments.map((comment) => (
-                    <div key={comment.id} className="rounded-2xl border border-white/10 bg-app-card p-4">
+                    <div key={comment.id} className={cn('rounded-2xl border border-white/10 bg-app-card', nativeApp ? 'p-3.5 md:p-4' : 'p-4')}>
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <span className="text-sm font-bold text-app-text">{comment.user?.name || 'User'}</span>
                         <span className="text-xs text-app-muted">{new Date(comment.created_at).toLocaleDateString()}</span>
@@ -325,12 +358,12 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                   onChange={(event) => setCommentText(event.target.value)}
                   rows={4}
                   placeholder={t.writeComment}
-                  className="w-full resize-none rounded-2xl border border-white/10 bg-app-card px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none"
+                  className={cn('w-full resize-none rounded-2xl border border-white/10 bg-app-card px-4 text-sm text-app-text focus:border-app-accent/50 focus:outline-none', nativeApp ? 'py-2.5' : 'py-3')}
                 />
                 <button
                   onClick={() => void handleComment()}
                   disabled={submitting || !commentText.trim() || !profile}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent py-3 text-sm font-bold text-app-bg disabled:opacity-50"
+                  className={cn('flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent text-sm font-bold text-app-bg disabled:opacity-50', nativeApp ? 'py-2.5' : 'py-3')}
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   {t.postComment}

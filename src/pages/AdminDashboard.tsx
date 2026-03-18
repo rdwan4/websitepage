@@ -1,312 +1,811 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Shield, Trash2, UserCog } from 'lucide-react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Loader2,
+  Pencil,
+  Shield,
+  Trash2,
+  UserCog,
+  BarChart3,
+  Send,
+  Plus,
+  Search,
+  Users,
+  BookOpen,
+  Calendar,
+  MessageSquare,
+  ChevronRight,
+  Clock,
+  Languages,
+  Upload,
+  X,
+  CheckCircle2,
+  Globe,
+  LayoutGrid
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { ContentCategory, DailyCollectionEntry, GuidanceItem, Profile, QuizQuestion, QuizQuestionOption, SourceType } from '../types';
+import {
+  BroadcastAdminMetrics,
+  BroadcastNotification,
+  BroadcastNotificationType,
+  ContentCategory,
+  DailyCollectionEntry,
+  GuidanceItem,
+  Profile,
+  QuizQuestion,
+  QuizQuestionOption,
+  SourceType,
+  Post,
+  Category
+} from '../types';
 import { authService } from '../services/authService';
 import { contentService } from '../services/contentService';
+import { postService } from '../services/postService';
+import { supabase } from '../supabaseClient.js';
 
-type Tab = 'overview' | 'users' | 'guidance' | 'daily' | 'questions';
-type GuidanceForm = Omit<GuidanceItem, 'created_at' | 'updated_at' | 'image_url' | 'accent_label_en' | 'accent_label_ar' | 'source_reference' | 'source_type'> & { accent_label_en: string; accent_label_ar: string; source_reference: string; source_type: SourceType };
+type Tab = 'overview' | 'users' | 'guidance' | 'daily' | 'community' | 'broadcast';
+
+type GuidanceForm = Omit<GuidanceItem, 'created_at' | 'updated_at' | 'image_url' | 'accent_label_en' | 'accent_label_ar' | 'source_reference' | 'source_type' | 'summary_en' | 'summary_ar'> & { accent_label_en: string; accent_label_ar: string; source_reference: string; source_type: SourceType; image_url: string; summary_en: string; summary_ar: string };
 type DailyForm = Omit<DailyCollectionEntry, 'created_at' | 'updated_at' | 'tags' | 'title_ar' | 'arabic_text' | 'transliteration' | 'authenticity_notes' | 'image_url'> & { title_ar: string; arabic_text: string; transliteration: string; authenticity_notes: string; image_url: string; tags: string };
-type QuestionForm = Omit<QuizQuestion, 'created_at' | 'updated_at' | 'options' | 'question_ar' | 'explanation_en' | 'explanation_ar'> & { question_ar: string; explanation_en: string; explanation_ar: string; options: QuizQuestionOption[] };
-
-const text = {
-  en: { title: 'Admin Dashboard', users: 'Users', guidance: 'Guidance', daily: 'Daily Content', questions: 'Questions', overview: 'Overview', search: 'Search...', save: 'Save', create: 'Create', edit: 'Edit', delete: 'Delete', setAdmin: 'Set Admin', setUser: 'Set User', published: 'Published', verified: 'Verified' },
-  ar: { title: 'لوحة الإدارة', users: 'المستخدمون', guidance: 'الهداية', daily: 'المحتوى اليومي', questions: 'الأسئلة', overview: 'نظرة عامة', search: 'بحث...', save: 'حفظ', create: 'إنشاء', edit: 'تعديل', delete: 'حذف', setAdmin: 'تعيين مشرف', setUser: 'تعيين مستخدم', published: 'منشور', verified: 'موثق' },
+type CommunityForm = Partial<Post> & { category_id: string };
+type BroadcastForm = {
+  id?: string;
+  type: BroadcastNotificationType;
+  title_en: string;
+  title_ar: string;
+  body_en: string;
+  body_ar: string;
+  scheduleDate: string;
+  scheduleTime: string;
+  is_active: boolean;
+  sendNow: boolean;
 };
 
-const makeEmptyOptions = (): QuizQuestionOption[] => [0, 1, 2, 3].map((i) => ({ id: crypto.randomUUID(), label_en: '', label_ar: '', sort_order: i }));
-const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', accent_label_en: '', accent_label_ar: '', source_type: 'quran', source_reference: '', category: 'reflection', position: 0, is_published: true };
-const emptyDaily: DailyForm = { id: '', category: 'dua', title: '', title_ar: '', arabic_text: '', english_text: '', transliteration: '', source_type: 'quran', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: false };
-const emptyQuestion: QuestionForm = { id: '', question_en: '', question_ar: '', explanation_en: '', explanation_ar: '', source_type: 'quran', source_reference: '', difficulty: 'beginner', category: '', correct_option_id: '', is_published: true, is_verified: false, options: makeEmptyOptions() };
-const TAB_DRAFT_KEY = 'admin-tab-draft-v1';
-const GUIDANCE_DRAFT_KEY = 'admin-guidance-draft-v1';
-const DAILY_DRAFT_KEY = 'admin-daily-draft-v1';
-const QUESTION_DRAFT_KEY = 'admin-question-draft-v1';
+const text = {
+  en: { title: 'Admin Console', subtitle: 'Global control center', users: 'Users', guidance: 'Guidance', daily: 'Daily', community: 'Community', broadcast: 'Broadcasts', overview: 'Stats', search: 'Search entries...', save: 'Save Changes', create: 'Create New', edit: 'Edit', delete: 'Delete', setAdmin: 'Promote', setUser: 'Demote', published: 'Live', verified: 'Verified', uploadImage: 'Upload Media', approve: 'Approve', reject: 'Reject', cancelEditing: 'Cancel Editing' },
+  ar: { title: 'لوحة الإدارة', subtitle: 'مركز التحكم الشامل', users: 'المستخدمون', guidance: 'الهداية', daily: 'المحتوى', community: 'المجتمع', broadcast: 'البث', overview: 'إحصائيات', search: 'بحث...', save: 'حفظ التغييرات', create: 'إنشاء جديد', edit: 'تعديل', delete: 'حذف', setAdmin: 'ترقية', setUser: 'تخفيض', published: 'منشور', verified: 'موثق', uploadImage: 'رفع وسائط', approve: 'قبول', reject: 'رفض', cancelEditing: 'إلغاء التعديل' },
+};
 
-const normalizeGuidanceDraft = (raw: any): GuidanceForm => ({
-  ...emptyGuidance,
-  ...raw,
-  title_en: raw?.title_en || '',
-  title_ar: raw?.title_ar || '',
-  summary_en: raw?.summary_en || '',
-  summary_ar: raw?.summary_ar || '',
-  body_en: raw?.body_en || '',
-  body_ar: raw?.body_ar || '',
-  accent_label_en: raw?.accent_label_en || '',
-  accent_label_ar: raw?.accent_label_ar || '',
-  source_reference: raw?.source_reference || '',
-});
-
-const normalizeDailyDraft = (raw: any): DailyForm => ({
-  ...emptyDaily,
-  ...raw,
-  title: raw?.title || '',
-  title_ar: raw?.title_ar || '',
-  arabic_text: raw?.arabic_text || '',
-  english_text: raw?.english_text || '',
-  transliteration: raw?.transliteration || '',
-  source_reference: raw?.source_reference || '',
-  authenticity_notes: raw?.authenticity_notes || '',
-  image_url: raw?.image_url || '',
-  tags: raw?.tags || '',
-});
-
-const normalizeQuestionDraft = (raw: any): QuestionForm => {
-  const fallbackOptions = makeEmptyOptions();
-  const parsedOptions = Array.isArray(raw?.options)
-    ? raw.options.map((option: any, index: number) => ({
-        id: option?.id || crypto.randomUUID(),
-        label_en: option?.label_en || '',
-        label_ar: option?.label_ar || '',
-        sort_order: Number.isFinite(option?.sort_order) ? option.sort_order : index,
-      }))
-    : fallbackOptions;
-
-  const options = parsedOptions.length ? parsedOptions : fallbackOptions;
-
-  return {
-    ...emptyQuestion,
-    ...raw,
-    question_en: raw?.question_en || '',
-    question_ar: raw?.question_ar || '',
-    explanation_en: raw?.explanation_en || '',
-    explanation_ar: raw?.explanation_ar || '',
-    source_reference: raw?.source_reference || '',
-    category: raw?.category || '',
-    options,
-    correct_option_id: raw?.correct_option_id || options[0]?.id || '',
-  };
+const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', image_url: '', accent_label_en: '', accent_label_ar: '', source_reference: '', source_type: 'quran', category: 'reflection', position: 0, is_published: true };
+const emptyDaily: DailyForm = { id: '', category: 'hadith', title: '', title_ar: '', english_text: '', arabic_text: '', transliteration: '', source_type: 'hadith', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: true };
+const emptyCommunity: CommunityForm = { title: '', content: '', image_url: '', category_id: '', post_type: 'image', is_approved: true };
+const emptyBroadcast: BroadcastForm = {
+  type: 'general',
+  title_en: '',
+  title_ar: '',
+  body_en: '',
+  body_ar: '',
+  scheduleDate: new Date().toISOString().split('T')[0],
+  scheduleTime: new Date(Date.now() + 60 * 60 * 1000).toISOString().split('T')[1].slice(0, 5),
+  is_active: true,
+  sendNow: false,
 };
 
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = text[lang];
-  const [tab, setTab] = useState<Tab>(() => {
-    try {
-      const stored = window.localStorage.getItem(TAB_DRAFT_KEY);
-      return stored === 'users' || stored === 'guidance' || stored === 'daily' || stored === 'questions' ? stored : 'overview';
-    } catch {
-      return 'overview';
-    }
-  });
+  const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+
   const [users, setUsers] = useState<Profile[]>([]);
   const [guidance, setGuidance] = useState<GuidanceItem[]>([]);
   const [daily, setDaily] = useState<DailyCollectionEntry[]>([]);
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [guidanceForm, setGuidanceForm] = useState(emptyGuidance);
-  const [dailyForm, setDailyForm] = useState(emptyDaily);
-  const [questionForm, setQuestionForm] = useState(emptyQuestion);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>([]);
+  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics>({
+    total_users: 0,
+    opted_in_users: 0,
+    opted_out_users: 0,
+    delivered_total: 0,
+    pending_total: 0,
+    by_notification: [],
+  });
+
+  const [guidanceForm, setGuidanceForm] = useState<GuidanceForm>(emptyGuidance);
+  const [dailyForm, setDailyForm] = useState<DailyForm>(emptyDaily);
+  const [communityForm, setCommunityForm] = useState<CommunityForm>(emptyCommunity);
+  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(emptyBroadcast);
+
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      const [u, g, d, p, c, b, bm] = await Promise.all([
+        authService.getAllProfiles(),
+        contentService.getGuidanceItems(false),
+        contentService.listDailyContent(),
+        postService.getPosts({ limit: 100 }),
+        postService.getCategories(),
+        postService.getBroadcastNotifications(),
+        postService.getBroadcastAdminMetrics(),
+      ]);
+      setUsers(u); setGuidance(g); setDaily(d); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
+    } catch (err: any) {
+      setError(err.message);
+    } finally { setLoading(false); }
+  };
 
   useEffect(() => {
-    try {
-      const storedGuidance = window.localStorage.getItem(GUIDANCE_DRAFT_KEY);
-      if (storedGuidance) {
-        setGuidanceForm(normalizeGuidanceDraft(JSON.parse(storedGuidance)));
-      }
-
-      const storedDaily = window.localStorage.getItem(DAILY_DRAFT_KEY);
-      if (storedDaily) {
-        setDailyForm(normalizeDailyDraft(JSON.parse(storedDaily)));
-      }
-
-      const stored = window.localStorage.getItem(QUESTION_DRAFT_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored);
-      setQuestionForm(normalizeQuestionDraft(parsed));
-    } catch (error) {
-      console.warn('Failed to restore question draft:', error);
-    }
+    void refreshData();
   }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(TAB_DRAFT_KEY, tab);
-    } catch (error) {
-      console.warn('Failed to store admin tab:', error);
-    }
-  }, [tab]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(GUIDANCE_DRAFT_KEY, JSON.stringify(guidanceForm));
-    } catch (error) {
-      console.warn('Failed to store guidance draft:', error);
-    }
-  }, [guidanceForm]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(dailyForm));
-    } catch (error) {
-      console.warn('Failed to store daily draft:', error);
-    }
-  }, [dailyForm]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(QUESTION_DRAFT_KEY, JSON.stringify(questionForm));
-    } catch (error) {
-      console.warn('Failed to store question draft:', error);
-    }
-  }, [questionForm]);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [u, g, d, q] = await Promise.all([
-          authService.getAllProfiles().catch(() => []),
-          contentService.getGuidanceItems(false).catch(() => []),
-          contentService.listDailyContent().catch(() => []),
-          contentService.listQuestions().catch(() => []),
-        ]);
-        setUsers(u); setGuidance(g); setDaily(d); setQuestions(q);
-      } catch (e: any) { setError(e.message || 'Failed to load admin data.'); } finally { setLoading(false); }
-    };
-    void load();
-  }, []);
-
-  const filteredUsers = useMemo(() => users.filter((u) => !query || `${u.display_name} ${u.email} ${u.role}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
-  const filteredGuidance = useMemo(() => guidance.filter((i) => !query || `${i.title_en} ${i.title_ar}`.toLowerCase().includes(query.toLowerCase())), [guidance, query]);
-  const filteredDaily = useMemo(() => daily.filter((i) => !query || `${i.title} ${i.english_text} ${i.source_reference}`.toLowerCase().includes(query.toLowerCase())), [daily, query]);
-  const filteredQuestions = useMemo(() => questions.filter((i) => !query || `${i.question_en} ${i.question_ar || ''} ${i.source_reference}`.toLowerCase().includes(query.toLowerCase())), [questions, query]);
 
   const runSave = async (task: () => Promise<void>) => {
     setSaving(true); setError('');
-    try { await task(); } catch (e: any) { setError(e.message || 'Action failed.'); } finally { setSaving(false); }
+    try { await task(); } catch (e: any) { setError(e.message); } finally { setSaving(false); }
   };
 
-  const toggleRole = async (user: Profile) => runSave(async () => {
-    const updated = await authService.setUserRole(user.id, user.role === 'admin' ? 'user' : 'admin');
-    setUsers((current) => current.map((item) => item.id === user.id ? updated : item));
-  });
-
-  const saveGuidance = async () => runSave(async () => {
-    const saved = await contentService.saveGuidanceItem({ ...guidanceForm, slug: guidanceForm.slug || guidanceForm.title_en.toLowerCase().replace(/\s+/g, '-'), accent_label_en: guidanceForm.accent_label_en || null, accent_label_ar: guidanceForm.accent_label_ar || null, source_reference: guidanceForm.source_reference || null, image_url: null });
-    setGuidance((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
+  const saveGuidance = () => runSave(async () => {
+    const saved = await contentService.saveGuidanceItem(guidanceForm);
+    setGuidance(prev => [saved, ...prev.filter(g => g.id !== saved.id)]);
     setGuidanceForm(emptyGuidance);
-    window.localStorage.removeItem(GUIDANCE_DRAFT_KEY);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  const saveDaily = async () => runSave(async () => {
-    const saved = await contentService.saveDailyContent({ ...dailyForm, title_ar: dailyForm.title_ar || null, arabic_text: dailyForm.arabic_text || null, transliteration: dailyForm.transliteration || null, authenticity_notes: dailyForm.authenticity_notes || null, image_url: dailyForm.image_url || null, tags: dailyForm.tags ? dailyForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [] });
-    setDaily((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
+  const saveDaily = () => runSave(async () => {
+    const payload = { ...dailyForm, tags: dailyForm.tags ? dailyForm.tags.split(',').map(s => s.trim()) : [] };
+    const saved = await contentService.saveDailyContent(payload);
+    setDaily(prev => [saved, ...prev.filter(d => d.id !== saved.id)]);
     setDailyForm(emptyDaily);
-    window.localStorage.removeItem(DAILY_DRAFT_KEY);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  const saveQuestion = async () => runSave(async () => {
-    const saved = await contentService.saveQuestion({ ...questionForm, correct_option_id: questionForm.correct_option_id || questionForm.options[0].id, options: questionForm.options });
-    setQuestions((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current]);
-    setQuestionForm(emptyQuestion);
-    window.localStorage.removeItem(QUESTION_DRAFT_KEY);
+  const saveCommunityPost = () => runSave(async () => {
+    if (communityForm.id) {
+      const saved = await postService.updatePost(communityForm.id, communityForm);
+      setPosts(prev => [saved, ...prev.filter(p => p.id !== saved.id)]);
+    } else {
+      const saved = await postService.createPost(communityForm);
+      setPosts(prev => [saved, ...prev]);
+    }
+    setCommunityForm(emptyCommunity);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  const removeGuidance = async (id: string) => runSave(async () => { await contentService.deleteGuidanceItem(id); setGuidance((current) => current.filter((item) => item.id !== id)); });
-  const removeDaily = async (id: string) => runSave(async () => { await contentService.deleteDailyContent(id); setDaily((current) => current.filter((item) => item.id !== id)); });
-  const removeQuestion = async (id: string) => runSave(async () => { await contentService.deleteQuestion(id); setQuestions((current) => current.filter((item) => item.id !== id)); });
+  const deletePost = (id: string) => runSave(async () => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+    await postService.deletePost(id);
+    setPosts(prev => prev.filter(p => p.id !== id));
+  });
+
+  const approvePost = (id: string) => runSave(async () => {
+    const updated = await postService.setPostApproval(id, true);
+    setPosts(prev => prev.map(p => p.id === id ? { ...p, is_approved: true } : p));
+  });
+
+  const deleteDaily = (id: string) => runSave(async () => {
+    if (!confirm('Are you sure?')) return;
+    await contentService.deleteDailyContent(id);
+    setDaily(prev => prev.filter(d => d.id !== id));
+  });
+
+  const deleteGuidance = (id: string) => runSave(async () => {
+    if (!confirm('Are you sure?')) return;
+    await contentService.deleteGuidanceItem(id);
+    setGuidance(prev => prev.filter(g => g.id !== id));
+  });
+
+  const handleImageUpload = async (file: File, folder: string, bucket = 'content-media') => {
+    try {
+      setSaving(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${folder}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err: any) {
+      setError(err.message);
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveBroadcast = async () => runSave(async () => {
+    let effectiveSendAt = new Date().toISOString();
+    if (!broadcastForm.sendNow) {
+      effectiveSendAt = new Date(`${broadcastForm.scheduleDate}T${broadcastForm.scheduleTime}`).toISOString();
+    }
+    const payload = {
+      type: broadcastForm.type,
+      title_en: broadcastForm.title_en || '',
+      title_ar: broadcastForm.title_ar || '',
+      body_en: broadcastForm.body_en || '',
+      body_ar: broadcastForm.body_ar || '',
+      send_at: effectiveSendAt,
+      is_active: true,
+    };
+
+    let saved;
+    if (broadcastForm.id) {
+      saved = await postService.updateBroadcastNotification(broadcastForm.id, payload);
+    } else {
+      saved = await postService.createBroadcastNotification(payload);
+    }
+    setBroadcasts(prev => [saved, ...prev.filter(b => b.id !== saved.id)]);
+    setBroadcastForm(emptyBroadcast);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 
   return (
-    <div className="min-h-screen bg-app-bg pt-32 pb-20">
-      <div className="container mx-auto px-6">
-        <div className={cn('mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between', lang === 'ar' && 'md:flex-row-reverse text-right')}>
-          <h1 className="font-serif text-5xl text-app-text md:text-6xl">{t.title}</h1>
-          <div className={cn('flex w-full max-w-2xl items-center gap-3', lang === 'ar' && 'flex-row-reverse')}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.search} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-app-text" />
-            <Link to="/admin/posts" className="whitespace-nowrap rounded-xl border border-app-accent/30 bg-app-accent/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-app-accent">
-              {lang === 'en' ? 'Post Approvals' : 'اعتماد المنشورات'}
-            </Link>
+    <div className="min-h-screen bg-app-bg pt-20 pb-20 md:pt-28">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className={cn("mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between", lang === 'ar' && "lg:flex-row-reverse")}>
+          <div className={cn(lang === 'ar' && "text-right")}>
+            <h1 className="text-3xl font-bold tracking-tight text-app-text sm:text-5xl lg:text-6xl">{t.title}</h1>
+            <p className="mt-2 text-xs text-app-muted uppercase tracking-[0.3em] font-black">{t.subtitle}</p>
+          </div>
+          <div className="relative w-full max-w-md">
+            <Search className={cn("absolute top-1/2 -translate-y-1/2 h-5 w-5 text-app-muted", lang === 'ar' ? "right-4" : "left-4")} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.search} className={cn("w-full rounded-2xl bg-white/5 border border-white/10 py-4 text-sm text-app-text outline-none focus:border-app-accent/50", lang === 'ar' ? "pr-12" : "pl-12")} />
           </div>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {(['overview', 'users', 'guidance', 'daily', 'questions'] as Tab[]).map((item) => (
-            <button key={item} onClick={() => { setTab(item); setError(''); }} className={cn('rounded-xl px-4 py-2 text-sm font-bold', tab === item ? 'bg-app-accent text-app-bg' : 'border border-white/10 bg-white/5 text-app-text')}>{t[item]}</button>
-          ))}
+        <div className="mb-8 overflow-x-auto pb-4 no-scrollbar">
+          <div className={cn("flex min-w-max gap-3", lang === 'ar' && "flex-row-reverse")}>
+            {(['overview', 'users', 'guidance', 'daily', 'community', 'broadcast'] as Tab[]).map((id) => (
+              <button key={id} onClick={() => setTab(id)} className={cn("rounded-2xl px-6 py-3 text-xs font-black uppercase tracking-widest transition-all", tab === id ? "bg-app-accent text-app-bg shadow-lg shadow-app-accent/20" : "bg-white/5 text-app-muted hover:bg-white/10")}>
+                {t[id]}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {error && <div className="mb-6 rounded-2xl bg-red-500/10 p-4 text-sm text-red-400">{error}</div>}
-
-        {loading ? <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-app-accent" /></div> : (
-          <>
-            {tab === 'overview' && <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <Card label={t.users} value={users.length} />
-              <Card label="Admins" value={users.filter((u) => u.role === 'admin').length} />
-              <Card label="Verified Daily" value={daily.filter((i) => i.is_published && i.is_verified).length} />
-              <Card label="Verified Questions" value={questions.filter((i) => i.is_published && i.is_verified).length} />
-            </div>}
-
-            {tab === 'users' && <div className="space-y-3">{filteredUsers.map((user) => (
-              <div key={user.id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-app-card p-4">
-                <div><p className="font-bold text-app-text">{user.display_name}</p><p className="text-xs text-app-muted">{user.email}</p></div>
-                <button onClick={() => void toggleRole(user)} disabled={saving} className="flex items-center gap-2 rounded-lg bg-app-accent/10 px-3 py-2 text-xs font-bold text-app-accent"><UserCog className="h-4 w-4" />{user.role === 'admin' ? t.setUser : t.setAdmin}</button>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-32 gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-app-accent" />
+            <p className="text-app-muted font-black animate-pulse uppercase tracking-[0.2em] text-xs">Syncing Live Systems...</p>
+          </div>
+        ) : (
+          <div className="grid gap-8">
+            {tab === 'overview' && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard icon={Users} label="Users" value={users.length} color="text-blue-400" />
+                <StatCard icon={BookOpen} label="Library" value={guidance.length} color="text-purple-400" />
+                <StatCard icon={Globe} label="Community" value={posts.length} color="text-emerald-400" />
+                <StatCard icon={Send} label="Broadcasts" value={broadcasts.length} color="text-indigo-400" />
               </div>
-            ))}</div>}
+            )}
 
-            {tab === 'guidance' && <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <EditorCard title={guidanceForm.id ? t.edit : t.create}>
-                <SimpleInput value={guidanceForm.title_en} onChange={(value) => setGuidanceForm((c) => ({ ...c, title_en: value }))} placeholder="Title EN" />
-                <SimpleInput value={guidanceForm.title_ar} onChange={(value) => setGuidanceForm((c) => ({ ...c, title_ar: value }))} placeholder="Title AR" />
-                <SimpleText value={guidanceForm.summary_en} onChange={(value) => setGuidanceForm((c) => ({ ...c, summary_en: value }))} placeholder="Summary EN" />
-                <SimpleText value={guidanceForm.summary_ar} onChange={(value) => setGuidanceForm((c) => ({ ...c, summary_ar: value }))} placeholder="Summary AR" />
-                <SimpleText value={guidanceForm.body_en} onChange={(value) => setGuidanceForm((c) => ({ ...c, body_en: value }))} placeholder="Body EN" rows={4} />
-                <SimpleText value={guidanceForm.body_ar} onChange={(value) => setGuidanceForm((c) => ({ ...c, body_ar: value }))} placeholder="Body AR" rows={4} />
-                <SimpleInput value={guidanceForm.source_reference} onChange={(value) => setGuidanceForm((c) => ({ ...c, source_reference: value }))} placeholder="Source Reference" />
-                <button onClick={() => void saveGuidance()} disabled={saving} className="rounded-xl bg-app-accent px-4 py-3 text-sm font-bold text-app-bg">{guidanceForm.id ? t.save : t.create}</button>
-              </EditorCard>
-              <ListCard items={filteredGuidance.map((item) => ({ id: item.id, title: item.title_en, subtitle: item.source_reference || item.category, onEdit: () => setGuidanceForm({ ...item, accent_label_en: item.accent_label_en || '', accent_label_ar: item.accent_label_ar || '', source_type: item.source_type || 'quran', source_reference: item.source_reference || '' }), onDelete: () => void removeGuidance(item.id) }))} />
-            </div>}
+            {tab === 'community' && (
+              <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-[480px_1fr]">
+                <div className="space-y-6">
+                  <div className="rounded-[2.5rem] border border-white/5 bg-app-card p-6 md:p-10 shadow-2xl">
+                    <h3 className="mb-8 text-2xl font-bold text-app-text flex items-center gap-3">
+                      <LayoutGrid className="h-6 w-6 text-app-accent" />
+                      {communityForm.id ? 'Edit Content' : 'Create Content'}
+                    </h3>
+                    <div className="grid gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-2">{t.uploadImage}</label>
+                        <div className="relative group aspect-video rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-app-accent/50">
+                          {communityForm.image_url ? (
+                            <>
+                              <img src={communityForm.image_url} className="h-full w-full object-cover" />
+                              <button onClick={() => setCommunityForm({ ...communityForm, image_url: '' })} className="absolute top-4 right-4 p-3 bg-black/60 rounded-2xl text-white hover:bg-black/80 transition-all"><X className="h-5 w-5" /></button>
+                            </>
+                          ) : (
+                            <label className="cursor-pointer flex flex-col items-center p-6 text-center">
+                              <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center mb-4"><Upload className="h-6 w-6 text-app-muted" /></div>
+                              <span className="text-xs font-bold text-app-muted">Tap to upload image/video</span>
+                              <input type="file" accept="image/*,video/*" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = await handleImageUpload(file, 'community', 'media');
+                                  if (url) setCommunityForm({ ...communityForm, image_url: url, post_type: file.type.startsWith('video/') ? 'video' : 'image' });
+                                }
+                              }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid gap-4">
+                        <select value={communityForm.category_id} onChange={e => setCommunityForm({ ...communityForm, category_id: e.target.value })} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50">
+                          <option value="">Choose Section...</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <input value={communityForm.title} onChange={e => setCommunityForm({ ...communityForm, title: e.target.value })} placeholder="Title" className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50" />
+                        <textarea value={communityForm.content} onChange={e => setCommunityForm({ ...communityForm, content: e.target.value })} placeholder="Body content..." rows={5} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50" />
+                      </div>
+                      <button onClick={() => void saveCommunityPost()} disabled={saving || !communityForm.title} className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 active:scale-95 disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs">
+                        {saving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : (communityForm.id ? 'Save Changes' : 'Publish Content')}
+                      </button>
+                      {communityForm.id && <button onClick={() => setCommunityForm(emptyCommunity)} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center mt-2">Cancel Editing</button>}
+                    </div>
+                  </div>
+                </div>
 
-            {tab === 'daily' && <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <EditorCard title={dailyForm.id ? t.edit : t.create}>
-                <select value={dailyForm.category} onChange={(e) => setDailyForm((c) => ({ ...c, category: e.target.value as ContentCategory }))} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-app-text">{(['dua', 'hadith', 'inspiration'] as ContentCategory[]).map((item) => <option key={item} value={item}>{item}</option>)}</select>
-                <SimpleInput value={dailyForm.title} onChange={(value) => setDailyForm((c) => ({ ...c, title: value }))} placeholder="Title EN" />
-                <SimpleInput value={dailyForm.title_ar} onChange={(value) => setDailyForm((c) => ({ ...c, title_ar: value }))} placeholder="Title AR" />
-                <SimpleText value={dailyForm.english_text} onChange={(value) => setDailyForm((c) => ({ ...c, english_text: value }))} placeholder="English Text" rows={3} />
-                <SimpleText value={dailyForm.arabic_text} onChange={(value) => setDailyForm((c) => ({ ...c, arabic_text: value }))} placeholder="Arabic Text" rows={3} />
-                <SimpleInput value={dailyForm.source_reference} onChange={(value) => setDailyForm((c) => ({ ...c, source_reference: value }))} placeholder="Source Reference" />
-                <SimpleText value={dailyForm.authenticity_notes} onChange={(value) => setDailyForm((c) => ({ ...c, authenticity_notes: value }))} placeholder="Authenticity Notes" />
-                <Toggle checked={dailyForm.is_published} onChange={(checked) => setDailyForm((c) => ({ ...c, is_published: checked }))} label={t.published} />
-                <Toggle checked={dailyForm.is_verified} onChange={(checked) => setDailyForm((c) => ({ ...c, is_verified: checked }))} label={t.verified} />
-                <button onClick={() => void saveDaily()} disabled={saving} className="rounded-xl bg-app-accent px-4 py-3 text-sm font-bold text-app-bg">{dailyForm.id ? t.save : t.create}</button>
-              </EditorCard>
-              <ListCard items={filteredDaily.map((item) => ({ id: item.id, title: item.title, subtitle: `${item.category} · ${item.source_reference}`, onEdit: () => setDailyForm({ ...item, title_ar: item.title_ar || '', arabic_text: item.arabic_text || '', transliteration: item.transliteration || '', authenticity_notes: item.authenticity_notes || '', image_url: item.image_url || '', tags: (item.tags || []).join(', ') }), onDelete: () => void removeDaily(item.id), verified: item.is_verified }))} />
-            </div>}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-4 mb-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">Recent Community Posts</p>
+                    <button onClick={refreshData} className="text-[10px] font-black uppercase text-app-accent hover:underline">Refresh</button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {posts.filter(p => !query || p.title.toLowerCase().includes(query.toLowerCase())).map(p => (
+                      <div key={p.id} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl transition-all hover:border-app-accent/30">
+                        <div className="flex items-center gap-5">
+                          <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/5 overflow-hidden border border-white/10 flex items-center justify-center">
+                            {p.image_url ? <img src={p.image_url} className="h-full w-full object-cover" /> : <Globe className="h-6 w-6 text-app-muted" />}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-app-text leading-tight mb-1">{p.title}</h4>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest", p.is_approved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400 border border-amber-500/20")}>
+                                {p.is_approved ? t.published : 'Pending Review'}
+                              </span>
+                              <span className="text-[10px] text-app-muted font-bold uppercase tracking-widest">• {p.category?.name || 'Uncategorized'}</span>
+                            </div>
+                          </div>
+                        </div>
 
-            {tab === 'questions' && <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <EditorCard title={questionForm.id ? t.edit : t.create}>
-                <SimpleInput value={questionForm.question_en} onChange={(value) => setQuestionForm((c) => ({ ...c, question_en: value }))} placeholder="Question EN" />
-                <SimpleInput value={questionForm.question_ar} onChange={(value) => setQuestionForm((c) => ({ ...c, question_ar: value }))} placeholder="Question AR" />
-                <SimpleInput value={questionForm.category} onChange={(value) => setQuestionForm((c) => ({ ...c, category: value }))} placeholder="Category" />
-                <SimpleInput value={questionForm.source_reference} onChange={(value) => setQuestionForm((c) => ({ ...c, source_reference: value }))} placeholder="Source Reference" />
-                {questionForm.options.map((option) => (
-                  <div key={option.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <SimpleInput value={option.label_en} onChange={(value) => setQuestionForm((c) => ({ ...c, options: c.options.map((item) => item.id === option.id ? { ...item, label_en: value } : item) }))} placeholder="Option EN" />
-                    <SimpleInput value={option.label_ar || ''} onChange={(value) => setQuestionForm((c) => ({ ...c, options: c.options.map((item) => item.id === option.id ? { ...item, label_ar: value } : item) }))} placeholder="Option AR" />
-                    <Toggle checked={questionForm.correct_option_id === option.id || (!questionForm.correct_option_id && questionForm.options[0].id === option.id)} onChange={() => setQuestionForm((c) => ({ ...c, correct_option_id: option.id }))} label="Correct" />
+                        <div className="flex items-center gap-2 md:opacity-0 group-hover:md:opacity-100 transition-opacity justify-end border-t border-white/5 pt-4 md:border-0 md:pt-0">
+                          {!p.is_approved && (
+                            <button onClick={() => approvePost(p.id)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
+                              <CheckCircle2 className="h-4 w-4" /> {t.approve}
+                            </button>
+                          )}
+                          <button onClick={() => setCommunityForm(p as CommunityForm)} className="p-3 rounded-xl bg-white/5 text-app-muted hover:text-app-accent hover:bg-white/10 transition-all">
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                          <button onClick={() => deletePost(p.id)} className="p-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === 'guidance' && (
+              <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-[480px_1fr]">
+                <div className="space-y-6">
+                  <div className="rounded-[2.5rem] border border-white/5 bg-app-card p-6 md:p-10 shadow-2xl">
+                    <h3 className="mb-8 text-2xl font-bold text-app-text">{guidanceForm.id ? 'Edit Guidance' : 'Create Guidance'}</h3>
+                    <div className="grid gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-2">{t.uploadImage}</label>
+                        <div className="relative group aspect-video rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-app-accent/50">
+                          {guidanceForm.image_url ? (
+                            <>
+                              <img src={guidanceForm.image_url} className="h-full w-full object-cover" />
+                              <button onClick={() => setGuidanceForm({ ...guidanceForm, image_url: '' })} className="absolute top-4 right-4 p-3 bg-black/60 rounded-2xl text-white"><X className="h-5 w-5" /></button>
+                            </>
+                          ) : (
+                            <label className="cursor-pointer flex flex-col items-center p-6 text-center">
+                              <Upload className="h-8 w-8 text-app-muted mb-2" />
+                              <span className="text-xs font-bold text-app-muted">Tap to upload cover image</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = await handleImageUpload(file, 'guidance');
+                                  if (url) setGuidanceForm({ ...guidanceForm, image_url: url });
+                                }
+                              }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
+                          <p className="text-[10px] font-black uppercase text-app-accent mb-2">English Info</p>
+                          <input value={guidanceForm.title_en} onChange={e => setGuidanceForm({ ...guidanceForm, title_en: e.target.value })} placeholder="English Title" className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
+                          <textarea value={guidanceForm.body_en} onChange={e => setGuidanceForm({ ...guidanceForm, body_en: e.target.value })} placeholder="English Body..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
+                        </div>
+                        <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
+                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">معلومات بالعربي</p>
+                          <input value={guidanceForm.title_ar} onChange={e => setGuidanceForm({ ...guidanceForm, title_ar: e.target.value })} placeholder="العنوان بالعربي" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <textarea value={guidanceForm.body_ar} onChange={e => setGuidanceForm({ ...guidanceForm, body_ar: e.target.value })} placeholder="النص بالعربي..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => void saveGuidance()}
+                        disabled={saving || (!guidanceForm.title_en && !guidanceForm.title_ar)}
+                        className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
+                      >
+                        {saving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Save Guidance Item'}
+                      </button>
+                      {guidanceForm.id && <button onClick={() => setGuidanceForm(emptyGuidance)} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center">{t.cancelEditing}</button>}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {guidance.filter(g => !query || g.title_en.toLowerCase().includes(query.toLowerCase()) || g.title_ar.toLowerCase().includes(query.toLowerCase())).map(g => (
+                    <div key={g.id} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl transition-all hover:border-app-accent/30">
+                      <div className="flex items-center gap-5">
+                        <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/5 overflow-hidden border border-white/10">
+                          {g.image_url && <img src={g.image_url} className="h-full w-full object-cover" />}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-app-text leading-tight">{g.title_en || g.title_ar}</h4>
+                          <p className="text-[10px] text-app-muted font-black uppercase tracking-widest mt-1">{g.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 justify-end">
+                        <button onClick={() => setGuidanceForm({ ...g, image_url: g.image_url || '' } as GuidanceForm)} className="p-3 rounded-xl bg-white/5 text-app-muted hover:text-app-accent hover:bg-white/10 transition-all"><Pencil className="h-5 w-5" /></button>
+                        <button onClick={() => deleteGuidance(g.id)} className="p-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><Trash2 className="h-5 w-5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === 'daily' && (
+              <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-[480px_1fr]">
+                <div className="space-y-6">
+                  <div className="rounded-[2.5rem] border border-white/5 bg-app-card p-6 md:p-10 shadow-2xl">
+                    <h3 className="mb-8 text-2xl font-bold text-app-text">{dailyForm.id ? 'Edit Daily' : 'Create Daily'}</h3>
+                    <div className="grid gap-5">
+                      <select value={dailyForm.category} onChange={e => setDailyForm({ ...dailyForm, category: e.target.value as any })} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text focus:border-app-accent/50">
+                        <option value="hadith">Hadith</option>
+                        <option value="dua">Dua</option>
+                        <option value="inspiration">Inspiration</option>
+                      </select>
+                      <div className="space-y-4">
+                        <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
+                          <p className="text-[10px] font-black uppercase text-app-accent mb-2">English Version</p>
+                          <input value={dailyForm.title} onChange={e => setDailyForm({ ...dailyForm, title: e.target.value })} placeholder="Title" className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
+                          <textarea value={dailyForm.english_text} onChange={e => setDailyForm({ ...dailyForm, english_text: e.target.value })} placeholder="Text Content..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
+                        </div>
+                        <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
+                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">النسخة العربية</p>
+                          <input value={dailyForm.title_ar} onChange={e => setDailyForm({ ...dailyForm, title_ar: e.target.value })} placeholder="العنوان" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <textarea value={dailyForm.arabic_text} onChange={e => setDailyForm({ ...dailyForm, arabic_text: e.target.value })} placeholder="نص المحتوى..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => void saveDaily()}
+                        disabled={saving || (!dailyForm.title && !dailyForm.title_ar)}
+                        className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
+                      >
+                        {saving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Save Daily Content'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {daily.filter(d => !query || d.title.toLowerCase().includes(query.toLowerCase()) || (d.title_ar || '').includes(query)).map(d => (
+                    <div key={d.id} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                      <div>
+                        <h4 className="text-lg font-bold text-app-text leading-tight">{d.title || d.title_ar}</h4>
+                        <p className="text-[10px] text-app-muted font-black uppercase tracking-widest mt-1">{d.category}</p>
+                      </div>
+                      <div className="flex items-center gap-2 justify-end">
+                        <button onClick={() => setDailyForm({ ...d, tags: d.tags?.join(',') || '' } as any)} className="p-3 rounded-xl bg-white/5 text-app-muted hover:text-app-accent transition-all"><Pencil className="h-5 w-5" /></button>
+                        <button onClick={() => deleteDaily(d.id)} className="p-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><Trash2 className="h-5 w-5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === 'broadcast' && (
+              <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-[520px_1fr]">
+                <div className="space-y-6">
+                  <div className="rounded-[2.5rem] border border-white/5 bg-app-card p-6 md:p-10 shadow-2xl">
+                    <h3 className="mb-2 text-2xl font-bold text-app-text flex items-center gap-3">
+                      <Send className="h-6 w-6 text-app-accent" />
+                      {broadcastForm.id
+                        ? (lang === 'en' ? 'Edit Notification' : 'تعديل الإشعار')
+                        : (lang === 'en' ? 'Create Notification' : 'إنشاء إشعار')
+                      }
+                    </h3>
+                    <p className="mb-8 text-xs text-app-muted font-bold uppercase tracking-widest">
+                      {lang === 'en' ? 'Both languages are optional — fill in one or both' : 'كلا اللغتين اختياريتان — أدخل واحدة أو كلتيهما'}
+                    </p>
+
+                    <div className="grid gap-5">
+                      {/* Type selector */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                          {lang === 'en' ? 'Notification Type' : 'نوع الإشعار'}
+                        </label>
+                        <select
+                          value={broadcastForm.type}
+                          onChange={(e) => setBroadcastForm({ ...broadcastForm, type: e.target.value as any })}
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-4 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        >
+                          <option value="hadith">📜 Hadith</option>
+                          <option value="dua">🤲 Dua</option>
+                          <option value="general">📢 General</option>
+                        </select>
+                      </div>
+
+                      {/* Send Now / Schedule toggle */}
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-1 flex gap-1">
+                        <button
+                          onClick={() => setBroadcastForm({ ...broadcastForm, sendNow: true })}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all',
+                            broadcastForm.sendNow
+                              ? 'bg-app-accent text-app-bg shadow-lg'
+                              : 'text-app-muted hover:text-app-text'
+                          )}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          {lang === 'en' ? 'Send Now' : 'أرسل الآن'}
+                        </button>
+                        <button
+                          onClick={() => setBroadcastForm({ ...broadcastForm, sendNow: false })}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-black uppercase tracking-widest transition-all',
+                            !broadcastForm.sendNow
+                              ? 'bg-app-accent text-app-bg shadow-lg'
+                              : 'text-app-muted hover:text-app-text'
+                          )}
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          {lang === 'en' ? 'Schedule' : 'جدولة'}
+                        </button>
+                      </div>
+
+                      {/* Schedule datetime picker (only shown when scheduling) */}
+                      {!broadcastForm.sendNow && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1 flex items-center gap-2">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {lang === 'en' ? 'Select Date' : 'اختر التاريخ'}
+                            </label>
+                            <input
+                              type="date"
+                              value={broadcastForm.scheduleDate}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, scheduleDate: e.target.value })}
+                              className="w-full rounded-2xl bg-white/5 border border-white/10 p-4 text-sm text-app-text outline-none focus:border-app-accent/50"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1 flex items-center gap-2">
+                              <Clock className="h-3.5 w-3.5" />
+                              {lang === 'en' ? 'Select Time' : 'اختر الوقت'}
+                            </label>
+                            <input
+                              type="time"
+                              value={broadcastForm.scheduleTime}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, scheduleTime: e.target.value })}
+                              className="w-full rounded-2xl bg-white/5 border border-white/10 p-4 text-sm text-app-text outline-none focus:border-app-accent/50"
+                            />
+                          </div>
+                          <p className="col-span-2 text-[10px] text-amber-400/70 font-bold ml-1">
+                            ⚠️ {lang === 'en'
+                              ? 'App must be open or reopened after the scheduled time to deliver the notification.'
+                              : 'يجب أن يكون التطبيق مفتوحاً أو يُعاد فتحه بعد الوقت المجدول لإرسال الإشعار.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Language sections */}
+                      <div className="space-y-3">
+                        {/* English — Optional */}
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-app-accent">🇬🇧 English</span>
+                            <span className="text-[10px] font-bold text-app-muted/60 uppercase tracking-widest">
+                              {lang === 'en' ? '(optional)' : '(اختياري)'}
+                            </span>
+                          </div>
+                          <div className="px-4 pb-4 space-y-2">
+                            <input
+                              value={broadcastForm.title_en}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, title_en: e.target.value })}
+                              placeholder={lang === 'en' ? 'Notification title...' : 'عنوان الإشعار...'}
+                              className="w-full bg-transparent border-b border-white/5 py-2 text-sm text-app-text outline-none focus:border-app-accent/30 transition-colors"
+                            />
+                            <textarea
+                              value={broadcastForm.body_en}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, body_en: e.target.value })}
+                              placeholder={lang === 'en' ? 'Notification body...' : 'نص الإشعار...'}
+                              rows={3}
+                              className="w-full bg-transparent py-2 text-sm text-app-text outline-none resize-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Arabic — Optional */}
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                          <div className="flex items-center gap-2 px-4 pt-4 pb-2 justify-end flex-row-reverse">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">🇸🇦 العربية</span>
+                            <span className="text-[10px] font-bold text-app-muted/60 uppercase tracking-widest">
+                              {lang === 'en' ? '(optional)' : '(اختياري)'}
+                            </span>
+                          </div>
+                          <div className="px-4 pb-4 space-y-2 text-right" dir="rtl">
+                            <input
+                              value={broadcastForm.title_ar}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, title_ar: e.target.value })}
+                              placeholder="عنوان الإشعار..."
+                              className="w-full bg-transparent border-b border-white/5 py-2 text-sm text-app-text outline-none focus:border-app-accent/30 transition-colors text-right"
+                            />
+                            <textarea
+                              value={broadcastForm.body_ar}
+                              onChange={e => setBroadcastForm({ ...broadcastForm, body_ar: e.target.value })}
+                              placeholder="نص الإشعار..."
+                              rows={3}
+                              className="w-full bg-transparent py-2 text-sm text-app-text outline-none resize-none text-right"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Preview */}
+                      {(broadcastForm.title_en || broadcastForm.title_ar) && (
+                        <div className="rounded-2xl border border-app-accent/20 bg-app-accent/5 p-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-app-accent mb-2">Preview</p>
+                          <div className="flex items-start gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-app-accent/20 flex items-center justify-center text-lg shrink-0">
+                              {broadcastForm.type === 'hadith' ? '📜' : broadcastForm.type === 'dua' ? '🤲' : '📢'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-app-text">{broadcastForm.title_en || broadcastForm.title_ar || '—'}</p>
+                              <p className="text-xs text-app-muted mt-0.5">{broadcastForm.body_en || broadcastForm.body_ar || '—'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => void saveBroadcast()}
+                        disabled={saving || (!broadcastForm.title_en && !broadcastForm.title_ar && !broadcastForm.body_en && !broadcastForm.body_ar)}
+                        className={cn(
+                          'mt-2 w-full rounded-2xl py-5 font-black shadow-xl active:scale-95 disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3',
+                          broadcastForm.sendNow
+                            ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                            : 'bg-app-accent text-app-bg shadow-app-accent/20'
+                        )}
+                      >
+                        {saving
+                          ? <Loader2 className="h-5 w-5 animate-spin" />
+                          : broadcastForm.id
+                            ? <><Pencil className="h-4 w-4" /> {lang === 'en' ? 'Save Changes' : 'حفظ التغييرات'}</>
+                            : broadcastForm.sendNow
+                              ? <><Send className="h-4 w-4" /> {lang === 'en' ? 'Send Now to All Users' : 'أرسل الآن لجميع المستخدمين'}</>
+                              : <><Calendar className="h-4 w-4" /> {lang === 'en' ? 'Schedule Notification' : 'جدولة الإشعار'}</>}
+                      </button>
+
+                      {broadcastForm.id && (
+                        <button onClick={() => setBroadcastForm(emptyBroadcast)} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center w-full mt-2">
+                          {t.cancelEditing}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scheduled notifications list */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                      {lang === 'en' ? 'Sent & Scheduled' : 'المُرسلة والمجدولة'}
+                    </p>
+                    <button onClick={refreshData} className="text-[10px] font-black uppercase text-app-accent hover:underline">
+                      {lang === 'en' ? 'Refresh' : 'تحديث'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {broadcasts
+                      .filter(b => !query || b.title_en?.toLowerCase().includes(query.toLowerCase()) || (b.title_ar || '').includes(query))
+                      .map((b) => {
+                        const isPast = new Date(b.send_at) <= new Date();
+                        const isScheduled = !isPast;
+                        return (
+                          <div key={b.id} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                            <div className="flex items-center gap-4">
+                              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-app-accent border border-white/5 text-2xl">
+                                {b.type === 'hadith' ? '📜' : b.type === 'dua' ? '🤲' : '📢'}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-bold text-app-text leading-tight w-full max-w-[200px] md:max-w-[300px] truncate">
+                                  {b.title_en || b.title_ar || <span className="text-app-muted italic">(no title)</span>}
+                                </h4>
+                                {(b.title_ar && b.title_en) && (
+                                  <p className="text-xs text-indigo-400 font-bold mt-0.5 truncate max-w-[200px] md:max-w-[300px]">{b.title_ar}</p>
+                                )}
+                                <p className={cn(
+                                  'text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2',
+                                  isScheduled ? 'text-amber-400' : 'text-emerald-400'
+                                )}>
+                                  {isScheduled ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+                                  {isScheduled
+                                    ? (lang === 'en' ? 'Scheduled: ' : 'مجدول: ')
+                                    : (lang === 'en' ? 'Sent: ' : 'أُرسل: ')}
+                                  {new Date(b.send_at).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                onClick={() => {
+                                  // Parse and adjust the ISO date directly into explicit local chunks
+                                  const dateObj = new Date(b.send_at);
+                                  // Create local ISO components to fill timezone-shifted Date/Time inputs correctly
+                                  const offset = dateObj.getTimezoneOffset();
+                                  const localDateObj = new Date(dateObj.getTime() - (offset * 60 * 1000));
+                                  const localIso = localDateObj.toISOString().split('T');
+
+                                  setBroadcastForm({
+                                    id: b.id,
+                                    type: b.type,
+                                    title_en: b.title_en || '',
+                                    title_ar: b.title_ar || '',
+                                    body_en: b.body_en || '',
+                                    body_ar: b.body_ar || '',
+                                    scheduleDate: localIso[0],
+                                    scheduleTime: localIso[1].slice(0, 5),
+                                    is_active: b.is_active,
+                                    sendNow: false,
+                                  });
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="p-3 rounded-xl bg-white/5 text-app-muted hover:text-app-accent hover:bg-white/10 transition-all"
+                              >
+                                <Pencil className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => postService.deleteBroadcastNotification(b.id).then(() => refreshData())}
+                                className="p-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === 'users' && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {users.filter(u => !query || u.display_name?.toLowerCase().includes(query.toLowerCase())).map(user => (
+                  <div key={user.id} className="rounded-[2rem] border border-white/5 bg-app-card p-6 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="h-14 w-14 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-black text-xl">{user.display_name?.[0]?.toUpperCase()}</div>
+                      <div>
+                        <p className="font-bold text-app-text">{user.display_name}</p>
+                        <p className="text-[10px] text-app-muted uppercase font-black tracking-widest mt-0.5">{user.role}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => void authService.setUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')} className="p-3 rounded-xl bg-white/5 text-app-muted hover:text-app-accent transition-all"><UserCog className="h-5 w-5" /></button>
                   </div>
                 ))}
-                <Toggle checked={questionForm.is_published} onChange={(checked) => setQuestionForm((c) => ({ ...c, is_published: checked }))} label={t.published} />
-                <Toggle checked={questionForm.is_verified} onChange={(checked) => setQuestionForm((c) => ({ ...c, is_verified: checked }))} label={t.verified} />
-                <button onClick={() => void saveQuestion()} disabled={saving} className="rounded-xl bg-app-accent px-4 py-3 text-sm font-bold text-app-bg">{questionForm.id ? t.save : t.create}</button>
-              </EditorCard>
-              <ListCard items={filteredQuestions.map((item) => ({ id: item.id, title: item.question_en, subtitle: `${item.category} · ${item.source_reference}`, onEdit: () => setQuestionForm({ ...item, question_ar: item.question_ar || '', explanation_en: item.explanation_en || '', explanation_ar: item.explanation_ar || '', options: item.options.length ? item.options : emptyQuestion.options }), onDelete: () => void removeQuestion(item.id), verified: item.is_verified }))} />
-            </div>}
-          </>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-const Card = ({ label, value }: { label: string; value: number }) => <div className="rounded-3xl border border-white/10 bg-app-card p-6"><p className="text-sm text-app-muted">{label}</p><p className="mt-2 text-3xl font-bold text-app-text">{value}</p></div>;
-const EditorCard = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="rounded-3xl border border-white/10 bg-app-card p-6"><h3 className="mb-4 text-xl font-bold text-app-text">{title}</h3><div className="grid gap-3">{children}</div></div>;
-const SimpleInput = ({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) => <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-app-text" />;
-const SimpleText = ({ value, onChange, placeholder, rows = 2 }: { value: string; onChange: (value: string) => void; placeholder: string; rows?: number }) => <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-app-text" />;
-const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) => <label className="flex items-center gap-2 text-sm text-app-text"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{label}</label>;
-const ListCard = ({ items }: { items: Array<{ id: string; title: string; subtitle: string; onEdit: () => void; onDelete: () => void; verified?: boolean }> }) => <div className="rounded-3xl border border-white/10 bg-app-card p-6"><div className="space-y-3">{items.length ? items.map((item) => <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"><div className="min-w-0"><p className="truncate font-bold text-app-text">{item.title}</p><p className="text-xs text-app-muted">{item.subtitle}</p></div><div className="flex items-center gap-2">{item.verified && <Shield className="h-4 w-4 text-green-400" />}<button onClick={item.onEdit} className="rounded-lg bg-white/10 p-2 text-app-text"><Pencil className="h-4 w-4" /></button><button onClick={item.onDelete} className="rounded-lg bg-red-500/10 p-2 text-red-400"><Trash2 className="h-4 w-4" /></button></div></div>) : <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-app-muted">No records yet.</div>}</div></div>;
+const StatCard = ({ icon: Icon, label, value, color }: { icon: any; label: string; value: string | number; color: string }) => (
+  <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 md:p-8 shadow-2xl relative overflow-hidden group">
+    <div className="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+      <Icon className="h-24 w-24" />
+    </div>
+    <div className={cn("mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 shadow-inner", color)}>
+      <Icon className="h-5 w-5" />
+    </div>
+    <p className="text-[10px] font-black text-app-muted uppercase tracking-[0.2em]">{label}</p>
+    <p className="mt-1 text-3xl font-bold text-app-text tracking-tighter">{value}</p>
+  </div>
+);
+
+const Sparkles = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M19 17v4" /><path d="M3 5h4" /><path d="M17 19h4" /></svg>
+);

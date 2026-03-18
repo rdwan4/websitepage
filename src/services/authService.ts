@@ -1,8 +1,25 @@
 import { Session, User } from '@supabase/supabase-js';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '../supabaseClient.js';
 import { Profile } from '../types';
 import { normalizeProfile } from './profileUtils';
 import { isMissingTableError, toSetupMessage } from './dbErrorUtils';
+import { isNativeApp } from '../lib/runtime';
+
+const NATIVE_AUTH_REDIRECT_URL = 'online.islamiclight.app://auth/callback';
+
+const isNativeAuthCallbackUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'online.islamiclight.app:' &&
+      parsed.hostname === 'auth' &&
+      parsed.pathname.startsWith('/callback')
+    );
+  } catch {
+    return false;
+  }
+};
 
 const getAuthDisplayName = (user: User, fallback?: string) =>
   fallback ||
@@ -128,6 +145,26 @@ export const authService = {
   },
 
   async signInWithGoogle() {
+    if (isNativeApp()) {
+      const result = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: NATIVE_AUTH_REDIRECT_URL,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.data?.url) {
+        await Browser.open({ url: result.data.url, windowName: '_self' });
+      }
+
+      return;
+    }
+
     const result = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -138,6 +175,48 @@ export const authService = {
     if (result.error) {
       throw result.error;
     }
+  },
+
+  async handleOAuthCallback(url: string) {
+    if (!isNativeAuthCallbackUrl(url)) {
+      return false;
+    }
+
+    const parsed = new URL(url);
+    const code = parsed.searchParams.get('code');
+
+    try {
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          throw error;
+        }
+      } else {
+        const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            throw error;
+          }
+        }
+      }
+    } finally {
+      try {
+        await Browser.close();
+      } catch {
+        // Ignore close failures from unsupported environments.
+      }
+    }
+
+    return true;
   },
 
   async getSession(): Promise<Session | null> {

@@ -1,4 +1,4 @@
-import { User } from '@supabase/supabase-js';
+﻿import { User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient.js';
 import {
   Post,
@@ -10,6 +10,9 @@ import {
   PostProgress,
   QuizScore,
   LeaderboardEntry,
+  BroadcastNotification,
+  BroadcastAdminMetrics,
+  UserNotificationPreference,
   Reminder,
   QuranPageRow,
   QuranSurahMetadata,
@@ -102,7 +105,6 @@ const syncPostLikesCount = async (postId: string): Promise<number> => {
     .update({ likes_count: likesCount })
     .eq('id', postId);
 
-  // Regular users cannot update posts directly under RLS; likes table remains source of truth.
   if (updateError && updateError.code !== '42501' && !isMissingTableError(updateError, 'posts')) {
     throw updateError;
   }
@@ -130,7 +132,6 @@ const syncPostViewsCount = async (postId: string): Promise<number> => {
     .update({ views_count: viewsCount })
     .eq('id', postId);
 
-  // Regular users cannot update posts directly under RLS; post_views table remains source of truth.
   if (updateError && updateError.code !== '42501' && !isMissingTableError(updateError, 'posts')) {
     throw updateError;
   }
@@ -197,10 +198,9 @@ const DEFAULT_CATEGORIES: Array<Pick<Category, 'name' | 'name_ar' | 'slug'>> = [
   { name: 'Inspiration', name_ar: '\u0625\u0644\u0647\u0627\u0645', slug: 'inspiration' },
   { name: 'Hadith', name_ar: '\u062d\u062f\u064a\u062b', slug: 'hadith' },
   { name: 'Dua', name_ar: '\u062f\u0639\u0627\u0621', slug: 'dua' },
-  { name: 'Academy', name_ar: '\u0627\u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629', slug: 'academy' },
-  { name: 'Library', name_ar: '\u0627\u0644\u0645\u0643\u062a\u0628\u0629', slug: 'library' },
   { name: 'Articles', name_ar: '\u0645\u0642\u0627\u0644\u0627\u062a', slug: 'articles' },
   { name: 'Community', name_ar: '\u0627\u0644\u0645\u062c\u062a\u0645\u0639', slug: 'community' },
+  { name: 'Academy', name_ar: '\u0627\u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629', slug: 'academy' },
 ];
 
 export const postService = {
@@ -259,7 +259,6 @@ export const postService = {
       return data;
     }
 
-    // Bootstrap defaults for fresh projects so the "Choose section" select is never empty.
     const { error: seedError } = await supabase
       .from('categories')
       .upsert(DEFAULT_CATEGORIES, { onConflict: 'slug' });
@@ -274,7 +273,6 @@ export const postService = {
   },
 
   async savePushSubscription(subscription: PushSubscription) {
-    // This is a placeholder. In a real application, you would save this to the database.
     console.log('Saving push subscription:', subscription);
     return Promise.resolve();
   },
@@ -569,7 +567,6 @@ export const postService = {
       return true;
     }
 
-    // Fallback for older schemas that do not cascade post deletion to likes/comments.
     if (error.message?.toLowerCase().includes('foreign key')) {
       await supabase.from('likes').delete().eq('post_id', postId);
       await supabase.from('comments').delete().eq('post_id', postId);
@@ -689,7 +686,6 @@ export const postService = {
       .insert({ post_id: postId, user_id: userId });
 
     if (insertError) {
-      // Request already liked in another tab/device.
       if (insertError.code === '23505') {
         const likesCount = await syncPostLikesCount(postId);
         return { liked: true, likes_count: likesCount };
@@ -972,7 +968,7 @@ export const postService = {
     return data;
   },
 
-  async getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(limit = 3): Promise<LeaderboardEntry[]> {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, display_name, avatar_url, score')
@@ -1037,12 +1033,223 @@ export const postService = {
     return data || [];
   },
 
+  async getBroadcastNotifications(limit = 40): Promise<BroadcastNotification[]> {
+    const { data, error } = await supabase
+      .from('broadcast_notifications')
+      .select('*')
+      .order('send_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      if (isMissingTableError(error, 'broadcast_notifications')) {
+        return [];
+      }
+      throw error;
+    }
+
+    return (data || []) as BroadcastNotification[];
+  },
+
+  async createBroadcastNotification(payload: Partial<BroadcastNotification>) {
+    const { data, error } = await supabase
+      .from('broadcast_notifications')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) {
+      if (isMissingTableError(error, 'broadcast_notifications')) {
+        throw new Error(toSetupMessage('broadcast_notifications'));
+      }
+      throw error;
+    }
+
+    return data as BroadcastNotification;
+  },
+
+  async updateBroadcastNotification(id: string, payload: Partial<BroadcastNotification>) {
+    const { data, error } = await supabase
+      .from('broadcast_notifications')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      if (isMissingTableError(error, 'broadcast_notifications')) {
+        throw new Error(toSetupMessage('broadcast_notifications'));
+      }
+      throw error;
+    }
+
+    return data as BroadcastNotification;
+  },
+
+  async deleteBroadcastNotification(id: string) {
+    const { error } = await supabase
+      .from('broadcast_notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      if (isMissingTableError(error, 'broadcast_notifications')) {
+        throw new Error(toSetupMessage('broadcast_notifications'));
+      }
+      throw error;
+    }
+
+    return true;
+  },
+
+  async getUserNotificationPreference(userId: string): Promise<UserNotificationPreference | null> {
+    const { data, error } = await supabase
+      .from('user_notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTableError(error, 'user_notification_preferences')) {
+        return null;
+      }
+      throw error;
+    }
+
+    return (data as UserNotificationPreference | null) || null;
+  },
+
+  async upsertUserNotificationPreference(
+    userId: string,
+    payload: {
+      allow_broadcast: boolean;
+      reminder_mode: 'auto' | 'manual';
+      manual_time: string | null;
+      preferred_language: 'app' | 'en' | 'ar';
+    }
+  ): Promise<UserNotificationPreference | null> {
+    const { data, error } = await supabase
+      .from('user_notification_preferences')
+      .upsert(
+        {
+          user_id: userId,
+          allow_broadcast: payload.allow_broadcast,
+          reminder_mode: payload.reminder_mode,
+          manual_time: payload.reminder_mode === 'manual' ? payload.manual_time : null,
+          preferred_language: payload.preferred_language,
+        },
+        { onConflict: 'user_id' }
+      )
+      .select('*')
+      .single();
+
+    if (error) {
+      if (isMissingTableError(error, 'user_notification_preferences')) {
+        return null;
+      }
+      throw error;
+    }
+
+    return data as UserNotificationPreference;
+  },
+
+  async markBroadcastDelivered(notificationId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('broadcast_notification_deliveries')
+      .upsert(
+        {
+          notification_id: notificationId,
+          user_id: userId,
+          status: 'scheduled',
+          delivered_at: new Date().toISOString(),
+        },
+        { onConflict: 'notification_id,user_id' }
+      );
+
+    if (error) {
+      if (isMissingTableError(error, 'broadcast_notification_deliveries')) {
+        return;
+      }
+      throw error;
+    }
+  },
+
+  async getBroadcastAdminMetrics(limit = 40): Promise<BroadcastAdminMetrics> {
+    const [notifications, totalUsersResult, optedOutResult] = await Promise.all([
+      this.getBroadcastNotifications(limit),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('user_notification_preferences').select('user_id', { count: 'exact', head: true }).eq('allow_broadcast', false),
+    ]);
+
+    const totalUsers = totalUsersResult.error ? 0 : (totalUsersResult.count || 0);
+    const optedOutUsers = optedOutResult.error ? 0 : (optedOutResult.count || 0);
+    const optedInUsers = Math.max(0, totalUsers - optedOutUsers);
+
+    if (!notifications.length) {
+      return {
+        total_users: totalUsers,
+        opted_in_users: optedInUsers,
+        opted_out_users: optedOutUsers,
+        delivered_total: 0,
+        pending_total: 0,
+        by_notification: [],
+      };
+    }
+
+    const notificationIds = notifications.map((item) => item.id);
+    const { data: deliveries, error: deliveryError } = await supabase
+      .from('broadcast_notification_deliveries')
+      .select('notification_id,user_id')
+      .in('notification_id', notificationIds);
+
+    if (deliveryError && !isMissingTableError(deliveryError, 'broadcast_notification_deliveries')) {
+      throw deliveryError;
+    }
+
+    const deliveredByNotification = new Map<string, Set<string>>();
+    (deliveries || []).forEach((row: { notification_id: string; user_id: string }) => {
+      if (!deliveredByNotification.has(row.notification_id)) {
+        deliveredByNotification.set(row.notification_id, new Set<string>());
+      }
+      deliveredByNotification.get(row.notification_id)!.add(row.user_id);
+    });
+
+    const byNotification = notificationIds.map((notificationId) => {
+      const deliveredCount = deliveredByNotification.get(notificationId)?.size || 0;
+      const pendingCount = Math.max(0, optedInUsers - deliveredCount);
+      return {
+        notification_id: notificationId,
+        delivered_count: deliveredCount,
+        pending_count: pendingCount,
+        target_count: optedInUsers,
+      };
+    });
+
+    return {
+      total_users: totalUsers,
+      opted_in_users: optedInUsers,
+      opted_out_users: optedOutUsers,
+      delivered_total: byNotification.reduce((sum, item) => sum + item.delivered_count, 0),
+      pending_total: byNotification.reduce((sum, item) => sum + item.pending_count, 0),
+      by_notification: byNotification,
+    };
+  },
+
   async getQuranPages(limit = 24): Promise<QuranPageRow[]> {
     const { data, error } = await supabase
       .from('quran_pages')
       .select('*')
       .order('page_number', { ascending: true })
       .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getSurahs(): Promise<QuranSurahMetadata[]> {
+    const { data, error } = await supabase
+      .from('surahs')
+      .select('*')
+      .order('id', { ascending: true });
 
     if (error) throw error;
     return data || [];
@@ -1057,16 +1264,6 @@ export const postService = {
 
     if (error) throw error;
     return data as QuranPageRow;
-  },
-
-  async getSurahs(): Promise<QuranSurahMetadata[]> {
-    const { data, error } = await supabase
-      .from('surahs')
-      .select('*')
-      .order('id', { ascending: true });
-
-    if (error) throw error;
-    return data || [];
   },
 
   async getUserPosts(userId: string, limit = 10): Promise<Post[]> {
@@ -1093,6 +1290,24 @@ export const postService = {
 
     const mappedPosts = (data || []).map(withAuthorName);
     return attachPostCounts(mappedPosts);
+  },
+
+  subscribeToLeaderboard(callback: () => void) {
+    const channel = supabase
+      .channel('leaderboard-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        () => { callback(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quiz_scores' },
+        () => { callback(); }
+      )
+      .subscribe();
+
+    return channel;
   },
 
   async getQuizScoresByUser(userId: string, limit = 10): Promise<QuizScore[]> {

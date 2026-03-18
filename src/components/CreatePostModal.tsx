@@ -10,6 +10,8 @@ import {
   Upload,
   Video,
   X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +20,7 @@ import { Category, ContentCategory, Post, PostType } from '../types';
 
 type Language = 'en' | 'ar';
 
-type CategoryFilterMode = 'sidebar' | 'non-sidebar' | 'all';
+export type CategoryFilterMode = 'sidebar' | 'non-sidebar' | 'all';
 type PostLanguage = 'ar' | 'en' | 'both';
 
 const postTypes: Array<{ id: PostType; icon: typeof FileText; label: Record<Language, string> }> = [
@@ -126,6 +128,8 @@ export const CreatePostModal = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const isEditing = Boolean(postToEdit);
   const isAdmin = profile?.role === 'admin';
   const isCategoryLocked = Boolean(initialCategorySlug) && !isEditing;
@@ -149,9 +153,9 @@ export const CreatePostModal = ({
   const computedSubtitle = useMemo(() => {
     if (modalSubtitle) return modalSubtitle;
     if (categoryFilter === 'sidebar') {
-      return 'Publish into sidebar sections only (Inspiration, Hadith, Dua).';
+      return 'Publish into sidebar sections only.';
     }
-    return 'Publish content to this page category only, separate from sidebar icons.';
+    return 'Publish content to this page category.';
   }, [categoryFilter, modalSubtitle]);
 
   useEffect(() => {
@@ -175,7 +179,7 @@ export const CreatePostModal = ({
         setCategories(nextCategories);
 
         if (!nextCategories.length) {
-          setError(lang === 'en' ? 'No categories found. Run Supabase setup SQL.' : 'لا توجد فئات. نفّذ إعداد Supabase ثم أعد التحميل.');
+          setError(lang === 'en' ? 'No categories found.' : 'لا توجد فئات.');
         }
 
         try {
@@ -314,26 +318,6 @@ export const CreatePostModal = ({
       return;
     }
 
-    if (type === 'image' && !file.type.startsWith('image/')) {
-      setError(lang === 'en' ? 'Please upload an image file.' : 'يرجى رفع ملف صورة.');
-      return;
-    }
-
-    if (type === 'video' && !file.type.startsWith('video/')) {
-      setError(lang === 'en' ? 'Please upload a video file.' : 'يرجى رفع ملف فيديو.');
-      return;
-    }
-
-    if (type === 'audio' && !file.type.startsWith('audio/')) {
-      setError(lang === 'en' ? 'Please upload an audio file.' : 'يرجى رفع ملف صوت.');
-      return;
-    }
-
-    if (type === 'pdf' && file.type !== 'application/pdf') {
-      setError(lang === 'en' ? 'Please upload a PDF file.' : 'يرجى رفع ملف PDF.');
-      return;
-    }
-
     setUploading(true);
     setError(null);
 
@@ -356,11 +340,6 @@ export const CreatePostModal = ({
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError(lang === 'en' ? 'Please upload an image file for the cover.' : 'يرجى رفع ملف صورة للغلاف.');
-      return;
-    }
 
     setUploading(true);
     setError(null);
@@ -401,7 +380,7 @@ export const CreatePostModal = ({
     event.preventDefault();
 
     if (!profile) {
-      setError(lang === 'en' ? 'You must be logged in to create a post.' : 'يجب تسجيل الدخول لإنشاء منشور.');
+      setError(lang === 'en' ? 'You must be logged in.' : 'يجب تسجيل الدخول.');
       return;
     }
 
@@ -431,8 +410,8 @@ export const CreatePostModal = ({
     const payload = {
       author_id: profile.id,
       category_id: effectiveCategoryId,
-      title: finalTitle,
-      content: finalContent,
+      title: finalTitle || normalizedSecondaryTitle || 'Untitled',
+      content: finalContent || normalizedSecondaryContent || '',
       post_type: type,
       image_url: imageUrl,
       media_url: mediaUrl,
@@ -453,7 +432,7 @@ export const CreatePostModal = ({
       onClose();
       resetForm();
     } catch (submitError: any) {
-      setError(submitError.message || (isEditing ? (lang === 'en' ? 'Error updating post' : 'حدث خطأ أثناء تحديث المنشور') : (lang === 'en' ? 'Error creating post' : 'حدث خطأ أثناء تحديث المنشور')));
+      setError(submitError.message || (lang === 'en' ? 'Error saving post' : 'حدث خطأ أثناء حفظ المنشور'));
     } finally {
       setLoading(false);
     }
@@ -462,7 +441,7 @@ export const CreatePostModal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[150] flex items-start justify-center p-3 sm:items-center sm:p-6">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-6 overflow-hidden">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -475,354 +454,207 @@ export const CreatePostModal = ({
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative mt-2 max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-app-card p-5 shadow-2xl sm:mt-0 sm:rounded-[3rem] sm:p-10"
+            className="relative w-full max-w-xl flex flex-col max-h-[90vh] rounded-[2.5rem] border border-white/10 bg-app-card shadow-2xl overflow-hidden"
           >
-            <button
-              onClick={onClose}
-              className="absolute right-6 top-6 rounded-full p-2 text-app-text/40 transition-all hover:bg-white/5 hover:text-app-text"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className={cn('mb-10', lang === 'ar' && 'text-right')}>
-              <h2 className="mb-2 text-3xl font-serif text-app-text">{computedTitle}</h2>
-              <p className="text-sm text-app-muted">{computedSubtitle}</p>
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-white/5 bg-app-card/50 backdrop-blur-md z-10">
+              <div className={cn(lang === 'ar' && 'text-right')}>
+                <h2 className="text-xl font-bold text-app-text">{computedTitle}</h2>
+                <p className="text-xs text-app-muted">{computedSubtitle}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 text-app-text/40 transition-all hover:bg-white/5 hover:text-app-text"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-5">
-                {postTypes.map((postType) => (
-                  <button
-                    key={postType.id}
-                    type="button"
-                    onClick={() => setType(postType.id)}
-                    className={cn(
-                      'flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all',
-                      type === postType.id
-                        ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                        : 'border-white/5 bg-white/5 text-app-muted hover:bg-white/10'
-                    )}
-                  >
-                    <postType.icon className="h-5 w-5" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{postType.label[lang]}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-6">
-                <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                  <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                    {lang === 'en' ? 'Post Language' : 'لغة المنشور'}
-                  </label>
-                  <select
-                    value={postLanguage}
-                    onChange={(event) => setPostLanguage(event.target.value as PostLanguage)}
-                    className="w-full appearance-none rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                  >
-                    <option value="en">{lang === 'en' ? 'English' : 'الإنجليزية'}</option>
-                    <option value="ar">{lang === 'en' ? 'Arabic' : 'العربية'}</option>
-                    <option value="both">{lang === 'en' ? 'Arabic + English' : 'عربي + إنجليزي'}</option>
-                  </select>
-                </div>
-
-                <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                  <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                    {postLanguage === 'both'
-                      ? (lang === 'en' ? 'Arabic Title' : 'العنوان العربي')
-                      : (lang === 'en' ? 'Title' : 'العنوان')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    dir={postLanguage === 'ar' ? 'rtl' : 'ltr'}
-                    className={cn(
-                      'w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none',
-                      postLanguage === 'ar' ? 'text-right' : 'text-left'
-                    )}
-                    placeholder={
-                      postLanguage === 'both'
-                        ? (lang === 'en' ? 'Enter Arabic title...' : 'أدخل العنوان العربي...')
-                        : (lang === 'en' ? 'Enter post title...' : 'أدخل عنوان المنشور...')
-                    }
-                  />
-                </div>
-
-                {postLanguage === 'both' && (
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'English Title (Optional)' : 'العنوان الإنجليزي (اختياري)'}
-                    </label>
-                    <input
-                      type="text"
-                      value={secondaryTitle}
-                      onChange={(event) => setSecondaryTitle(event.target.value)}
-                      dir="ltr"
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+              <form id="create-post-form" onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-5 gap-2">
+                  {postTypes.map((postType) => (
+                    <button
+                      key={postType.id}
+                      type="button"
+                      onClick={() => setType(postType.id)}
                       className={cn(
-                        'w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none',
-                        'text-left'
+                        'flex flex-col items-center gap-1.5 rounded-xl border py-3 transition-all',
+                        type === postType.id
+                          ? 'border-app-accent bg-app-accent/10 text-app-accent'
+                          : 'border-white/5 bg-white/5 text-app-muted hover:bg-white/10'
                       )}
-                      placeholder={lang === 'en' ? 'Enter English title...' : 'أدخل العنوان الإنجليزي...'}
-                    />
-                  </div>
-                )}
+                    >
+                      <postType.icon className="h-4 w-4" />
+                      <span className="text-[9px] font-black uppercase tracking-widest">{postType.label[lang]}</span>
+                    </button>
+                  ))}
+                </div>
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Category' : 'الفئة'}</label>
-                    {isCategoryLocked ? (
-                      <input
-                        type="text"
-                        readOnly
-                        value={selectedCategory ? (lang === 'en' ? selectedCategory.name : selectedCategory.name_ar) : ''}
-                        className="w-full rounded-2xl border border-app-accent/30 bg-app-accent/10 px-6 py-4 text-app-text"
-                      />
-                    ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                        {lang === 'en' ? 'Language View' : 'عرض اللغة'}
+                      </label>
                       <select
-                        required
-                        value={categoryId}
-                        onChange={(event) => setCategoryId(event.target.value)}
-                        className="w-full appearance-none rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
+                        value={postLanguage}
+                        onChange={(e) => setPostLanguage(e.target.value as PostLanguage)}
+                        className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none"
                       >
-                        <option value="">{lang === 'en' ? 'Choose category' : 'اختر الفئة'}</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {lang === 'en' ? category.name : category.name_ar}
-                          </option>
-                        ))}
+                        <option value="en">English Fields</option>
+                        <option value="ar">Arabic Fields</option>
+                        <option value="both">Both (Combined)</option>
                       </select>
-                    )}
-                    <p className="text-xs text-app-muted">
-                      {categoryFilter === 'sidebar'
-                        ? 'This post will appear only under sidebar icons.'
-                        : 'This post will appear in the page feed, not sidebar icons.'}
-                    </p>
-                  </div>
-
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Upload Media' : 'رفع الوسائط'}</label>
-                    {canUploadForType ? (
-                      <div className="relative">
-                        <input
-                          id="media-upload"
-                          type="file"
-                          accept={activeAccept}
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="media-upload"
-                          className={cn(
-                            'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all hover:bg-white/5',
-                            uploading && 'cursor-wait opacity-50'
-                          )}
-                        >
-                          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                          <span className="text-sm">{lang === 'en' ? 'Choose File' : 'اختر ملف'}</span>
+                    </div>
+                    {!isCategoryLocked && (
+                      <div className="flex-1">
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                          {lang === 'en' ? 'Section' : 'القسم'}
                         </label>
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-sm text-app-muted">
-                        {lang === 'en' ? 'Text posts do not require media upload.' : 'المنشور النصي لا يحتاج رفع ملف.'}
+                        <select
+                          required
+                          value={categoryId}
+                          onChange={(e) => setCategoryId(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none"
+                        >
+                          <option value="">{lang === 'en' ? 'Select...' : 'اختر...'}</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{lang === 'en' ? c.name : c.name_ar}</option>
+                          ))}
+                        </select>
                       </div>
                     )}
                   </div>
 
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'Upload Cover/Thumbnail (Optional)' : 'رفع غلاف/صورة مصغرة (اختياري)'}
-                    </label>
-                    <div className="relative">
+                  <div className="space-y-3">
+                    {(postLanguage === 'en' || postLanguage === 'both') && (
                       <input
-                        id="cover-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverUpload}
-                        className="hidden"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
+                        placeholder="English Title (Optional if Arabic provided)..."
                       />
+                    )}
+                    {(postLanguage === 'ar' || postLanguage === 'both') && (
+                      <input
+                        value={secondaryTitle}
+                        onChange={(e) => setSecondaryTitle(e.target.value)}
+                        dir="rtl"
+                        className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
+                        placeholder="العنوان بالعربي (اختياري)..."
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <input id="media-upload-c" type="file" accept={activeAccept} onChange={handleFileUpload} className="hidden" />
                       <label
-                        htmlFor="cover-upload"
+                        htmlFor="media-upload-c"
                         className={cn(
-                          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all hover:bg-white/5',
-                          uploading && 'cursor-wait opacity-50'
+                          "flex h-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-app-text hover:border-app-accent/50 hover:bg-white/10 transition-all",
+                          (!canUploadForType || uploading) && "opacity-50 cursor-not-allowed"
                         )}
                       >
-                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                        <span className="text-sm">{lang === 'en' ? 'Choose Cover Image' : 'اختر صورة الغلاف'}</span>
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin text-app-accent" /> : <Upload className="h-4 w-4 text-app-muted" />}
+                        <span className="text-xs font-bold text-app-muted">{uploading ? 'Uploading...' : 'Upload Media'}</span>
+                      </label>
+                    </div>
+                    <div className="flex-1">
+                      <input id="cover-upload-c" type="file" accept="image/*" onChange={handleCoverUpload} className="hidden" />
+                      <label
+                        htmlFor="cover-upload-c"
+                        className="flex h-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-app-text hover:border-app-accent/50 hover:bg-white/10 transition-all"
+                      >
+                        <ImageIcon className="h-4 w-4 text-app-muted" />
+                        <span className="text-xs font-bold text-app-muted">Add Cover</span>
                       </label>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'Cover/Thumbnail URL (Optional)' : 'رابط الغلاف/الصورة المصغرة (اختياري)'}
-                    </label>
-                    <input
-                      type="url"
-                      value={imageUrl}
-                      onChange={(event) => setImageUrl(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  {type !== 'article' && type !== 'image' && (
-                    <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                      <label className="text-xs font-bold uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Media URL' : 'رابط الوسائط'}</label>
-                      <input
-                        type="url"
-                        value={mediaUrl}
-                        onChange={(event) => setMediaUrl(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                        placeholder="https://..."
+                  <div className="space-y-3">
+                    {(postLanguage === 'en' || postLanguage === 'both') && (
+                      <textarea
+                        rows={4}
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
+                        placeholder="English content..."
                       />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {isAdmin && (
-                    <>
-                      <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                        <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                          {lang === 'en' ? 'Topic Title (Optional)' : 'عنوان السلسلة (اختياري)'}
-                        </label>
-                        <input
-                          type="text"
-                          value={seriesTitle}
-                          onChange={(event) => setSeriesTitle(event.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                          placeholder={lang === 'en' ? 'Example: Al-Arbaeen An-Nawawiyyah' : 'مثال: الأربعون النووية'}
-                        />
-                        <p className="text-xs text-app-muted">
-                          {lang === 'en'
-                            ? 'Use same topic title for all lessons in one book/course.'
-                            : 'استخدم نفس عنوان السلسلة لكل دروس نفس الكتاب/الدورة.'}
-                        </p>
-                      </div>
-
-                      <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                        <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                          {lang === 'en' ? 'Lesson Order' : 'ترتيب الدرس'}
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={lessonOrder}
-                          onChange={(event) => setLessonOrder(Number(event.target.value) || 1)}
-                          className="w-full rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
-                        />
-                      </div>
-                    </>
-                  )}
+                    )}
+                    {(postLanguage === 'ar' || postLanguage === 'both') && (
+                      <textarea
+                        rows={4}
+                        value={secondaryContent}
+                        onChange={(e) => setSecondaryContent(e.target.value)}
+                        dir="rtl"
+                        className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
+                        placeholder="المحتوى بالعربي..."
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {isAdmin && (
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'Parent Course Post (Optional)' : 'المنشور الرئيسي للدورة (اختياري)'}
-                    </label>
-                    <select
-                      value={parentPostId}
-                      onChange={(event) => setParentPostId(event.target.value)}
-                      className="w-full appearance-none rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none"
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      className="flex w-full items-center justify-between p-4 text-xs font-black uppercase tracking-widest text-app-muted hover:text-app-text"
                     >
-                      <option value="">{lang === 'en' ? 'No parent (this can be course root)' : 'بدون منشور رئيسي'}</option>
-                      {courseParents
-                        .filter((item) => !postToEdit || item.id !== postToEdit.id)
-                        .map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.title}
-                          </option>
-                        ))}
-                    </select>
-                    <p className="text-xs text-app-muted">
-                      {lang === 'en'
-                        ? 'Choose a root course post to make this a child lesson.'
-                        : 'اختر منشور دورة رئيسي لجعل هذا المنشور درساً تابعاً.'}
-                    </p>
-                  </div>
-                )}
+                      <span>Advanced Settings</span>
+                      {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
 
-                <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                  <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                    {postLanguage === 'both'
-                      ? (lang === 'en' ? 'Arabic Content' : 'المحتوى العربي')
-                      : (lang === 'en' ? 'Content' : 'المحتوى')}
-                  </label>
-                  <textarea
-                    rows={6}
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    dir={postLanguage === 'ar' ? 'rtl' : 'ltr'}
-                    className={cn(
-                      'w-full resize-none rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none',
-                      postLanguage === 'ar' ? 'text-right' : 'text-left'
+                    {showAdvanced && (
+                      <div className="p-4 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black text-app-muted ml-1">Topic/Series</label>
+                            <input value={seriesTitle} onChange={e => setSeriesTitle(e.target.value)} className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-xs" />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black text-app-muted ml-1">Order</label>
+                            <input type="number" value={lessonOrder} onChange={e => setLessonOrder(Number(e.target.value))} className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-xs" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-[10px] font-black text-app-muted ml-1">Parent Course</label>
+                          <select value={parentPostId} onChange={e => setParentPostId(e.target.value)} className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-xs">
+                            <option value="">None</option>
+                            {courseParents.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black text-app-muted ml-1">Media URL</label>
+                            <input value={mediaUrl} onChange={e => setMediaUrl(e.target.value)} className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-[10px]" />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-black text-app-muted ml-1">Image URL</label>
+                            <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-[10px]" />
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    placeholder={
-                      postLanguage === 'both'
-                        ? (lang === 'en' ? 'Write Arabic content...' : 'اكتب المحتوى العربي...')
-                        : (lang === 'en' ? 'Write the full post content here...' : 'اكتب محتوى المنشور الكامل هنا...')
-                    }
-                  />
-                </div>
-
-                {postLanguage === 'both' && (
-                  <div className={cn('space-y-2', lang === 'ar' && 'text-right')}>
-                    <label className="text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'English Content (Optional)' : 'المحتوى الإنجليزي (اختياري)'}
-                    </label>
-                    <textarea
-                      rows={6}
-                      value={secondaryContent}
-                      onChange={(event) => setSecondaryContent(event.target.value)}
-                      dir="ltr"
-                      className={cn(
-                        'w-full resize-none rounded-2xl border border-white/10 bg-app-bg px-6 py-4 text-app-text transition-all focus:border-app-accent/50 focus:outline-none',
-                        'text-left'
-                      )}
-                      placeholder={lang === 'en' ? 'Write English content...' : 'اكتب المحتوى الإنجليزي...'}
-                    />
                   </div>
                 )}
-              </div>
 
-              {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center text-xs text-red-400">
-                  {error}
-                </div>
-              )}
+                {error && <div className="text-center text-[10px] font-bold text-red-400 uppercase bg-red-500/10 py-3 rounded-xl border border-red-500/20">{error}</div>}
+              </form>
+            </div>
 
-              {!isAdmin && !isEditing && (
-                <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-xs text-amber-300">
-                  {lang === 'en'
-                    ? 'Your post will appear in Pending status until an admin approves it. You can see it in My Account -> My Posts.'
-                    : 'سيظهر منشورك بحالة قيد المراجعة حتى يوافق عليه المشرف. يمكنك رؤيته في حسابي -> منشوراتي.'}
-                </div>
-              )}
-
+            <div className="p-6 pt-4 border-t border-white/5 bg-app-card/80 backdrop-blur-md">
               <button
                 type="submit"
-                disabled={loading || categories.length === 0}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-app-accent py-5 text-sm font-bold uppercase tracking-widest text-app-bg shadow-2xl shadow-app-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                form="create-post-form"
+                disabled={loading || categories.length === 0 || (!title && !secondaryTitle)}
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-app-accent py-4 text-xs font-black uppercase tracking-[0.2em] text-app-bg shadow-xl shadow-app-accent/20 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
               >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-                {isEditing
-                  ? lang === 'en'
-                    ? 'Save Changes'
-                    : 'حفظ التعديلات'
-                  : isAdmin
-                    ? lang === 'en'
-                      ? 'Publish Post'
-                      : 'نشر المنشور'
-                    : lang === 'en'
-                      ? 'Submit For Approval'
-                      : 'إرسال للمراجعة'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {isEditing ? 'Save Changes' : (isAdmin ? 'Publish Post' : 'Submit for Review')}
               </button>
-            </form>
+            </div>
           </motion.div>
         </div>
       )}

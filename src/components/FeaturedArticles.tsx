@@ -1,14 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, BookOpen, Clock, Play, ScrollText, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Clock,
+  Clock3,
+  ScrollText,
+  Users,
+  ChevronRight,
+  Book,
+  Sparkles
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 import { buildPostPath } from '../lib/postRoutes';
+import { isNativeApp } from '../lib/runtime';
 
 type Language = 'en' | 'ar';
-type HomeSectionKey = 'articles' | 'academy' | 'library' | 'community';
+type HomeSectionKey = 'articles' | 'prayer' | 'community' | 'quran';
 
 interface HomeSectionGroup {
   key: HomeSectionKey;
@@ -17,249 +29,129 @@ interface HomeSectionGroup {
   subtitle: string;
   cta: string;
   icon: typeof ScrollText;
-  posts: Post[];
-  previewPost: Post;
+  previewPost?: Post;
+  postCount?: number;
 }
 
 const translations = {
   en: {
-    eyebrow: 'Platform Preview',
-    title: 'Explore the Main Sections',
-    subtitle: 'A quick view of articles, academy lessons, library resources, and community posts so visitors understand the platform immediately.',
-    browseAll: 'Open Full Platform',
+    eyebrow: 'Our Ecosystem',
+    title: 'Daily Knowledge Quiz',
+    subtitle: 'Access prayer times, sacred texts, and community lessons in one unified experience.',
+    browseAll: 'See Community Activity',
     sections: {
-      articles: {
-        title: 'Articles',
-        subtitle: 'Deep Islamic reading and reflection.',
-        cta: 'Open Articles',
-      },
-      academy: {
-        title: 'Academy',
-        subtitle: 'Video and audio lessons organized as courses.',
-        cta: 'Open Academy',
-      },
-      library: {
-        title: 'Library',
-        subtitle: 'Books, PDFs, and study audio in one place.',
-        cta: 'Open Library',
-      },
-      community: {
-        title: 'Community',
-        subtitle: 'Posts, discussions, and shared learning.',
-        cta: 'Open Community',
-      },
+      articles: { title: 'Insights', subtitle: 'Deep Islamic reading and reflection.', cta: 'Read Articles' },
+      prayer: { title: 'Prayer Time', subtitle: 'Location-aware schedule and azan.', cta: 'Check Times' },
+
+      community: { title: 'Community', subtitle: 'Shared learning and global updates.', cta: 'Join Feed' },
+      quran: { title: 'Quran', subtitle: 'Explore the holy book.', cta: 'Read Quran' },
     },
   },
   ar: {
-    eyebrow: 'نظرة على المنصة',
-    title: 'استكشف الأقسام الرئيسية',
-    subtitle: 'عرض سريع للمقالات والأكاديمية والمكتبة والمجتمع حتى يفهم الزائر فكرة المنصة مباشرة.',
-    browseAll: 'فتح المنصة كاملة',
+    eyebrow: 'منصتنا المتكاملة',
+    title: 'اختبار المعرفة اليومي',
+    subtitle: 'الوصول لمواقيت الصلاة، النصوص المقدسة، ودروس المجتمع في تجربة واحدة متكاملة.',
+    browseAll: 'مشاهدة نشاط المجتمع',
     sections: {
-      articles: {
-        title: 'المقالات',
-        subtitle: 'قراءة وتأملات إسلامية معمقة.',
-        cta: 'فتح المقالات',
-      },
-      academy: {
-        title: 'الأكاديمية',
-        subtitle: 'دروس فيديو وصوت منظمة كدورات.',
-        cta: 'فتح الأكاديمية',
-      },
-      library: {
-        title: 'المكتبة',
-        subtitle: 'كتب وملفات PDF ومواد صوتية في مكان واحد.',
-        cta: 'فتح المكتبة',
-      },
-      community: {
-        title: 'المجتمع',
-        subtitle: 'منشورات ونقاشات ومشاركة في التعلم.',
-        cta: 'فتح المجتمع',
-      },
+      articles: { title: 'تأملات', subtitle: 'قراءة وتأملات إسلامية معمقة.', cta: 'اقرأ المقالات' },
+      prayer: { title: 'مواقيت الصلاة', subtitle: 'مواقيت دقيقة حسب موقعك مع الأذان.', cta: 'افتح المواقيت' },
+
+      community: { title: 'المجتمع', subtitle: 'منشورات ودروس ومشاركة في التعلم.', cta: 'انضم للمجتمع' },
+      quran: { title: 'القرآن', subtitle: 'استكشف الكتاب المقدس.', cta: 'اقرأ القرآن' },
     },
   },
 };
 
-const sectionMeta: Record<HomeSectionKey, { route: string; icon: typeof ScrollText }> = {
-  articles: { route: '/articles', icon: ScrollText },
-  academy: { route: '/academy', icon: Play },
-  library: { route: '/library', icon: BookOpen },
-  community: { route: '/community', icon: Users },
+const sectionMeta: Record<HomeSectionKey, { route: string; icon: typeof ScrollText; color: string }> = {
+  articles: { route: '/articles', icon: ScrollText, color: 'from-blue-500/20' },
+  prayer: { route: '/prayer', icon: Clock3, color: 'from-emerald-500/20' },
+
+  community: { route: '/community', icon: Users, color: 'from-indigo-500/20' },
+  quran: { route: '/quran', icon: BookOpen, color: 'from-yellow-500/20' },
 };
-
-const getCategorySlug = (post: Post) =>
-  (post.category?.slug || post.category?.name || post.category?.name_ar || '').trim().toLowerCase();
-
-const getSectionKey = (post: Post): HomeSectionKey | null => {
-  const slug = getCategorySlug(post);
-  if (slug === 'articles' || slug === 'article' || slug === 'المقالات' || slug === 'مقالات') return 'articles';
-  if (slug === 'academy' || slug === 'الأكاديمية') return 'academy';
-  if (slug === 'library' || slug === 'المكتبة') return 'library';
-  if (slug === 'community' || slug === 'المجتمع') return 'community';
-  return null;
-};
-
-const sortPosts = (posts: Post[]) =>
-  [...posts].sort((a, b) => {
-    const orderA = a.lesson_order || 1;
-    const orderB = b.lesson_order || 1;
-    if (orderA !== orderB) return orderA - orderB;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
 
 export const FeaturedArticles = ({ lang }: { lang: Language }) => {
+  const nativeApp = isNativeApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const t = translations[lang];
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    void (async () => {
       try {
-        const data = await postService.getPosts({
-          is_approved: true,
-          limit: 40,
-          orderBy: 'created_at',
-        });
+        const data = await postService.getPosts({ is_approved: true, limit: 30 });
         setPosts(data);
-      } catch (error) {
-        console.error('Error fetching homepage featured content:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void fetchPosts();
+      } finally { setLoading(false); }
+    })();
   }, []);
 
   const featuredSections = useMemo<HomeSectionGroup[]>(() => {
-    const grouped = new Map<HomeSectionKey, Post[]>();
-
-    posts.forEach((post) => {
-      const sectionKey = getSectionKey(post);
-      if (!sectionKey) return;
-
-      if (sectionKey === 'academy' && post.post_type !== 'video' && post.post_type !== 'audio') return;
-      if (sectionKey === 'library' && post.post_type !== 'pdf' && post.post_type !== 'audio') return;
-
-      const list = grouped.get(sectionKey) || [];
-      list.push(post);
-      grouped.set(sectionKey, list);
-    });
-
-    return (['articles', 'academy', 'library', 'community'] as HomeSectionKey[])
-      .map((key) => {
-        const sectionPosts = sortPosts(grouped.get(key) || []);
-        if (sectionPosts.length === 0) return null;
-
-        return {
-          key,
-          route: sectionMeta[key].route,
-          title: t.sections[key].title,
-          subtitle: t.sections[key].subtitle,
-          cta: t.sections[key].cta,
-          icon: sectionMeta[key].icon,
-          posts: sectionPosts,
-          previewPost: sectionPosts[0],
-        };
-      })
-      .filter(Boolean) as HomeSectionGroup[];
+    return (['articles', 'prayer', 'community', 'quran'] as HomeSectionKey[]).map(key => ({
+      key,
+      route: sectionMeta[key].route,
+      title: t.sections[key].title,
+      subtitle: t.sections[key].subtitle,
+      cta: t.sections[key].cta,
+      icon: sectionMeta[key].icon,
+      postCount: posts.filter(p => p.category?.slug === key).length || (key === 'prayer' ? 1 : 5)
+    }));
   }, [posts, t]);
 
-  if (loading && featuredSections.length === 0) return null;
-  if (!loading && featuredSections.length === 0) return null;
-
   return (
-    <section className="relative overflow-hidden bg-app-bg/50 py-32">
+    <section className="bg-app-bg py-24 md:py-32">
       <div className="container mx-auto px-6">
-        <div
-          className={cn(
-            'mb-20 flex flex-col items-end justify-between gap-8 md:flex-row',
-            lang === 'ar' && 'text-right md:flex-row-reverse'
-          )}
-        >
+        <div className={cn("mb-16 flex flex-col justify-between gap-8 md:flex-row md:items-end", lang === 'ar' && "text-right md:flex-row-reverse")}>
           <div className="max-w-3xl">
-            <motion.span initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="mb-4 block text-xs font-bold uppercase tracking-widest text-app-accent">
-              {t.eyebrow}
-            </motion.span>
-            <h2 className="mb-6 font-serif text-5xl leading-tight text-app-text md:text-6xl">{t.title}</h2>
-            <p className="text-lg text-app-muted">{t.subtitle}</p>
-          </div>
-          <Link
-            to="/community"
-            className={cn(
-              'group flex items-center gap-3 text-lg font-bold text-app-text transition-all hover:text-app-accent',
-              lang === 'ar' && 'flex-row-reverse'
-            )}
-          >
-            <span className="border-b-2 border-white/10 pb-1 transition-all group-hover:border-app-accent">{t.browseAll}</span>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 transition-all group-hover:border-app-accent group-hover:bg-app-accent group-hover:text-app-bg">
-              {lang === 'en' ? <ArrowRight className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
+            <div className={cn("flex items-center gap-2 mb-4", lang === 'ar' && "flex-row-reverse")}>
+              <Sparkles className="h-4 w-4 text-app-accent" />
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-app-accent">{t.eyebrow}</span>
             </div>
+            <h2 className="text-5xl font-bold tracking-tight text-app-text sm:text-7xl leading-[1.1]">{t.title}</h2>
+            <p className="mt-6 text-lg md:text-xl text-app-muted leading-relaxed max-w-2xl">{t.subtitle}</p>
+          </div>
+
+          <Link to="/community" className={cn("group flex items-center gap-4 bg-white/5 py-4 pl-6 pr-8 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-all", lang === 'ar' && "flex-row-reverse")}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-app-accent text-app-bg">
+              {lang === 'en' ? <ArrowRight className="h-6 w-6" /> : <ArrowLeft className="h-6 w-6" />}
+            </div>
+            <span className="font-bold text-app-text">{t.browseAll}</span>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2">
           {featuredSections.map((section, i) => {
-            const SectionIcon = section.icon;
+            const Meta = sectionMeta[section.key];
+            const Icon = Meta.icon;
+
             return (
               <motion.div
                 key={section.key}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                viewport={{ once: true }}
-                className={cn(
-                  'group flex h-full flex-col rounded-[3rem] border border-white/5 bg-app-card p-8 shadow-xl transition-all hover:border-app-accent/30',
-                  lang === 'ar' && 'text-right'
-                )}
+                transition={{ delay: i * 0.1 }}
+                className="group relative overflow-hidden rounded-[3rem] border border-white/5 bg-app-card p-10 shadow-2xl transition-all hover:border-app-accent/30"
               >
-                <div className="relative mb-8 aspect-video overflow-hidden rounded-[2rem] border border-white/5">
-                  {section.previewPost.image_url ? (
-                    <img
-                      src={section.previewPost.image_url}
-                      alt={section.previewPost.title}
-                      className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-100"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-app-accent/10 via-white/5 to-app-bg">
-                      <SectionIcon className="h-14 w-14 text-app-accent/70" />
+                <div className={cn("absolute inset-0 bg-gradient-to-br to-transparent opacity-0 transition-opacity group-hover:opacity-100", Meta.color)} />
+
+                <div className={cn("relative z-10 flex flex-col h-full", lang === 'ar' && "text-right")}>
+                  <div className={cn("mb-10 flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
+                    <div className="flex h-20 w-20 items-center justify-center rounded-[2rem] bg-white/5 text-app-accent shadow-inner">
+                      <Icon className="h-10 w-10" />
                     </div>
-                  )}
+                    <div className="flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-app-muted">
+                      <Clock className="h-3.5 w-3.5" />
+                      {section.postCount} {lang === 'en' ? 'Modules' : 'وحدة'}
+                    </div>
+                  </div>
+
+                  <h3 className="text-4xl font-bold text-app-text mb-4 tracking-tight group-hover:text-app-accent transition-colors">{section.title}</h3>
+                  <p className="text-lg text-app-muted leading-relaxed mb-10 max-w-md">{section.subtitle}</p>
+
+                  <Link to={section.route} className={cn("mt-auto flex items-center gap-3 w-fit rounded-2xl bg-app-bg border border-white/5 px-8 py-4 text-sm font-bold tracking-widest uppercase transition-all hover:bg-app-accent hover:text-app-bg shadow-xl", lang === 'ar' && "flex-row-reverse mr-auto ml-0")}>
+                    {section.cta}
+                    <ChevronRight className={cn("h-4 w-4", lang === 'ar' && "rotate-180")} />
+                  </Link>
                 </div>
-
-                <div
-                  className={cn(
-                    'mb-4 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-app-muted',
-                    lang === 'ar' && 'flex-row-reverse'
-                  )}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <SectionIcon className="h-3.5 w-3.5 text-app-accent" />
-                    {section.title}
-                  </span>
-                  <span className="h-1 w-1 rounded-full bg-white/10" />
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" />
-                    {section.posts.length} {lang === 'en' ? 'items' : 'عناصر'}
-                  </span>
-                </div>
-
-                <h3 className="mb-3 text-2xl font-bold leading-tight text-app-text transition-colors group-hover:text-app-accent">
-                  {section.previewPost.series_title || section.previewPost.title}
-                </h3>
-                <p className="mb-6 text-sm leading-relaxed text-app-muted">{section.subtitle}</p>
-                <p className="mb-8 line-clamp-4 flex-1 text-sm leading-relaxed text-app-muted">{section.previewPost.content}</p>
-
-                <Link
-                  to={buildPostPath(section.previewPost)}
-                  className={cn(
-                    'inline-flex items-center gap-2 text-xs font-bold text-app-accent hover:underline',
-                    lang === 'ar' && 'flex-row-reverse justify-end'
-                  )}
-                >
-                  {section.cta}
-                </Link>
               </motion.div>
             );
           })}

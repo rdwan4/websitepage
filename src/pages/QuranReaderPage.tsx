@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Download, Search } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { quranService } from '../services/quranService';
 import { quranTextService } from '../services/quranTextService';
+import { quranOfflineService } from '../services/quranOfflineService';
+import { isNativeApp } from '../lib/runtime';
 import { cn } from '../lib/utils';
 
 const labels = {
   en: {
     back: 'Back to Home',
     title: 'Quran Mushaf',
-    subtitle: 'One full page at a time with page-turn effect.',
     page: 'Page',
     jump: 'Go to page',
     surahSearch: 'Search surah',
@@ -35,18 +36,19 @@ const labels = {
     offlineHint: 'Download once, then Quran pages open even without internet.',
     loading: 'Loading page...',
     failed: 'Failed to load page image.',
+    fullscreen: 'Fullscreen reading',
+    exitFullscreen: 'Exit fullscreen',
   },
   ar: {
     back: 'العودة للرئيسية',
     title: 'مصحف القرآن',
-    subtitle: 'صفحة كاملة واحدة في كل مرة مع تأثير تقليب الصفحات.',
     page: 'الصفحة',
-    jump: 'انتقال إلى صفحة',
+    jump: 'الانتقال إلى صفحة',
     surahSearch: 'ابحث عن سورة',
     surahs: 'السور',
     bookmark: 'العلامة',
     saveBookmark: 'حفظ العلامة',
-    removeBookmark: 'حذف العلامة',
+    removeBookmark: 'إزالة العلامة',
     noBookmark: 'لا توجد علامة محفوظة.',
     goBookmark: 'الذهاب إلى العلامة',
     previous: 'السابق',
@@ -56,14 +58,16 @@ const labels = {
     ayahJump: 'الذهاب إلى آية',
     ayahNumber: 'رقم الآية',
     jumpAyah: 'فتح الآية',
-    locatingAyah: 'جار تحديد الآية...',
+    locatingAyah: 'جارٍ تحديد الآية...',
     ayahNotFound: 'لم يتم العثور على الآية في السورة المحددة.',
-    downloadOffline: 'تنزيل القرآن للعمل دون إنترنت',
-    downloading: 'جار التنزيل...',
+    downloadOffline: 'تنزيل القرآن دون إنترنت',
+    downloading: 'جارٍ التنزيل...',
     offlineReady: 'جاهز دون إنترنت',
-    offlineHint: 'نزّل مرة واحدة ثم تفتح الصفحات حتى بدون اتصال.',
-    loading: 'جاري تحميل الصفحة...',
+    offlineHint: 'نزّل مرة واحدة ثم افتح الصفحات حتى بدون اتصال.',
+    loading: 'جارٍ تحميل الصفحة...',
     failed: 'تعذر تحميل صورة الصفحة.',
+    fullscreen: 'قراءة بملء الشاشة',
+    exitFullscreen: 'إغلاق ملء الشاشة',
   },
 };
 
@@ -71,25 +75,16 @@ const PAGE_KEY = 'quran-current-page';
 const BOOKMARK_KEY = 'quran-bookmark-page';
 const OFFLINE_READY_KEY = 'quran-offline-ready';
 
-type CacheProgressMessage = {
-  type: 'QURAN_CACHE_PROGRESS';
-  done: number;
-  total: number;
-};
-
-type CacheDoneMessage = {
-  type: 'QURAN_CACHE_DONE';
-};
-
-type CacheErrorMessage = {
-  type: 'QURAN_CACHE_ERROR';
+type CacheMessage = {
+  type: 'QURAN_CACHE_PROGRESS' | 'QURAN_CACHE_DONE' | 'QURAN_CACHE_ERROR';
+  done?: number;
+  total?: number;
   message?: string;
 };
 
-type CacheMessage = CacheProgressMessage | CacheDoneMessage | CacheErrorMessage;
-
 export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = labels[lang];
+  const nativeApp = isNativeApp();
   const [page, setPage] = useState<number>(() => {
     const stored = Number(window.localStorage.getItem(PAGE_KEY) || '1');
     return quranService.clampPage(stored);
@@ -107,12 +102,15 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [direction, setDirection] = useState<1 | -1>(1);
+  const [pageImageUrl, setPageImageUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadDone, setDownloadDone] = useState(0);
   const [downloadTotal, setDownloadTotal] = useState(quranService.pageCount);
+  const [downloadError, setDownloadError] = useState('');
   const [offlineReady, setOfflineReady] = useState(
     () => window.localStorage.getItem(OFFLINE_READY_KEY) === 'true'
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(PAGE_KEY, String(page));
@@ -120,6 +118,29 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     setLoaded(false);
     setLoadError(false);
     quranService.preloadAdjacentPages(page);
+  }, [page]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPageImage = async () => {
+      try {
+        const url = await quranOfflineService.resolvePageUrl(page);
+        if (!cancelled) {
+          setPageImageUrl(url);
+        }
+      } catch {
+        if (!cancelled) {
+          setPageImageUrl(quranService.getRemotePageImageUrl(page));
+        }
+      }
+    };
+
+    void loadPageImage();
+
+    return () => {
+      cancelled = true;
+    };
   }, [page]);
 
   useEffect(() => {
@@ -163,11 +184,13 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
       } else if (payload.type === 'QURAN_CACHE_DONE') {
         setIsDownloading(false);
         setOfflineReady(true);
+        setDownloadError('');
         setDownloadDone(quranService.pageCount);
         setDownloadTotal(quranService.pageCount);
       } else if (payload.type === 'QURAN_CACHE_ERROR') {
         console.error(payload.message || 'Quran offline cache failed');
         setIsDownloading(false);
+        setDownloadError(payload.message || (lang === 'ar' ? 'تعذر تنزيل القرآن دون إنترنت. حاول مرة أخرى.' : 'Offline download failed. Please try again.'));
       }
     };
 
@@ -175,7 +198,7 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     return () => {
       navigator.serviceWorker?.removeEventListener('message', onMessage as EventListener);
     };
-  }, []);
+  }, [lang]);
 
   const currentSurah = useMemo(() => {
     return quranService.surahs.find((surah) => page >= surah.start_page && page <= surah.end_page) || null;
@@ -192,14 +215,36 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     ));
   }, [surahQuery]);
 
-  const pageImageUrl = quranService.getPageImageUrl(page);
   const isCurrentPageBookmarked = bookmarkPage === page;
 
   const handleOfflineDownload = async () => {
-    if (!('serviceWorker' in navigator)) {
+    if (isNativeApp()) {
+      setDownloadError('');
+      setIsDownloading(true);
+      setDownloadDone(0);
+      setDownloadTotal(quranService.pageCount);
+
+      try {
+        await quranOfflineService.cacheAllPages((done, total) => {
+          setDownloadDone(done);
+          setDownloadTotal(total);
+        });
+        setOfflineReady(true);
+      } catch (error) {
+        console.error('Failed to cache Quran pages for native app:', error);
+        setDownloadError(lang === 'ar' ? 'تعذر تنزيل القرآن دون إنترنت. حاول مرة أخرى.' : 'Offline download failed. Please try again.');
+      } finally {
+        setIsDownloading(false);
+      }
       return;
     }
 
+    if (!('serviceWorker' in navigator)) {
+      setDownloadError(lang === 'ar' ? 'ميزة التنزيل غير مدعومة على هذا الجهاز.' : 'Offline download is not supported on this device.');
+      return;
+    }
+
+    setDownloadError('');
     setIsDownloading(true);
     setDownloadDone(0);
     setDownloadTotal(quranService.pageCount);
@@ -221,6 +266,7 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     } catch (error) {
       console.error('Failed to start offline download:', error);
       setIsDownloading(false);
+      setDownloadError(lang === 'ar' ? 'تعذر تنزيل القرآن دون إنترنت. حاول مرة أخرى.' : 'Offline download failed. Please try again.');
     }
   };
 
@@ -251,6 +297,38 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     }
   };
 
+  const swipePower = (offset: number, velocity: number) => {
+    return Math.abs(offset) * velocity;
+  };
+
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 1000 : -1000,
+      opacity: 0,
+      scale: 0.95,
+      rotateY: direction > 0 ? 45 : -45,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      rotateY: 0,
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 1000 : -1000,
+      opacity: 0,
+      scale: 0.95,
+      rotateY: direction < 0 ? 45 : -45,
+    }),
+  };
+
+  const paginate = (newDirection: 1 | -1) => {
+    setDirection(newDirection);
+    setPage((current) => quranService.clampPage(current + newDirection));
+  };
+
   return (
     <div className="min-h-screen bg-[#e9e2cc] pb-28 pt-24 md:pt-28">
       <div className="container mx-auto px-4 md:px-6">
@@ -261,34 +339,44 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           )}
         >
           <div>
-            <Link
-              to="/"
-              className={cn(
-                'mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:underline',
-                lang === 'ar' && 'flex-row-reverse'
-              )}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t.back}
-            </Link>
-            <h1 className="font-serif text-3xl text-slate-950 md:text-5xl">{t.title}</h1>
-            <p className="mt-2 text-sm text-slate-700 md:text-base">{t.subtitle}</p>
+            {!nativeApp && (
+              <Link
+                to="/"
+                className={cn(
+                  'mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:underline',
+                  lang === 'ar' && 'flex-row-reverse'
+                )}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {t.back}
+              </Link>
+            )}
+            <h1 className={cn('font-serif text-slate-950', nativeApp ? 'text-2xl' : 'text-3xl md:text-5xl')}>{t.title}</h1>
           </div>
 
-          <div className={cn('flex flex-wrap items-center gap-3', lang === 'ar' && 'flex-row-reverse')}>
-            <div className="rounded-xl bg-white/75 px-4 py-2 text-sm font-semibold text-slate-800 shadow">
+          <div className={cn('flex flex-wrap items-center gap-2', lang === 'ar' && 'flex-row-reverse')}>
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className={cn('rounded-md border border-black/10 bg-slate-900 font-semibold text-white hover:bg-slate-800', nativeApp ? 'px-2 py-1 text-[9px]' : 'px-2 py-1 text-[10px]')}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Maximize2 className="h-3 w-3" />
+                {t.fullscreen}
+              </span>
+            </button>
+            <div className={cn('rounded-xl bg-white/75 font-semibold text-slate-800 shadow', nativeApp ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm')}>
               {t.page} {page} / {quranService.pageCount}
             </div>
             {currentSurah && (
-              <div className="rounded-xl bg-white/75 px-4 py-2 text-sm text-slate-700 shadow">
+              <div className={cn('rounded-md bg-white/75 text-slate-700 shadow', nativeApp ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1 text-[11px]')}>
                 {currentSurah.name_en} - {currentSurah.name_ar}
               </div>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <aside className="order-2 h-fit rounded-2xl border border-black/10 bg-white/75 p-4 shadow-lg lg:order-1">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-5">
+          <aside className={cn('order-2 h-fit rounded-2xl border border-black/10 bg-white/75 shadow-lg lg:order-1', nativeApp ? 'p-3' : 'p-4')}>
             <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
               {t.jump}
             </label>
@@ -363,10 +451,14 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 {isDownloading ? t.downloading : t.downloadOffline}
               </span>
             </button>
-            <p className="mt-2 text-[11px] text-slate-600">{t.offlineHint}</p>
             {(isDownloading || offlineReady) && (
               <p className="mt-1 text-[11px] font-semibold text-emerald-700">
                 {isDownloading ? `${t.downloading} ${downloadDone}/${downloadTotal}` : t.offlineReady}
+              </p>
+            )}
+            {downloadError && (
+              <p className="mt-1 text-[11px] font-semibold text-red-700">
+                {downloadError}
               </p>
             )}
 
@@ -447,31 +539,60 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
           <section className="order-1 rounded-2xl border border-black/10 bg-[#ddd4bd] p-3 shadow-xl md:p-5 lg:order-2">
             <div className="relative mx-auto max-w-[560px] overflow-hidden rounded-xl border border-black/15 bg-[#efe8d3] p-2 shadow-inner">
-              <div className="relative aspect-[3/4.35] w-full">
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.img
+              <div className="relative aspect-[3/4.35] w-full overflow-hidden perspective-1000">
+                <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                  <motion.div
                     key={page}
-                    src={pageImageUrl}
-                    alt={`Quran page ${page}`}
-                    onLoad={() => setLoaded(true)}
-                    onError={() => setLoadError(true)}
-                    referrerPolicy="no-referrer"
-                    initial={{ rotateY: direction > 0 ? -90 : 90, opacity: 0.3 }}
-                    animate={{ rotateY: 0, opacity: 1 }}
-                    exit={{ rotateY: direction > 0 ? 90 : -90, opacity: 0.2 }}
-                    transition={{ duration: 0.45, ease: 'easeInOut' }}
-                    style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
-                    className="absolute inset-0 h-full w-full rounded-md object-contain object-center"
-                  />
+                    custom={direction}
+                    variants={variants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      x: { type: 'spring', stiffness: 300, damping: 30 },
+                      opacity: { duration: 0.2 },
+                      rotateY: { duration: 0.4 }
+                    }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={1}
+                    onDragEnd={(_e, { offset, velocity }) => {
+                      const swipe = swipePower(offset.x, velocity.x);
+                      if (swipe < -10000) {
+                        paginate(1);
+                      } else if (swipe > 10000) {
+                        paginate(-1);
+                      }
+                    }}
+                    className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                  >
+                    <div className="relative h-full w-full">
+                      {/* Paper shadow/spine effect */}
+                      <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black/5 to-transparent z-10 pointer-events-none" />
+                      <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/5 to-transparent z-10 pointer-events-none" />
+
+                      <img
+                        src={pageImageUrl}
+                        alt={`Quran page ${page}`}
+                        onLoad={() => setLoaded(true)}
+                        onError={() => setLoadError(true)}
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full rounded-md object-contain object-center shadow-2xl"
+                      />
+                    </div>
+                  </motion.div>
                 </AnimatePresence>
 
                 {!loaded && !loadError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#efe8d3]/90 text-sm font-semibold text-slate-700">
-                    {t.loading}
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#efe8d3]/90 text-sm font-semibold text-slate-700">
+                    <div className="flex flex-col items-center gap-3">
+                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
+                       {t.loading}
+                    </div>
                   </div>
                 )}
                 {loadError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-red-50 text-sm font-semibold text-red-700">
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-50 text-sm font-semibold text-red-700">
                     {t.failed}
                   </div>
                 )}
@@ -480,28 +601,22 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
             <div className={cn('mt-4 flex items-center justify-between gap-3', lang === 'ar' && 'flex-row-reverse')}>
               <button
-                onClick={() => {
-                  setDirection(-1);
-                  setPage((current) => quranService.clampPage(current - 1));
-                }}
+                onClick={() => paginate(-1)}
                 disabled={page <= 1}
-                className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50 transition-all active:scale-95"
               >
                 <ChevronLeft className="h-4 w-4" />
                 {t.previous}
               </button>
 
-              <div className="text-sm font-semibold text-slate-700">
-                {t.page} {page}
+              <div className="text-sm font-bold text-slate-800 tracking-tight">
+                {t.page} {page} / {quranService.pageCount}
               </div>
 
               <button
-                onClick={() => {
-                  setDirection(1);
-                  setPage((current) => quranService.clampPage(current + 1));
-                }}
+                onClick={() => paginate(1)}
                 disabled={page >= quranService.pageCount}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 transition-all active:scale-95 shadow-md shadow-emerald-900/10"
               >
                 {t.next}
                 <ChevronRight className="h-4 w-4" />
@@ -510,6 +625,74 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           </section>
         </div>
       </div>
+
+      {isFullscreen && (
+        <div className="fixed inset-0 z-[120] bg-[#e9e2cc] px-2 py-3 md:px-4 overflow-hidden">
+          <div className={cn('mb-3 flex items-center justify-between gap-3', lang === 'ar' && 'flex-row-reverse')}>
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-900"
+            >
+              <Minimize2 className="h-4 w-4" />
+              {t.exitFullscreen}
+            </button>
+            <div className="text-sm font-bold text-slate-900">
+              {t.page} {page} / {quranService.pageCount}
+            </div>
+          </div>
+          <div className="flex h-[calc(100vh-8.5rem)] flex-col justify-center perspective-1000">
+            <div className="relative mx-auto h-full w-full max-w-[760px] overflow-hidden rounded-2xl bg-[#ddd4bd] shadow-2xl">
+              <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                <motion.div
+                  key={`fullscreen-${page}`}
+                  custom={direction}
+                  variants={variants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: 'spring', stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 },
+                    rotateY: { duration: 0.4 }
+                  }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  onDragEnd={(_e, { offset, velocity }) => {
+                    const swipe = swipePower(offset.x, velocity.x);
+                    if (swipe < -10000) paginate(1);
+                    else if (swipe > 10000) paginate(-1);
+                  }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <img
+                    src={pageImageUrl}
+                    alt={`Quran page ${page}`}
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-contain object-center"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            <div className={cn('mt-4 flex items-center justify-between gap-3', lang === 'ar' && 'flex-row-reverse')}>
+              <button
+                onClick={() => paginate(-1)}
+                disabled={page <= 1}
+                className="p-3 rounded-full bg-white/80 border border-black/10 text-slate-900 disabled:opacity-50"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => paginate(1)}
+                disabled={page >= quranService.pageCount}
+                className="p-3 rounded-full bg-emerald-700 text-white disabled:opacity-50 shadow-lg shadow-emerald-900/20"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

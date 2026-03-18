@@ -1,9 +1,10 @@
 export const siteLinks = {
+  website: 'https://www.islamiclight.online',
   social: {
     youtube: 'https://www.youtube.com/@phelpskurdish7045',
-    facebook: 'https://facebook.com/your-page',
-    instagram: 'https://instagram.com/your-handle',
+    facebook: 'https://www.facebook.com',
+    instagram: 'https://www.instagram.com',
   },
   supportEmail: 'kurdishphelps@gmail.com',
-  donationUrl: 'https://buy.stripe.com/your-link-here',
+  donationUrl: '',
 };

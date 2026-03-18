@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '../supabaseClient.js';
 import { Profile } from '../types';
 import { authService } from '../services/authService';
+import { broadcastNotificationService } from '../services/broadcastNotificationService';
+import { isNativeApp } from '../lib/runtime';
 
 interface AuthContextType {
   session: Session | null;
@@ -36,7 +39,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
+
   const syncSession = async (nextSession: Session | null) => {
+
     setSession(nextSession);
     setUser(nextSession?.user ?? null);
 
@@ -49,6 +54,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const ensuredProfile = await authService.ensureProfile(nextSession.user);
       setProfile(ensuredProfile);
+      
+      // Ensure FCM token is linked to the newly synced profile
+      if (isNativeApp()) {
+        void broadcastNotificationService.syncTokenToProfile();
+      }
+      
       return ensuredProfile;
     } catch (error) {
       console.error('Failed to sync profile with session:', error);
@@ -95,11 +106,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     });
 
+    let nativeAppListenerPromise: Promise<{ remove: () => Promise<void> }> | null = null;
+    if (isNativeApp()) {
+      nativeAppListenerPromise = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+        if (!mounted) return;
+        setLoading(true);
+        void authService
+          .handleOAuthCallback(url)
+          .catch((error) => {
+            console.error('OAuth callback handling failed:', error);
+            setLoading(false);
+          })
+          .then((handled) => {
+            if (!handled && mounted) {
+              setLoading(false);
+            }
+          });
+      });
+
+      void CapacitorApp.getLaunchUrl()
+        .then((launch) => {
+          if (!launch?.url || !mounted) return;
+          setLoading(true);
+          return authService
+            .handleOAuthCallback(launch.url)
+            .catch((error) => {
+              console.error('OAuth launch URL handling failed:', error);
+              setLoading(false);
+            })
+            .then((handled) => {
+              if (!handled && mounted) {
+                setLoading(false);
+              }
+            });
+        })
+        .catch((error) => {
+          console.error('Failed to read launch URL:', error);
+        });
+    }
+
     void initialize();
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      if (nativeAppListenerPromise) {
+        void nativeAppListenerPromise.then((listener) => listener.remove());
+      }
     };
   }, []);
 

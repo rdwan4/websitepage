@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, X } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
+import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, X, ChevronLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient.js';
 import { Comment, Post } from '../types';
+import { isNativeApp } from '../lib/runtime';
 
 const getEmbeddableVideoUrl = (url: string) => {
-  if (url.includes('youtube.com/watch?v=')) {
-    return url.replace('watch?v=', 'embed/');
-  }
+  if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
   if (url.includes('youtu.be/')) {
     const videoId = url.split('youtu.be/')[1]?.split('?')[0];
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
@@ -22,21 +22,6 @@ const getEmbeddableVideoUrl = (url: string) => {
   return url;
 };
 
-const isEmbeddableVideo = (url: string) =>
-  url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
-
-const VIEWER_SESSION_KEY = 'viewer_session_id';
-
-const getViewerSessionId = () => {
-  if (typeof window === 'undefined') return null;
-  const existing = window.localStorage.getItem(VIEWER_SESSION_KEY);
-  if (existing) return existing;
-
-  const generated = `sess_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
-  window.localStorage.setItem(VIEWER_SESSION_KEY, generated);
-  return generated;
-};
-
 const copy = {
   en: {
     comments: 'Comments',
@@ -45,14 +30,16 @@ const copy = {
     openExternal: 'Open in new tab',
     noComments: 'No comments yet.',
     signIn: 'Sign in to like or comment.',
+    close: 'Tap outside or swipe down to close'
   },
   ar: {
     comments: 'التعليقات',
-    writeComment: 'اكتب تعليقاً...',
+    writeComment: 'اكتب تعليقًا...',
     postComment: 'إرسال التعليق',
     openExternal: 'افتح في تبويب جديد',
     noComments: 'لا توجد تعليقات بعد.',
     signIn: 'سجل الدخول للإعجاب أو التعليق.',
+    close: 'المس الخارج للإغلاق'
   },
 };
 
@@ -77,6 +64,7 @@ export const PostViewerModal = ({
 }) => {
   const { profile } = useAuth();
   const t = copy[lang];
+  const nativeApp = isNativeApp();
   const [selectedPost, setSelectedPost] = useState<Post | null>(post);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -103,478 +91,161 @@ export const PostViewerModal = ({
     try {
       const data = await postService.getCommentsByPost(currentPost.id);
       setComments(data);
-    } catch (error) {
-      console.error('Failed to load comments:', error);
-    } finally {
-      setLoadingComments(false);
-    }
+    } finally { setLoadingComments(false); }
   };
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
+    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    setSelectedPost(post);
-  }, [post?.id]);
+  useEffect(() => { setSelectedPost(post); }, [post?.id]);
 
   useEffect(() => {
     if (!isOpen || !currentPost?.id) return;
     void loadComments();
+    const channel = supabase.channel(`post-viewer-${currentPost.id}`).on('postgres_changes' as any, { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${currentPost.id}` }, () => { void loadComments(); onUpdated?.(); }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isOpen, currentPost?.id]);
 
-    const channel = supabase
-      .channel(`post-viewer-${currentPost.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${currentPost.id}` }, () => {
-        void loadComments();
-        onUpdated?.();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `post_id=eq.${currentPost.id}` }, () => {
-        onUpdated?.();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isOpen, onUpdated, currentPost?.id]);
-
-  useEffect(() => {
-    setLikesCount(currentPost?.likes_count || 0);
-  }, [currentPost?.id, currentPost?.likes_count]);
-
-  useEffect(() => {
-    setViewsCount(currentPost?.views_count || 0);
-  }, [currentPost?.id, currentPost?.views_count]);
-
-  useEffect(() => {
-    if (!isOpen || !currentPost?.id) return;
-    if (viewedPostIds.current.has(currentPost.id)) return;
-
-    viewedPostIds.current.add(currentPost.id);
-
-    const viewer = profile?.id
-      ? { userId: profile.id }
-      : { sessionId: getViewerSessionId() };
-
-    void postService
-      .recordPostView(currentPost.id, viewer)
-      .then((result) => {
-        if (typeof result?.views_count === 'number') {
-          setViewsCount(result.views_count);
-          onUpdated?.();
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to record post view:', error);
-      });
-  }, [isOpen, currentPost?.id, profile?.id, onUpdated]);
-
-  useEffect(() => {
-    const loadSeriesData = async () => {
-      if (!isOpen || !currentPost?.id) {
-        setSeriesLessons([]);
-        setProgressMap({});
-        return;
-      }
-
-      try {
-        if (coursePosts?.length) {
-          const fromCourseCard = [...coursePosts].sort((a, b) => {
-            const orderA = a.lesson_order || 1;
-            const orderB = b.lesson_order || 1;
-            if (orderA !== orderB) return orderA - orderB;
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          });
-
-          setSeriesLessons(fromCourseCard);
-          if (profile) {
-            const progress = await postService.getProgressForPosts(
-              profile.id,
-              fromCourseCard.map((lesson) => lesson.id)
-            );
-            setProgressMap(progress);
-          }
-          return;
-        }
-
-        const rootId = currentPost.parent_post_id || currentPost.id;
-        let lessons = await postService.getCoursePosts(rootId);
-
-        // Fallback to series-based grouping when explicit parent-child tree is missing or incomplete.
-        if (lessons.length <= 1 && currentPost.series_slug) {
-          lessons = await postService.getSeriesPosts(currentPost.series_slug);
-        }
-
-        // Final fallback: treat all approved posts in the same category as one course/folder.
-        if (lessons.length <= 1) {
-          if (currentPost.category?.slug) {
-            lessons = await postService.getApprovedPostsByCategorySlug(currentPost.category.slug);
-          } else if (currentPost.category_id) {
-            lessons = await postService.getApprovedPostsByCategory(currentPost.category_id);
-          }
-        }
-
-        // If still no grouped lessons, show current post only.
-        if (!lessons.length) {
-          lessons = [currentPost];
-        }
-
-        // Keep currently opened lesson visible even if it was excluded by a filter/query mismatch.
-        if (!lessons.some((lesson) => lesson.id === currentPost.id)) {
-          lessons = [currentPost, ...lessons];
-        }
-
-        const sortedLessons = [...lessons].sort((a, b) => {
-          const orderA = a.lesson_order || 1;
-          const orderB = b.lesson_order || 1;
-          if (orderA !== orderB) return orderA - orderB;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        });
-
-        setSeriesLessons(sortedLessons);
-
-        if (profile) {
-          const progress = await postService.getProgressForPosts(
-            profile.id,
-            sortedLessons.map((lesson) => lesson.id)
-          );
-          setProgressMap(progress);
-        }
-      } catch (error) {
-        console.error('Failed to load series lessons:', error);
-      }
-    };
-
-    void loadSeriesData();
-  }, [isOpen, currentPost?.series_slug, currentPost?.category_id, currentPost?.id, currentPost?.parent_post_id, profile?.id, coursePosts]);
-
-  const saveProgress = async (seconds: number) => {
-    if (!profile || !currentPost?.id) return;
-    try {
-      await postService.upsertPostProgress(profile.id, currentPost.id, seconds);
-      setProgressMap((prev) => ({ ...prev, [currentPost.id]: Math.floor(seconds) }));
-    } catch (error) {
-      console.error('Failed to save lesson progress:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (!isOpen || !profile || !currentPost?.id) return;
-    if (currentPost.post_type === 'video' || currentPost.post_type === 'audio') return;
-    void saveProgress(progressMap[currentPost.id] || 0);
-  }, [isOpen, profile?.id, currentPost?.id]);
+  useEffect(() => { setLikesCount(currentPost?.likes_count || 0); setViewsCount(currentPost?.views_count || 0); }, [currentPost?.id, currentPost?.likes_count, currentPost?.views_count]);
 
   const handleLike = async () => {
     if (!currentPost?.id) return;
-    if (!profile) {
-      onAuthClick?.();
-      return;
-    }
-
+    if (!profile) return onAuthClick?.();
     setLiking(true);
     try {
-      const result = await postService.likePost(currentPost.id, profile.id);
-      if (typeof result?.likes_count === 'number') {
-        setLikesCount(result.likes_count);
-      }
+      const res = await postService.likePost(currentPost.id, profile.id);
+      if (res) setLikesCount(res.likes_count);
       onUpdated?.();
-    } catch (error) {
-      console.error('Failed to like post:', error);
-    } finally {
-      setLiking(false);
-    }
+    } finally { setLiking(false); }
   };
-
-  const handleComment = async () => {
-    if (!currentPost?.id) return;
-    if (!profile) {
-      onAuthClick?.();
-      return;
-    }
-    if (!commentText.trim()) return;
-
-    setSubmitting(true);
-    try {
-      await postService.addComment({
-        post_id: currentPost.id,
-        user_id: profile.id,
-        content: commentText.trim(),
-      });
-      setCommentText('');
-      await loadComments();
-      onUpdated?.();
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const canManageCurrentPost = Boolean(
-    profile && currentPost && (profile.role === 'admin' || profile.id === currentPost.author_id)
-  );
 
   const handleDelete = async () => {
-    if (!currentPost?.id || deleting) return;
-    const confirmed = window.confirm(lang === 'en' ? 'Delete this post?' : 'هل تريد حذف هذا المنشور؟');
+    if (!currentPost?.id || !profile || deleting) return;
+    const confirmed = window.confirm(lang === 'en' ? 'Are you sure you want to delete this post?' : 'هل أنت متأكد من حذف هذا المنشور؟');
     if (!confirmed) return;
 
     setDeleting(true);
     try {
       await postService.deletePost(currentPost.id);
-      onUpdated?.();
       onClose();
+      onUpdated?.();
+      window.dispatchEvent(new Event('posts-updated'));
     } catch (error) {
-      console.error('Failed to delete post:', error);
-      window.alert(lang === 'en' ? 'Unable to delete this post.' : 'تعذر حذف هذا المنشور.');
+      console.error('Error deleting post:', error);
+      alert(lang === 'en' ? 'Failed to delete post.' : 'فشل حذف المنشور.');
     } finally {
       setDeleting(false);
     }
   };
 
+  const handleComment = async () => {
+    if (!currentPost?.id || !profile || !commentText.trim()) return;
+    setSubmitting(true);
+    try {
+      await postService.addComment({ post_id: currentPost.id, user_id: profile.id, content: commentText.trim() });
+      setCommentText('');
+      await loadComments();
+      onUpdated?.();
+    } finally { setSubmitting(false); }
+  };
+
+  const canManage = profile && (profile.role === 'admin' || profile.id === currentPost?.author_id);
+
   if (!isOpen || !currentPost) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[170] flex items-center justify-center bg-app-bg/85 p-4 backdrop-blur-xl" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl md:p-10"
+        onClick={onClose} // TOUCH OUTSIDE TO CLOSE
+      >
         <motion.div
-          onClick={(event) => event.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.94, y: 20 }}
+          onClick={(e) => e.stopPropagation()} // PREVENT CARD FROM CLOSING WHEN CLICKED
+          initial={{ opacity: 0, scale: 0.9, y: 40 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 20 }}
-          className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-white/10 bg-app-card p-8 shadow-2xl"
+          exit={{ opacity: 0, scale: 0.9, y: 40 }}
+          className={cn(
+            "relative flex flex-col w-full max-w-5xl max-h-[90vh] overflow-hidden bg-app-card border border-white/10 shadow-2xl",
+            nativeApp ? "rounded-[2.5rem]" : "rounded-[3rem]"
+          )}
         >
-          <button
-            onClick={onClose}
-            className="absolute left-4 top-4 z-30 inline-flex items-center gap-1 rounded-full border border-white/20 bg-app-bg/85 px-3 py-1.5 text-xs font-bold text-app-text backdrop-blur-sm transition-colors hover:bg-app-bg sm:hidden"
-          >
-            <X className="h-4 w-4" />
-            {lang === 'en' ? 'Back' : 'رجوع'}
-          </button>
-          <button
-            onClick={onClose}
-            className="absolute right-6 top-6 z-30 rounded-full border border-white/15 bg-app-bg/75 p-2 text-app-text transition-colors hover:bg-white/10"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          <div className="mb-8">
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-app-accent">
-              {currentPost.category?.name || currentPost.post_type}
-            </p>
-            <h2 className="mb-3 text-3xl font-bold text-app-text">{currentPost.title}</h2>
-            <p className="text-sm text-app-muted">{currentPost.author_name || 'Admin'}</p>
+          {/* MOBILE DRAG HANDLE INDICATOR */}
+          <div className="flex justify-center pt-4 pb-2 md:hidden">
+            <div className="w-12 h-1.5 rounded-full bg-white/10" />
           </div>
 
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              {currentPost.post_type === 'video' && currentPost.media_url && (
-                <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black">
-                  {isEmbeddableVideo(currentPost.media_url) ? (
-                    <div className="aspect-video">
-                      <iframe
-                        src={embeddedVideoUrl}
-                        title={currentPost.title}
-                        className="h-full w-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <video
-                      src={currentPost.media_url}
-                      controls
-                      className="w-full"
-                      onTimeUpdate={(event) => void saveProgress(event.currentTarget.currentTime)}
-                    />
-                  )}
-                </div>
-              )}
+          <div className="overflow-y-auto flex-1 p-6 md:p-12">
+            <div className={cn("mb-8 flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
+              <button onClick={onClose} className="p-3 rounded-full bg-white/5 text-app-muted hover:text-app-text transition-all active:scale-90">
+                <X className="h-6 w-6" />
+              </button>
+              <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{t.close}</p>
+            </div>
 
-              {currentPost.post_type === 'pdf' && currentPost.media_url && (
-                <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white">
-                  <iframe src={currentPost.media_url} title={currentPost.title} className="h-[70vh] w-full" />
-                </div>
-              )}
+            <div className={cn("mb-10 p-8 rounded-[2rem] border border-app-accent/20 bg-app-accent/5", lang === 'ar' && "text-right")}>
+              <span className="inline-block px-3 py-1 rounded-lg bg-app-accent text-app-bg text-[10px] font-black uppercase tracking-widest mb-4">
+                {currentPost.category?.name || 'Post'}
+              </span>
+              <h2 className="text-3xl font-bold text-app-text md:text-5xl leading-tight">{currentPost.title}</h2>
+              <p className="mt-4 text-app-muted font-bold tracking-wide flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-app-accent" /> {currentPost.author_name || 'Admin'}
+              </p>
+            </div>
 
-              {currentPost.post_type === 'audio' && currentPost.media_url && (
-                <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                  <audio
-                    src={currentPost.media_url}
-                    controls
-                    className="w-full"
-                    onTimeUpdate={(event) => void saveProgress(event.currentTarget.currentTime)}
-                  />
-                </div>
-              )}
-
-              {currentPost.image_url && currentPost.post_type !== 'pdf' && (
-                <img
-                  src={currentPost.image_url}
-                  alt={currentPost.title}
-                  className="max-h-[30rem] w-full rounded-[2rem] object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              )}
-
-              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                <div className="prose prose-invert max-w-none whitespace-pre-wrap text-base leading-relaxed text-app-text">
+            <div className="grid gap-10 lg:grid-cols-12">
+              <div className="lg:col-span-8 space-y-8">
+                {currentPost.image_url && <img src={currentPost.image_url} className="w-full rounded-[2.5rem] border border-white/5 shadow-xl" />}
+                <div className="p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 leading-relaxed text-lg text-app-text whitespace-pre-wrap">
                   {currentPost.content}
                 </div>
               </div>
 
-              {currentPost.media_url && (
-                <a
-                  href={currentPost.media_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-bold text-app-accent hover:underline"
-                >
-                  {t.openExternal}
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => void handleLike()}
-                    disabled={liking}
-                    className="flex items-center gap-2 text-sm font-bold text-app-text transition-colors hover:text-app-accent"
-                  >
-                    {liking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />}
-                    {likesCount}
+              <div className="lg:col-span-4 space-y-6">
+                <div className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 flex items-center justify-around">
+                  <button onClick={handleLike} className={cn("flex flex-col items-center gap-2 transition-all active:scale-75", liking ? "text-app-accent" : "text-app-muted")}>
+                    <Heart className={cn("h-8 w-8", liking && "fill-app-accent")} />
+                    <span className="text-xs font-black">{likesCount}</span>
                   </button>
-                  <div className="flex items-center gap-2 text-sm font-bold text-app-text">
-                    <MessageCircle className="h-4 w-4" />
-                    {comments.length}
+                  <div className="flex flex-col items-center gap-2 text-app-muted">
+                    <MessageCircle className="h-8 w-8" />
+                    <span className="text-xs font-black">{comments.length}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-app-text">
-                    <Eye className="h-4 w-4" />
-                    {viewsCount}
+                  <div className="flex flex-col items-center gap-2 text-app-muted">
+                    <Eye className="h-8 w-8" />
+                    <span className="text-xs font-black">{viewsCount}</span>
                   </div>
-                </div>
-                {canManageCurrentPost && (
-                  <div className="mt-4 flex items-center gap-2">
-                    {onRequestEdit && (
-                      <button
-                        onClick={() => onRequestEdit(currentPost)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-app-text hover:bg-white/10"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        {lang === 'en' ? 'Edit' : 'تعديل'}
+                  {canManage && (
+                    <div className="flex flex-col items-center gap-4 border-l border-white/10 pl-6 ml-2">
+                      <button onClick={() => onRequestEdit?.(currentPost)} className="p-3 rounded-2xl bg-white/5 text-app-accent hover:bg-white/10 transition-all active:scale-90">
+                        <Pencil className="h-6 w-6" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => void handleDelete()}
-                      disabled={deleting}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50"
-                    >
-                      {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      {lang === 'en' ? 'Delete' : 'حذف'}
-                    </button>
-                  </div>
-                )}
-                {!profile && <p className="mt-4 text-xs text-app-muted">{t.signIn}</p>}
-              </div>
-
-              {seriesLessons.length > 1 && (
-                <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                  <h3 className="mb-3 text-sm font-bold text-app-text">
-                    {lang === 'en' ? 'Lessons In This Topic' : 'دروس هذه السلسلة'}
-                  </h3>
-                  <div className="space-y-2">
-                    {seriesLessons.map((lesson) => {
-                      const seconds = progressMap[lesson.id] || 0;
-                      return (
-                        <button
-                          key={lesson.id}
-                          onClick={() => setSelectedPost(lesson)}
-                          className={cn(
-                            'w-full rounded-xl border px-3 py-2 text-left text-xs transition-all',
-                            lesson.id === currentPost.id
-                              ? 'border-app-accent/50 bg-app-accent/10 text-app-text'
-                              : 'border-white/10 bg-app-card text-app-muted hover:bg-white/5'
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="font-bold">{lesson.lesson_order || 1}. {lesson.title}</span>
-                            {seconds > 0 && (
-                              <span className="text-[10px] text-app-accent">
-                                {lang === 'en' ? `Last: ${Math.floor(seconds)}s` : `آخر توقف: ${Math.floor(seconds)}ث`}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                <h3 className="mb-4 text-lg font-bold text-app-text">{t.comments}</h3>
-
-                <div className="mb-4 space-y-4">
-                  {loadingComments ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
+                      <button onClick={handleDelete} disabled={deleting} className="p-3 rounded-2xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all active:scale-90 disabled:opacity-50">
+                        {deleting ? <Loader2 className="h-6 w-6 animate-spin" /> : <Trash2 className="h-6 w-6" />}
+                      </button>
                     </div>
-                  ) : comments.length ? (
-                    comments.map((comment) => (
-                      <div key={comment.id} className="rounded-2xl border border-white/10 bg-app-card p-4">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="text-sm font-bold text-app-text">{comment.user?.name || 'User'}</span>
-                          <span className="text-xs text-app-muted">
-                            {new Date(comment.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-sm leading-relaxed text-app-muted">{comment.content}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-app-muted">{t.noComments}</p>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <textarea
-                    value={commentText}
-                    onChange={(event) => setCommentText(event.target.value)}
-                    rows={4}
-                    placeholder={t.writeComment}
-                    className={cn(
-                      'w-full resize-none rounded-2xl border border-white/10 bg-app-card px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none'
-                    )}
-                  />
-                  <button
-                    onClick={() => void handleComment()}
-                    disabled={submitting || !commentText.trim()}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent py-3 text-sm font-bold text-app-bg disabled:opacity-50"
-                  >
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    {t.postComment}
-                  </button>
+                <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-app-text mb-4">{t.comments}</h3>
+                  <div className="space-y-4 mb-6">
+                    {comments.map(c => (
+                      <div key={c.id} className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-xs font-bold text-app-accent mb-1">{c.user?.name}</p>
+                        <p className="text-sm text-app-muted">{c.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <input value={commentText} onChange={e => setCommentText(e.target.value)} placeholder={t.writeComment} className="w-full rounded-xl bg-app-bg p-4 pr-12 text-sm border border-white/5 outline-none focus:border-app-accent/50" />
+                    <button onClick={handleComment} className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 bg-app-accent rounded-lg flex items-center justify-center text-app-bg"><Send className="h-4 w-4" /></button>
+                  </div>
                 </div>
               </div>
-
-              <button
-                onClick={onClose}
-                className="w-full rounded-2xl border border-white/20 bg-app-bg/70 py-3 text-sm font-bold text-app-text sm:hidden"
-              >
-                {lang === 'en' ? 'Close Post' : 'إغلاق المنشور'}
-              </button>
             </div>
           </div>
         </motion.div>

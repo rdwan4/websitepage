@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
+import { isNativeApp } from '../lib/runtime';
 import { PostViewerModal } from '../components/PostViewerModal';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
@@ -23,6 +24,7 @@ interface CourseGroup {
 
 export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
   const { profile } = useAuth();
+  const nativeApp = isNativeApp();
   const [blogs, setBlogs] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,7 +117,7 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
   }, [filteredBlogs]);
 
   return (
-    <div className="min-h-screen bg-app-bg pt-32 pb-20">
+    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-32 pb-20')}>
       <PostViewerModal
         isOpen={!!activePost}
         onClose={() => {
@@ -130,23 +132,25 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
       />
 
       <div className="container mx-auto px-6">
-        <div className={cn('flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12', lang === 'ar' && 'md:flex-row-reverse text-right')}>
+        <div className={cn('flex flex-col md:flex-row md:items-center justify-between', nativeApp ? 'gap-4 mb-8' : 'gap-6 mb-12', lang === 'ar' && 'md:flex-row-reverse text-right')}>
           <div>
-            <Link to="/" className={cn('inline-flex items-center gap-2 text-app-accent mb-4 hover:underline', lang === 'ar' && 'flex-row-reverse')}>
-              <ArrowLeft className="w-4 h-4" />
-              {lang === 'en' ? 'Back to Home' : 'العودة للرئيسية'}
-            </Link>
-            <h1 className="text-6xl md:text-7xl font-serif text-app-text mb-8 leading-tight">
+            {!nativeApp && (
+              <Link to="/" className={cn('inline-flex items-center gap-2 text-app-accent mb-4 hover:underline', lang === 'ar' && 'flex-row-reverse')}>
+                <ArrowLeft className="w-4 h-4" />
+                {lang === 'en' ? 'Back to Home' : 'العودة للرئيسية'}
+              </Link>
+            )}
+            <h1 className={cn('font-serif text-app-text leading-tight', nativeApp ? 'mb-3 text-3xl md:text-4xl' : 'mb-8 text-6xl md:text-7xl')}>
               {lang === 'en' ? 'Voices of Vision' : 'أصوات الرؤية'}
             </h1>
-            <p className="text-app-muted text-xl leading-relaxed">
+            {!nativeApp && <p className="text-app-muted text-xl leading-relaxed">
               {lang === 'en'
                 ? 'A platform for diverse Islamic perspectives, deep reflections, and intellectual discourse from our global community of thinkers.'
                 : 'منصة لمختلف المنظورات الإسلامية، والتأملات العميقة، والخطاب الفكري من مجتمع المفكرين العالمي لدينا.'}
-            </p>
+            </p>}
           </div>
 
-          <div className="relative w-full md:w-80">
+          <div className={cn('relative w-full md:w-80', nativeApp && 'md:w-72')}>
             <Search className={cn('absolute top-1/2 -translate-y-1/2 w-5 h-5 text-app-muted', lang === 'ar' ? 'right-4' : 'left-4')} />
             <input
               type="text"
