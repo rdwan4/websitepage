@@ -81,6 +81,10 @@ const emptyBroadcast: BroadcastForm = {
   sendNow: false,
 };
 
+// Cache admin state globally so it doesn't refresh constantly when switching tabs/windows
+let cachedAdminData: any = null;
+let lastFetchTime = 0;
+
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = text[lang];
   const [tab, setTab] = useState<Tab>('overview');
@@ -109,7 +113,19 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [communityForm, setCommunityForm] = useState<CommunityForm>(emptyCommunity);
   const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(emptyBroadcast);
 
-  const refreshData = async () => {
+  const refreshData = async (force = false) => {
+    if (!force && cachedAdminData && Date.now() - lastFetchTime < 5 * 60 * 1000) {
+      setUsers(cachedAdminData.u);
+      setGuidance(cachedAdminData.g);
+      setDaily(cachedAdminData.d);
+      setPosts(cachedAdminData.p);
+      setCategories(cachedAdminData.c);
+      setBroadcasts(cachedAdminData.b);
+      setBroadcastMetrics(cachedAdminData.bm);
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
       const [u, g, d, p, c, b, bm] = await Promise.all([
@@ -121,6 +137,8 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
         postService.getBroadcastNotifications(),
         postService.getBroadcastAdminMetrics(),
       ]);
+      cachedAdminData = { u, g, d, p, c, b, bm };
+      lastFetchTime = Date.now();
       setUsers(u); setGuidance(g); setDaily(d); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
     } catch (err: any) {
       setError(err.message);

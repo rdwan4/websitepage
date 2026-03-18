@@ -172,7 +172,11 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
                   <h3 className="text-2xl font-bold text-app-text mb-4 leading-tight group-hover:text-app-accent transition-colors line-clamp-2">{group.title}</h3>
                   <p className="text-app-muted text-sm leading-relaxed mb-8 line-clamp-3">{group.startPost.content}</p>
                   <div className={cn("flex items-center justify-between border-t border-white/5 pt-6", lang === 'ar' && "flex-row-reverse")}>
-                    <button onClick={() => { setActivePost(group.startPost); setActiveCoursePosts(group.posts); }} className="flex items-center gap-2 text-app-accent font-black text-xs uppercase tracking-widest hover:underline">
+                    <button onClick={async () => { 
+                      setActivePost(group.startPost);
+                      const fullCourse = await postService.getCoursePosts(group.key);
+                      setActiveCoursePosts(fullCourse && fullCourse.length > 0 ? fullCourse : group.posts);
+                    }} className="flex items-center gap-2 text-app-accent font-black text-xs uppercase tracking-widest hover:underline">
                       {lang === 'en' ? 'Read More' : 'اقرأ المزيد'} <ArrowRight className={cn("h-4 w-4", lang === 'ar' && "rotate-180")} />
                     </button>
                     <div className="flex gap-2">

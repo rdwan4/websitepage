@@ -405,7 +405,7 @@ export const postService = {
         const orderA = a.lesson_order || 1;
         const orderB = b.lesson_order || 1;
         if (orderA !== orderB) return orderA - orderB;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
   },
 

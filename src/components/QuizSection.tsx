@@ -49,7 +49,7 @@ const copy = {
     source: "Source",
     latestPosts: "Latest Updates",
     article: "Article",
-    community: "Community",
+    community: "Community Forum",
   },
   ar: {
     title: "اختبار المعرفة اليومي",
@@ -78,7 +78,7 @@ const copy = {
     source: "المصدر",
     latestPosts: "أحدث التحديثات",
     article: "مقال",
-    community: "المجتمع",
+    community: "منتدى المجتمع",
   },
 };
 
@@ -239,9 +239,70 @@ export const QuizSection = ({
   };
 
   return (
-    <section id="quiz" className="py-32 bg-app-bg relative overflow-hidden">
+    <section id="quiz" className="py-24 md:py-32 bg-app-bg relative overflow-hidden">
       <div className="container mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+
+        {/* LATEST UPDATES - PROMINENT FULL WIDTH ROW */}
+        {(latestArticle || latestCommunity) && (
+          <div className="mb-16 md:mb-24">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                <BookOpen className="w-6 h-6 text-indigo-400" />
+              </div>
+              <h2 className="text-3xl font-serif text-app-text">{t.latestPosts}</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+              {latestArticle && (
+                <Link
+                  to={`/articles/${latestArticle.id}`}
+                  className="group relative overflow-hidden bg-app-card border border-white/5 hover:border-indigo-500/30 rounded-[2.5rem] p-8 md:p-10 shadow-lg hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 flex flex-col justify-between"
+                  style={{ minHeight: '180px' }}
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-indigo-500/10 transition-colors" />
+                  <div className="relative z-10">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-4">
+                      {t.article}
+                    </span>
+                    <h4 className="text-xl md:text-2xl text-app-text font-bold leading-snug group-hover:text-indigo-300 transition-colors line-clamp-2">
+                      {latestArticle.title}
+                    </h4>
+                  </div>
+                  <div className="relative z-10 mt-6 flex justify-end">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                      <ArrowRight className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                    </div>
+                  </div>
+                </Link>
+              )}
+              
+              {latestCommunity && (
+                <Link
+                  to={`/community/${latestCommunity.id}`}
+                  className="group relative overflow-hidden bg-app-card border border-white/5 hover:border-emerald-500/30 rounded-[2.5rem] p-8 md:p-10 shadow-lg hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col justify-between"
+                  style={{ minHeight: '180px' }}
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
+                  <div className="relative z-10">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-4">
+                      {t.community}
+                    </span>
+                    <h4 className="text-xl md:text-2xl text-app-text font-bold leading-snug group-hover:text-emerald-300 transition-colors line-clamp-2">
+                      {latestCommunity.title}
+                    </h4>
+                  </div>
+                  <div className="relative z-10 mt-6 flex justify-end">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                      <ArrowRight className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                    </div>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 md:gap-16">
           <div className="lg:col-span-7">
             <div className="mb-12">
               <h2 className="text-4xl font-serif text-app-text mb-4">
@@ -466,45 +527,8 @@ export const QuizSection = ({
             </div>
           </div>
 
-          <div className="lg:col-span-5 flex flex-col gap-8">
-            {(latestArticle || latestCommunity) && (
-              <div className="bg-app-card border border-white/5 rounded-[3rem] p-8 shadow-2xl">
-                <h3 className="text-xl font-serif text-app-text mb-6 flex items-center gap-3">
-                  <BookOpen className="w-5 h-5 text-indigo-400" />
-                  {t.latestPosts}
-                </h3>
-                <div className="space-y-4">
-                  {latestArticle && (
-                    <Link
-                      to={`/articles/${latestArticle.id}`}
-                      className="block p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group"
-                    >
-                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1.5">
-                        {t.article}
-                      </span>
-                      <h4 className="text-app-text font-bold text-sm line-clamp-2 leading-relaxed group-hover:text-indigo-300 transition-colors">
-                        {latestArticle.title}
-                      </h4>
-                    </Link>
-                  )}
-                  {latestCommunity && (
-                    <Link
-                      to={`/community/${latestCommunity.id}`}
-                      className="block p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group"
-                    >
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1.5">
-                        {t.community}
-                      </span>
-                      <h4 className="text-app-text font-bold text-sm line-clamp-2 leading-relaxed group-hover:text-emerald-300 transition-colors">
-                        {latestCommunity.title}
-                      </h4>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="bg-app-card border border-white/5 rounded-[3rem] p-10 shadow-2xl flex-grow">
+          <div className="lg:col-span-5 flex flex-col h-full">
+            <div className="bg-app-card border border-white/5 rounded-[3rem] p-8 md:p-10 shadow-2xl flex-grow flex flex-col">
               <div className="flex items-center justify-between mb-10">
                 <h3 className="text-2xl font-serif text-app-text flex items-center gap-3">
                   <Trophy className="w-6 h-6 text-gold" />

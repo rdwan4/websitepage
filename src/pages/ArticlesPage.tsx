@@ -294,12 +294,16 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                     )}
                     <p className={cn('flex-1 text-sm text-app-muted', nativeApp ? 'mb-3 line-clamp-2 leading-5.5 md:mb-5' : 'mb-4 line-clamp-2 leading-6 md:mb-8 md:line-clamp-3 md:leading-7')}>{course.previewPost.content}</p>
                     <div className={cn(nativeApp ? 'flex flex-col gap-2.5 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:justify-between md:pt-5' : 'flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between md:gap-4 md:pt-6', lang === 'ar' && 'sm:flex-row-reverse')}>
-                      <Link
-                        to={buildPostPath(course.startPost)}
+                      <button
+                        onClick={async () => {
+                          setActivePost(course.startPost);
+                          const fullCourse = await postService.getCoursePosts(course.key);
+                          setActiveCoursePosts(fullCourse && fullCourse.length > 0 ? fullCourse : course.posts);
+                        }}
                         className="text-app-accent text-sm font-bold hover:underline flex items-center gap-2"
                       >
                         {lang === 'en' ? 'Open Article' : 'فتح المقال'}
-                      </Link>
+                      </button>
                       <div className="flex flex-wrap items-center gap-3 md:gap-4">
                         {canManagePost(course.startPost) && (
                           <button
