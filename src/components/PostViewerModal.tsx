@@ -186,15 +186,39 @@ export const PostViewerModal = ({
               <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{t.close}</p>
             </div>
 
-            <div className={cn("mb-10 p-8 rounded-[2rem] border border-app-accent/20 bg-app-accent/5", lang === 'ar' && "text-right")}>
+            <div className={cn("mb-8 p-6 md:p-8 rounded-[2rem] border border-app-accent/20 bg-app-accent/5", lang === 'ar' && "text-right")}>
               <span className="inline-block px-3 py-1 rounded-lg bg-app-accent text-app-bg text-[10px] font-black uppercase tracking-widest mb-4">
                 {currentPost.category?.name || 'Post'}
               </span>
-              <h2 className="text-3xl font-bold text-app-text md:text-5xl leading-tight">{currentPost.title}</h2>
+              <h2 className={cn("font-bold text-app-text leading-tight", nativeApp ? "text-2xl" : "text-3xl md:text-5xl")}>{currentPost.title}</h2>
               <p className="mt-4 text-app-muted font-bold tracking-wide flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-app-accent" /> {currentPost.author_name || 'Admin'}
               </p>
             </div>
+
+            {coursePosts && coursePosts.length > 1 && (
+              <div className="mb-8">
+                <h3 className={cn("text-xs font-black uppercase tracking-widest text-app-muted mb-4", lang === 'ar' && "text-right")}>{lang === 'en' ? 'Course Lessons' : 'دروس الدورة'}</h3>
+                <div className={cn("flex gap-3 overflow-x-auto pb-4 hide-scrollbar", lang === 'ar' && "flex-row-reverse")}>
+                  {coursePosts.map((cp, idx) => (
+                    <button
+                      key={cp.id}
+                      onClick={() => setSelectedPost(cp)}
+                      className={cn(
+                        "flex-shrink-0 flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all text-sm font-bold min-w-[140px]",
+                        currentPost.id === cp.id
+                          ? "border-app-accent bg-app-accent/10 text-app-accent"
+                          : "border-white/10 bg-white/5 text-app-muted hover:bg-white/10 hover:text-app-text"
+                      )}
+                    >
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-app-bg text-[10px]">{idx + 1}</span>
+                      <span className="truncate max-w-[150px]">{cp.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             <div className="grid gap-10 lg:grid-cols-12">
               <div className="lg:col-span-8 space-y-8">

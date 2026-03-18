@@ -92,11 +92,7 @@ const groupSidebarPosts = (items: Post[]): Post[] => {
   const grouped = new Map<string, Post[]>();
 
   items.forEach((post) => {
-    const key = post.parent_post_id
-      ? `parent:${post.parent_post_id}`
-      : post.series_slug
-        ? `series:${post.series_slug}`
-        : `post:${post.id}`;
+    const key = post.parent_post_id || post.series_slug || post.id;
     const list = grouped.get(key) || [];
     list.push(post);
     grouped.set(key, list);
@@ -110,12 +106,7 @@ const groupSidebarPosts = (items: Post[]): Post[] => {
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
 
-    if (key.startsWith('post:')) return sorted[0];
-    if (key.startsWith('parent:')) {
-      const parentId = key.replace('parent:', '');
-      return sorted.find((item) => item.id === parentId) || sorted[0];
-    }
-    return sorted[0];
+    return sorted.find((item) => item.id === key) || sorted[0];
   });
 };
 

@@ -89,12 +89,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
     const grouped = new Map<string, Post[]>();
 
     filteredArticles.forEach((post) => {
-      const key =
-        post.parent_post_id
-          ? `parent:${post.parent_post_id}`
-          : post.series_slug
-          ? `series:${post.series_slug}`
-          : `post:${post.id}`;
+      const key = post.parent_post_id || post.series_slug || post.id;
       const list = grouped.get(key) || [];
       list.push(post);
       grouped.set(key, list);
@@ -108,7 +103,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
 
-      const startPost = key.startsWith('post:') ? sorted[0] : sorted.find((item) => item.id === key) || sorted[0];
+      const startPost = sorted.find((item) => item.id === key) || sorted[0];
       const previewPost = sorted[0];
 
       return {

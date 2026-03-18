@@ -80,11 +80,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
   const grouped = useMemo<CommunityGroup[]>(() => {
     const map = new Map<string, Post[]>();
     posts.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).forEach(p => {
-      const key = p.parent_post_id
-        ? `parent:${p.parent_post_id}`
-        : p.series_slug
-        ? `series:${p.series_slug}`
-        : `post:${p.id}`;
+      const key = p.parent_post_id || p.series_slug || p.id;
       const list = map.get(key) || [];
       list.push(p);
       map.set(key, list);
@@ -94,7 +90,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
         if (a.lesson_order !== b.lesson_order) return (a.lesson_order || 1) - (b.lesson_order || 1);
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
-      const startPost = key.startsWith('parent:') ? sorted.find(p => p.id === key.replace('parent:', '')) || sorted[0] : sorted[0];
+      const startPost = sorted.find(p => p.id === key) || sorted[0];
       return {
         key,
         title: sorted[0].series_title || startPost.title,
