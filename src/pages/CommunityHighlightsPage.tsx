@@ -28,6 +28,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
 
   const SIDEBAR_CATEGORY_SLUGS = ['inspiration', 'hadith', 'dua'];
 
@@ -79,18 +80,29 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
   const grouped = useMemo<CommunityGroup[]>(() => {
     const map = new Map<string, Post[]>();
     posts.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).forEach(p => {
-      const key = p.series_slug || p.id;
+      const key = p.parent_post_id
+        ? `parent:${p.parent_post_id}`
+        : p.series_slug
+        ? `series:${p.series_slug}`
+        : `post:${p.id}`;
       const list = map.get(key) || [];
       list.push(p);
       map.set(key, list);
     });
-    return Array.from(map.entries()).map(([key, list]) => ({
-      key,
-      title: list[0].series_title || list[0].title,
-      posts: list,
-      startPost: list[0],
-      category: lang === 'ar' ? (list[0].category?.name_ar || 'المجتمع') : (list[0].category?.name || 'Community')
-    }));
+    return Array.from(map.entries()).map(([key, list]) => {
+      const sorted = [...list].sort((a,b) => {
+        if (a.lesson_order !== b.lesson_order) return (a.lesson_order || 1) - (b.lesson_order || 1);
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+      const startPost = key.startsWith('parent:') ? sorted.find(p => p.id === key.replace('parent:', '')) || sorted[0] : sorted[0];
+      return {
+        key,
+        title: sorted[0].series_title || startPost.title,
+        posts: sorted,
+        startPost,
+        category: lang === 'ar' ? (sorted[0].category?.name_ar || 'المجتمع') : (sorted[0].category?.name || 'Community')
+      };
+    });
   }, [posts, searchQuery, lang]);
 
   return (
@@ -164,7 +176,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
                   <h3 className="text-2xl font-bold text-app-text mb-4 leading-tight group-hover:text-app-accent transition-colors line-clamp-2">{group.title}</h3>
                   <p className="text-app-muted text-sm leading-relaxed mb-8 line-clamp-3">{group.startPost.content}</p>
                   <div className={cn("flex items-center justify-between border-t border-white/5 pt-6", lang === 'ar' && "flex-row-reverse")}>
-                    <button onClick={() => setActivePost(group.startPost)} className="flex items-center gap-2 text-app-accent font-black text-xs uppercase tracking-widest hover:underline">
+                    <button onClick={() => { setActivePost(group.startPost); setActiveCoursePosts(group.posts); }} className="flex items-center gap-2 text-app-accent font-black text-xs uppercase tracking-widest hover:underline">
                       {lang === 'en' ? 'Read More' : 'اقرأ المزيد'} <ArrowRight className={cn("h-4 w-4", lang === 'ar' && "rotate-180")} />
                     </button>
                     <div className="flex gap-2">
@@ -190,11 +202,13 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
       <PostViewerModal
         isOpen={!!activePost}
         post={activePost}
+        coursePosts={activeCoursePosts}
         lang={lang}
-        onClose={() => setActivePost(null)}
+        onClose={() => { setActivePost(null); setActiveCoursePosts(null); }}
         onUpdated={fetchPosts}
         onRequestEdit={(p) => {
           setActivePost(null);
+          setActiveCoursePosts(null);
           setEditingPost(p);
         }}
       />

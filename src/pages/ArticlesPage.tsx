@@ -90,10 +90,11 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
 
     filteredArticles.forEach((post) => {
       const key =
-        post.parent_post_id ||
-        (post.series_slug
+        post.parent_post_id
+          ? `parent:${post.parent_post_id}`
+          : post.series_slug
           ? `series:${post.series_slug}`
-          : `category:${post.category?.slug || post.category_id || 'uncategorized'}`);
+          : `post:${post.id}`;
       const list = grouped.get(key) || [];
       list.push(post);
       grouped.set(key, list);
