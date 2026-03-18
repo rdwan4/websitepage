@@ -25,8 +25,8 @@ const text = {
         body: 'We do not sell your personal data. We may use trusted service providers for hosting, authentication, analytics, and storage.',
       },
       {
-        title: '4. Cookies and Local Storage',
-        body: 'We use local storage and similar technologies to keep you signed in, remember language/theme settings, and improve usability.',
+        title: '4. Cookies, Advertising, and Local Storage',
+        body: 'We use local storage to improve usability. Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website. Google’s use of advertising cookies enables it and its partners to serve ads based on your internet usage. You may opt out of personalized advertising by visiting Google Ads Settings.',
       },
       {
         title: '5. Your Rights',
@@ -58,8 +58,8 @@ const text = {
         body: 'لا نبيع بياناتك الشخصية. قد نستخدم مزودي خدمات موثوقين للاستضافة والمصادقة والتحليلات والتخزين.',
       },
       {
-        title: '4. ملفات تعريف الارتباط والتخزين المحلي',
-        body: 'نستخدم التخزين المحلي وتقنيات مشابهة للحفاظ على تسجيل الدخول وتذكر إعدادات اللغة/المظهر وتحسين الاستخدام.',
+        title: '4. ملفات تعريف الارتباط والإعلانات',
+        body: 'نستخدم التخزين المحلي لتحسين الاستخدام. يستخدم مورّدو الجهات الخارجية، بمن فيهم Google، ملفات تعريف الارتباط لعرض الإعلانات بناءً على زياراتك السابقة لهذا الموقع. يتيح استخدام Google لملفات تعريف ارتباط الإعلانات لها ولشركائها عرض الإعلانات بناءً على استخدامك للإنترنت. يمكنك إيقاف الإعلانات المخصصة بزيارة إعدادات إعلانات Google.',
       },
       {
         title: '5. حقوقك',
