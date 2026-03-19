@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Loader2,
   Pencil,
@@ -85,6 +85,17 @@ const emptyBroadcast: BroadcastForm = {
 let cachedAdminData: any = null;
 let lastFetchTime = 0;
 
+try {
+  const stored = window.sessionStorage.getItem('admin_dashboard_cache');
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    if (Date.now() - parsed.time < 5 * 60 * 1000) {
+      cachedAdminData = parsed.data;
+      lastFetchTime = parsed.time;
+    }
+  }
+} catch (e) {}
+
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const t = text[lang];
   const [tab, setTab] = useState<Tab>('overview');
@@ -139,6 +150,13 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
       ]);
       cachedAdminData = { u, g, d, p, c, b, bm };
       lastFetchTime = Date.now();
+      try {
+        window.sessionStorage.setItem('admin_dashboard_cache', JSON.stringify({
+          time: lastFetchTime,
+          data: cachedAdminData,
+        }));
+      } catch (e) {}
+
       setUsers(u); setGuidance(g); setDaily(d); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
     } catch (err: any) {
       setError(err.message);
@@ -347,7 +365,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between px-4 mb-2">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">Recent Community Posts</p>
-                    <button onClick={refreshData} className="text-[10px] font-black uppercase text-app-accent hover:underline">Refresh</button>
+                    <button onClick={() => void refreshData(true)} className="text-[10px] font-black uppercase text-app-accent hover:underline">Refresh</button>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     {posts.filter(p => !query || p.title.toLowerCase().includes(query.toLowerCase())).map(p => (
@@ -710,7 +728,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
                       {lang === 'en' ? 'Sent & Scheduled' : 'المُرسلة والمجدولة'}
                     </p>
-                    <button onClick={refreshData} className="text-[10px] font-black uppercase text-app-accent hover:underline">
+                    <button onClick={() => void refreshData(true)} className="text-[10px] font-black uppercase text-app-accent hover:underline">
                       {lang === 'en' ? 'Refresh' : 'تحديث'}
                     </button>
                   </div>
