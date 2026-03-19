@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   FileDown,
@@ -97,6 +97,7 @@ export const CreatePostModal = ({
   categoryFilter = 'sidebar',
   modalTitle,
   modalSubtitle,
+  initialParentPostId,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -108,6 +109,7 @@ export const CreatePostModal = ({
   categoryFilter?: CategoryFilterMode;
   modalTitle?: string;
   modalSubtitle?: string;
+  initialParentPostId?: string;
 }) => {
   const { profile } = useAuth();
   const [type, setType] = useState<PostType>('article');
@@ -231,9 +233,9 @@ export const CreatePostModal = ({
     setMediaUrl('');
     setSeriesTitle('');
     setLessonOrder(1);
-    setParentPostId('');
+    setParentPostId(initialParentPostId || '');
     setError(null);
-  }, [categories, initialCategorySlug, initialType, postToEdit]);
+  }, [categories, initialCategorySlug, initialType, postToEdit, initialParentPostId]);
 
   useEffect(() => {
     if (!isOpen || !lockedCategory) return;

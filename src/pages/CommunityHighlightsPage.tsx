@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Users, Search, MessageCircle, Heart, Share2, Plus, Clock, ArrowRight, BookOpen, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -29,6 +29,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
+  const [activeParentForCreate, setActiveParentForCreate] = useState<Post | null>(null);
 
   const SIDEBAR_CATEGORY_SLUGS = ['inspiration', 'hadith', 'dua'];
 
@@ -158,20 +159,20 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {grouped.map((group, i) => (
-              <motion.div key={group.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="group rounded-[2.5rem] border border-white/5 bg-app-card shadow-2xl transition-all hover:border-app-accent/30 overflow-hidden">
+              <motion.div key={group.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex flex-col group rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-app-card shadow-xl transition-all hover:border-app-accent/30 overflow-hidden">
                 {group.startPost.image_url && (
-                  <div className="relative h-48 w-full overflow-hidden bg-app-card-dark">
+                  <div className="relative h-40 md:h-44 w-full overflow-hidden bg-app-card-dark">
                     <img src={group.startPost.image_url} alt={group.startPost.title} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                 )}
-                <div className="p-8">
-                  <div className={cn("flex items-center justify-between mb-6", lang === 'ar' && "flex-row-reverse")}>
-                    <div className="px-4 py-1.5 rounded-full bg-app-accent/10 border border-app-accent/20 text-app-accent text-[10px] font-black uppercase tracking-widest">{group.category}</div>
-                    <div className="flex items-center gap-2 text-xs text-app-muted font-bold"><Clock className="h-4 w-4" /> {new Date(group.startPost.created_at).toLocaleDateString()}</div>
+                <div className="flex flex-1 flex-col p-5 md:p-6">
+                  <div className={cn("flex flex-wrap items-center gap-2 mb-3", lang === 'ar' && "flex-row-reverse")}>
+                    <span className="px-3 py-1 rounded-full bg-app-accent/10 border border-app-accent/20 text-app-accent text-[9px] font-black uppercase tracking-widest">{group.category}</span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-app-muted font-bold ml-auto"><Clock className="h-3 w-3" /> {new Date(group.startPost.created_at).toLocaleDateString()}</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-app-text mb-4 leading-tight group-hover:text-app-accent transition-colors line-clamp-2">{group.title}</h3>
-                  <p className="text-app-muted text-sm leading-relaxed mb-8 line-clamp-3">{group.startPost.content}</p>
-                  <div className={cn("flex items-center justify-between border-t border-white/5 pt-6", lang === 'ar' && "flex-row-reverse")}>
+                  <h3 className={cn("font-bold text-app-text mb-2 leading-tight group-hover:text-app-accent transition-colors line-clamp-2", nativeApp ? "text-lg" : "text-xl")}>{group.title}</h3>
+                  <p className="text-app-muted text-sm leading-relaxed mb-4 flex-1 line-clamp-2 md:line-clamp-3">{group.startPost.content}</p>
+                  <div className={cn("flex items-center justify-between border-t border-white/5 pt-4 md:pt-5", lang === 'ar' && "flex-row-reverse")}>
                     <button onClick={async () => { 
                       setActivePost(group.startPost);
                       const fullCourse = await postService.getCoursePosts(group.key);
@@ -211,17 +212,28 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
           setActiveCoursePosts(null);
           setEditingPost(p);
         }}
+        onRequestAddChild={(p) => {
+          setActivePost(null);
+          setActiveCoursePosts(null);
+          setActiveParentForCreate(p);
+          setIsCreateOpen(true);
+        }}
       />
 
       {isCreateOpen && (
         <CreatePostModal
           isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => {
+            setIsCreateOpen(false);
+            setActiveParentForCreate(null);
+          }}
           lang={lang}
           initialCategorySlug={initialCategory}
+          initialParentPostId={activeParentForCreate?.id}
           categoryFilter={initialCategory ? 'non-sidebar' : 'all'}
           onSuccess={() => {
             setIsCreateOpen(false);
+            setActiveParentForCreate(null);
             fetchPosts();
           }}
         />

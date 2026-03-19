@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FileText, ArrowLeft, Search, Clock, User, Heart, MessageSquare, Plus, Trash2, Pencil, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -39,6 +39,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [activePost, setActivePost] = useState<Post | null>(null);
   const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
+  const [activeParentForCreate, setActiveParentForCreate] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchArticles = async () => {
@@ -183,6 +184,12 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
         onRequestEdit={(p) => {
           setActivePost(null);
           setEditingPost(p);
+        }}
+        onRequestAddChild={(p) => {
+          setActivePost(null);
+          setActiveCoursePosts(null);
+          setActiveParentForCreate(p);
+          setIsCreateOpen(true);
         }}
       />
 
@@ -359,15 +366,20 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
 
         <CreatePostModal
           isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
+          onClose={() => {
+            setIsCreateOpen(false);
+            setActiveParentForCreate(null);
+          }}
           lang={lang}
           initialType="article"
           initialCategorySlug="articles"
+          initialParentPostId={activeParentForCreate?.id}
           categoryFilter="non-sidebar"
           modalTitle={lang === 'en' ? 'Create Article' : 'إنشاء مقال'}
           modalSubtitle={lang === 'en' ? 'Submit articles for review or publish directly if admin.' : 'أرسل المقالات للمراجعة أو انشر مباشرة إذا كنت مشرفاً.'}
           onSuccess={() => {
             setIsCreateOpen(false);
+            setActiveParentForCreate(null);
             window.dispatchEvent(new Event('posts-updated'));
             void fetchArticles();
           }}

@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Browser } from '@capacitor/browser';
-import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, X, ChevronLeft } from 'lucide-react';
+import { ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, X, ChevronLeft, Plus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
@@ -52,6 +52,7 @@ export const PostViewerModal = ({
   onUpdated,
   onAuthClick,
   onRequestEdit,
+  onRequestAddChild,
 }: {
   isOpen: boolean;
   post: Post | null;
@@ -61,6 +62,7 @@ export const PostViewerModal = ({
   onUpdated?: () => void;
   onAuthClick?: () => void;
   onRequestEdit?: (post: Post) => void;
+  onRequestAddChild?: (post: Post) => void;
 }) => {
   const { profile } = useAuth();
   const t = copy[lang];
@@ -178,52 +180,64 @@ export const PostViewerModal = ({
             <div className="w-12 h-1.5 rounded-full bg-white/10" />
           </div>
 
-          <div className="overflow-y-auto flex-1 p-6 md:p-12">
-            <div className={cn("mb-8 flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
+          <div className="overflow-y-auto flex-1 p-5 md:p-8">
+            <div className={cn("mb-6 flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
               <button onClick={onClose} className="p-3 rounded-full bg-white/5 text-app-muted hover:text-app-text transition-all active:scale-90">
                 <X className="h-6 w-6" />
               </button>
               <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{t.close}</p>
             </div>
 
-            <div className={cn("mb-8 p-6 md:p-8 rounded-[2rem] border border-app-accent/20 bg-app-accent/5", lang === 'ar' && "text-right")}>
-              <span className="inline-block px-3 py-1 rounded-lg bg-app-accent text-app-bg text-[10px] font-black uppercase tracking-widest mb-4">
+            <div className={cn("mb-6 p-5 md:p-6 rounded-[1.5rem] border border-app-accent/20 bg-app-accent/5", lang === 'ar' && "text-right")}>
+              <span className="inline-block px-3 py-1 rounded-lg bg-app-accent text-app-bg text-[9px] font-black uppercase tracking-widest mb-3">
                 {currentPost.category?.name || 'Post'}
               </span>
-              <h2 className={cn("font-bold text-app-text leading-tight", nativeApp ? "text-2xl" : "text-3xl md:text-5xl")}>{currentPost.title}</h2>
-              <p className="mt-4 text-app-muted font-bold tracking-wide flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-app-accent" /> {currentPost.author_name || 'Admin'}
+              <h2 className={cn("font-bold text-app-text leading-tight", nativeApp ? "text-xl" : "text-2xl md:text-4xl")}>{currentPost.title}</h2>
+              <p className="mt-3 text-app-muted text-sm font-bold tracking-wide flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-app-accent" /> {currentPost.author_name || 'Admin'}
               </p>
             </div>
 
-            {coursePosts && coursePosts.length > 1 && (
-              <div className="mb-8">
-                <h3 className={cn("text-xs font-black uppercase tracking-widest text-app-muted mb-4", lang === 'ar' && "text-right")}>{lang === 'en' ? 'Course Lessons' : 'دروس الدورة'}</h3>
+            {(coursePosts && coursePosts.length > 1) || canManage ? (
+              <div className="mb-6">
+                <div className={cn("flex items-center justify-between mb-3", lang === 'ar' && "flex-row-reverse")}>
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Course Lessons' : 'دروس الدورة'}</h3>
+                  {canManage && onRequestAddChild && (
+                    <button onClick={() => onRequestAddChild(coursePosts?.[0] || currentPost)} className="text-app-accent hover:underline text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                      <Plus className="h-3 w-3" /> {lang === 'en' ? 'Add Part' : 'إضافة جزء'}
+                    </button>
+                  )}
+                </div>
                 <div className={cn("flex gap-3 overflow-x-auto pb-4 hide-scrollbar", lang === 'ar' && "flex-row-reverse")}>
-                  {coursePosts.map((cp, idx) => (
+                  {coursePosts?.map((cp, idx) => (
                     <button
                       key={cp.id}
                       onClick={() => setSelectedPost(cp)}
                       className={cn(
-                        "flex-shrink-0 flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all text-sm font-bold min-w-[140px]",
+                        "flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all text-xs font-bold min-w-[120px]",
                         currentPost.id === cp.id
                           ? "border-app-accent bg-app-accent/10 text-app-accent"
                           : "border-white/10 bg-white/5 text-app-muted hover:bg-white/10 hover:text-app-text"
                       )}
                     >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-app-bg text-[10px]">{idx + 1}</span>
-                      <span className="truncate max-w-[150px]">{cp.title}</span>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-app-bg text-[9px]">{idx + 1}</span>
+                      <span className="truncate max-w-[130px]">{cp.title}</span>
                     </button>
                   ))}
+                  {canManage && (!coursePosts || coursePosts.length <= 1) && (
+                    <button onClick={() => onRequestAddChild?.(currentPost)} className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-white/20 text-app-muted hover:text-app-text hover:border-white/40 text-xs font-bold transition-all">
+                      <Plus className="h-4 w-4" /> {lang === 'en' ? 'Create First Lesson' : 'إنشاء أول درس'}
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
+            ) : null}
 
 
-            <div className="grid gap-10 lg:grid-cols-12">
-              <div className="lg:col-span-8 space-y-8">
-                {currentPost.image_url && <img src={currentPost.image_url} className="w-full rounded-[2.5rem] border border-white/5 shadow-xl" />}
-                <div className="p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 leading-relaxed text-lg text-app-text whitespace-pre-wrap">
+            <div className="grid gap-6 lg:grid-cols-12">
+              <div className="lg:col-span-8 space-y-6">
+                {currentPost.image_url && <img src={currentPost.image_url} className="w-full rounded-[1.5rem] md:rounded-[2rem] border border-white/5 shadow-xl" />}
+                <div className="p-6 md:p-8 rounded-[1.5rem] bg-white/[0.02] border border-white/5 leading-relaxed text-[0.95rem] md:text-[1.05rem] text-app-text whitespace-pre-wrap">
                   {currentPost.content}
                 </div>
               </div>
