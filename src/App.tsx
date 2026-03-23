@@ -66,6 +66,7 @@ type Themes = 'dark' | 'light';
 
 const LANGUAGE_KEY = 'app-language';
 const THEME_KEY = 'app-theme';
+const QUIZ_MODAL_OPEN_KEY = 'quiz_question_modal_open';
 
 function App() {
   const { profile, loading, initialized } = useAuth();
@@ -73,7 +74,7 @@ function App() {
   const [theme, setTheme] = useState<Themes>(() => (window.localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'));
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
-  const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
+  const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(() => window.sessionStorage.getItem(QUIZ_MODAL_OPEN_KEY) === 'true');
   const [postModalCategory, setPostModalCategory] = useState<ContentCategory | string | null>(null);
 
   const location = useLocation();
@@ -208,6 +209,16 @@ function App() {
   };
 
   const openCreateQuiz = () => setIsCreateQuizModalOpen(true);
+
+  useEffect(() => {
+    try {
+      if (isCreateQuizModalOpen) {
+        window.sessionStorage.setItem(QUIZ_MODAL_OPEN_KEY, 'true');
+      } else {
+        window.sessionStorage.removeItem(QUIZ_MODAL_OPEN_KEY);
+      }
+    } catch (e) {}
+  }, [isCreateQuizModalOpen]);
 
   return (
     <AppErrorBoundary lang={lang}>

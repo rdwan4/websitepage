@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
@@ -11,7 +11,15 @@ export const ProtectedRoute = ({
   loading: boolean;
   children: React.ReactNode;
 }) => {
-  if (loading) {
+  const [hasGrantedAccess, setHasGrantedAccess] = useState(allow);
+
+  useEffect(() => {
+    if (allow) {
+      setHasGrantedAccess(true);
+    }
+  }, [allow]);
+
+  if (loading && !hasGrantedAccess) {
     return (
       <div className="min-h-screen bg-app-bg pt-32 pb-20 flex items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-app-card px-6 py-4 text-app-text shadow-xl">

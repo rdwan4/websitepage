@@ -498,7 +498,7 @@ export const contentService = {
       question_ar: questionAr || null,
       explanation_en: (questionPayload.explanation_en || '').trim() || null,
       explanation_ar: (questionPayload.explanation_ar || '').trim() || null,
-      source_reference: (questionPayload.source_reference || '').trim() || null,
+      source_reference: (questionPayload.source_reference || '').trim(),
       category: questionCategory,
       correct_option_id: null,
     };

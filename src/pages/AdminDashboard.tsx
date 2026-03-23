@@ -11,6 +11,7 @@ import {
   Search,
   Users,
   BookOpen,
+  Layers,
   Calendar,
   MessageSquare,
   ChevronRight,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { CreateQuizQuestionModal } from '../components/CreateQuizQuestionModal';
 import {
   BroadcastAdminMetrics,
   BroadcastNotification,
@@ -43,7 +45,7 @@ import { contentService } from '../services/contentService';
 import { postService } from '../services/postService';
 import { supabase } from '../supabaseClient.js';
 
-type Tab = 'overview' | 'users' | 'guidance' | 'daily' | 'community' | 'broadcast';
+type Tab = 'overview' | 'users' | 'guidance' | 'daily' | 'quiz' | 'community' | 'broadcast';
 
 type GuidanceForm = Omit<GuidanceItem, 'created_at' | 'updated_at' | 'image_url' | 'accent_label_en' | 'accent_label_ar' | 'source_reference' | 'source_type' | 'summary_en' | 'summary_ar'> & { accent_label_en: string; accent_label_ar: string; source_reference: string; source_type: SourceType; image_url: string; summary_en: string; summary_ar: string };
 type DailyForm = Omit<DailyCollectionEntry, 'created_at' | 'updated_at' | 'tags' | 'title_ar' | 'arabic_text' | 'transliteration' | 'authenticity_notes' | 'image_url'> & { title_ar: string; arabic_text: string; transliteration: string; authenticity_notes: string; image_url: string; tags: string };
@@ -62,7 +64,7 @@ type BroadcastForm = {
 };
 
 const text = {
-  en: { title: 'Admin Console', subtitle: 'Global control center', users: 'Users', guidance: 'Guidance', daily: 'Daily', community: 'Community', broadcast: 'Broadcasts', overview: 'Stats', search: 'Search entries...', save: 'Save Changes', create: 'Create New', edit: 'Edit', delete: 'Delete', setAdmin: 'Promote', setUser: 'Demote', published: 'Live', verified: 'Verified', uploadImage: 'Upload Media', approve: 'Approve', reject: 'Reject', cancelEditing: 'Cancel Editing' },
+  en: { title: 'Admin Console', subtitle: 'Global control center', users: 'Users', guidance: 'Guidance', daily: 'Daily', quiz: 'Quiz', community: 'Community', broadcast: 'Broadcasts', overview: 'Stats', search: 'Search entries...', save: 'Save Changes', create: 'Create New', edit: 'Edit', delete: 'Delete', setAdmin: 'Promote', setUser: 'Demote', published: 'Live', verified: 'Verified', uploadImage: 'Upload Media', approve: 'Approve', reject: 'Reject', cancelEditing: 'Cancel Editing' },
   ar: { title: 'لوحة الإدارة', subtitle: 'مركز التحكم الشامل', users: 'المستخدمون', guidance: 'الهداية', daily: 'المحتوى', community: 'المجتمع', broadcast: 'البث', overview: 'إحصائيات', search: 'بحث...', save: 'حفظ التغييرات', create: 'إنشاء جديد', edit: 'تعديل', delete: 'حذف', setAdmin: 'ترقية', setUser: 'تخفيض', published: 'منشور', verified: 'موثق', uploadImage: 'رفع وسائط', approve: 'قبول', reject: 'رفض', cancelEditing: 'إلغاء التعديل' },
 };
 
@@ -83,52 +85,105 @@ const emptyBroadcast: BroadcastForm = {
 
 // Cache admin state globally so it doesn't refresh constantly when switching tabs/windows
 let cachedAdminData: any = null;
-let lastFetchTime = 0;
+const ADMIN_DRAFT_KEY = 'admin_dashboard_draft';
+const ADMIN_CACHE_KEY = 'admin_dashboard_cache';
 
 try {
-  const stored = window.sessionStorage.getItem('admin_dashboard_cache');
+  const stored = window.sessionStorage.getItem(ADMIN_CACHE_KEY);
   if (stored) {
     const parsed = JSON.parse(stored);
-    if (Date.now() - parsed.time < 5 * 60 * 1000) {
-      cachedAdminData = parsed.data;
-      lastFetchTime = parsed.time;
-    }
+    cachedAdminData = parsed.data;
   }
 } catch (e) {}
 
+const readAdminDraft = () => {
+  try {
+    const stored = window.sessionStorage.getItem(ADMIN_DRAFT_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
+  const adminDraft = readAdminDraft();
   const t = text[lang];
-  const [tab, setTab] = useState<Tab>('overview');
-  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>(adminDraft?.tab || 'overview');
+  const [loading, setLoading] = useState(!cachedAdminData);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(adminDraft?.query || '');
 
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [guidance, setGuidance] = useState<GuidanceItem[]>([]);
-  const [daily, setDaily] = useState<DailyCollectionEntry[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>([]);
-  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics>({
-    total_users: 0,
-    opted_in_users: 0,
-    opted_out_users: 0,
-    delivered_total: 0,
-    pending_total: 0,
-    by_notification: [],
-  });
+  const [users, setUsers] = useState<Profile[]>(cachedAdminData?.u || []);
+  const [guidance, setGuidance] = useState<GuidanceItem[]>(cachedAdminData?.g || []);
+  const [daily, setDaily] = useState<DailyCollectionEntry[]>(cachedAdminData?.d || []);
+  const [questions, setQuestions] = useState<QuizQuestion[]>(cachedAdminData?.q || []);
+  const [posts, setPosts] = useState<Post[]>(cachedAdminData?.p || []);
+  const [categories, setCategories] = useState<Category[]>(cachedAdminData?.c || []);
+  const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>(cachedAdminData?.b || []);
+  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics>(
+    cachedAdminData?.bm || {
+      total_users: 0,
+      opted_in_users: 0,
+      opted_out_users: 0,
+      delivered_total: 0,
+      pending_total: 0,
+      by_notification: [],
+    }
+  );
 
-  const [guidanceForm, setGuidanceForm] = useState<GuidanceForm>(emptyGuidance);
-  const [dailyForm, setDailyForm] = useState<DailyForm>(emptyDaily);
-  const [communityForm, setCommunityForm] = useState<CommunityForm>(emptyCommunity);
-  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(emptyBroadcast);
+  const [guidanceForm, setGuidanceForm] = useState<GuidanceForm>(adminDraft?.guidanceForm || emptyGuidance);
+  const [dailyForm, setDailyForm] = useState<DailyForm>(adminDraft?.dailyForm || emptyDaily);
+  const [communityForm, setCommunityForm] = useState<CommunityForm>(adminDraft?.communityForm || emptyCommunity);
+  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(adminDraft?.broadcastForm || emptyBroadcast);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
+  const hasHydratedData =
+    users.length > 0 ||
+    guidance.length > 0 ||
+    daily.length > 0 ||
+    questions.length > 0 ||
+    posts.length > 0 ||
+    categories.length > 0 ||
+    broadcasts.length > 0;
+
+  const filteredQuestions = useMemo(
+    () =>
+      questions.filter((question) =>
+        !query ||
+        question.question_en.toLowerCase().includes(query.toLowerCase()) ||
+        (question.question_ar || '').includes(query)
+      ),
+    [questions, query]
+  );
+
+  const quizStats = useMemo(() => {
+    const bilingualCount = questions.filter((question) => question.question_en && question.question_ar).length;
+    const arabicOnlyCount = questions.filter((question) => !question.question_en && question.question_ar).length;
+    const englishOnlyCount = questions.filter((question) => question.question_en && !question.question_ar).length;
+    const publishedCount = questions.filter((question) => question.is_published).length;
+    const verifiedCount = questions.filter((question) => question.is_verified).length;
+    const averageOptions = questions.length
+      ? (questions.reduce((total, question) => total + question.options.length, 0) / questions.length).toFixed(1)
+      : '0.0';
+
+    return {
+      total: questions.length,
+      published: publishedCount,
+      verified: verifiedCount,
+      bilingual: bilingualCount,
+      arabicOnly: arabicOnlyCount,
+      englishOnly: englishOnlyCount,
+      averageOptions,
+    };
+  }, [questions]);
 
   const refreshData = async (force = false) => {
-    if (!force && cachedAdminData && Date.now() - lastFetchTime < 5 * 60 * 1000) {
+    if (!force && cachedAdminData) {
       setUsers(cachedAdminData.u);
       setGuidance(cachedAdminData.g);
       setDaily(cachedAdminData.d);
+      setQuestions(cachedAdminData.q || []);
       setPosts(cachedAdminData.p);
       setCategories(cachedAdminData.c);
       setBroadcasts(cachedAdminData.b);
@@ -139,25 +194,25 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     
     setLoading(true);
     try {
-      const [u, g, d, p, c, b, bm] = await Promise.all([
+      const [u, g, d, q, p, c, b, bm] = await Promise.all([
         authService.getAllProfiles(),
         contentService.getGuidanceItems(false),
         contentService.listDailyContent(),
+        contentService.listQuestions(),
         postService.getPosts({ limit: 100 }),
         postService.getCategories(),
         postService.getBroadcastNotifications(),
         postService.getBroadcastAdminMetrics(),
       ]);
-      cachedAdminData = { u, g, d, p, c, b, bm };
-      lastFetchTime = Date.now();
+      cachedAdminData = { u, g, d, q, p, c, b, bm };
       try {
         window.sessionStorage.setItem('admin_dashboard_cache', JSON.stringify({
-          time: lastFetchTime,
+          time: Date.now(),
           data: cachedAdminData,
         }));
       } catch (e) {}
 
-      setUsers(u); setGuidance(g); setDaily(d); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
+      setUsers(u); setGuidance(g); setDaily(d); setQuestions(q); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
     } catch (err: any) {
       setError(err.message);
     } finally { setLoading(false); }
@@ -166,6 +221,45 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   useEffect(() => {
     void refreshData();
   }, []);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        ADMIN_DRAFT_KEY,
+        JSON.stringify({
+          tab,
+          query,
+          guidanceForm,
+          dailyForm,
+          communityForm,
+          broadcastForm,
+        })
+      );
+    } catch (e) {}
+  }, [tab, query, guidanceForm, dailyForm, communityForm, broadcastForm]);
+
+  useEffect(() => {
+    if (loading) return;
+    cachedAdminData = {
+      u: users,
+      g: guidance,
+      d: daily,
+      q: questions,
+      p: posts,
+      c: categories,
+      b: broadcasts,
+      bm: broadcastMetrics,
+    };
+    try {
+      window.sessionStorage.setItem(
+        ADMIN_CACHE_KEY,
+        JSON.stringify({
+          time: Date.now(),
+          data: cachedAdminData,
+        })
+      );
+    } catch (e) {}
+  }, [loading, users, guidance, daily, questions, posts, categories, broadcasts, broadcastMetrics]);
 
   const runSave = async (task: () => Promise<void>) => {
     setSaving(true); setError('');
@@ -220,6 +314,16 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     if (!confirm('Are you sure?')) return;
     await contentService.deleteGuidanceItem(id);
     setGuidance(prev => prev.filter(g => g.id !== id));
+  });
+
+  const deleteQuizQuestion = (id: string) => runSave(async () => {
+    if (!confirm(lang === 'en' ? 'Delete this question?' : 'حذف هذا السؤال؟')) return;
+    await contentService.deleteQuestion(id);
+    setQuestions(prev => prev.filter(question => question.id !== id));
+    if (editingQuestion?.id === id) {
+      setEditingQuestion(null);
+      setIsQuizModalOpen(false);
+    }
   });
 
   const handleImageUpload = async (file: File, folder: string, bucket = 'content-media') => {
@@ -290,21 +394,27 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 
         <div className="mb-8 overflow-x-auto pb-4 no-scrollbar">
           <div className={cn("flex min-w-max gap-3", lang === 'ar' && "flex-row-reverse")}>
-            {(['overview', 'users', 'guidance', 'daily', 'community', 'broadcast'] as Tab[]).map((id) => (
+            {(['overview', 'users', 'guidance', 'daily', 'quiz', 'community', 'broadcast'] as Tab[]).map((id) => (
               <button key={id} onClick={() => setTab(id)} className={cn("rounded-2xl px-6 py-3 text-xs font-black uppercase tracking-widest transition-all", tab === id ? "bg-app-accent text-app-bg shadow-lg shadow-app-accent/20" : "bg-white/5 text-app-muted hover:bg-white/10")}>
-                {t[id]}
+                {id === 'quiz' ? (lang === 'en' ? 'Quiz' : 'الاختبار') : t[id]}
               </button>
             ))}
           </div>
         </div>
 
-        {loading ? (
+        {!hasHydratedData && loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <Loader2 className="h-12 w-12 animate-spin text-app-accent" />
             <p className="text-app-muted font-black animate-pulse uppercase tracking-[0.2em] text-xs">Syncing Live Systems...</p>
           </div>
         ) : (
           <div className="grid gap-8">
+            {loading && hasHydratedData && (
+              <div className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-app-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-app-accent" />
+                <span>{lang === 'en' ? 'Refreshing in background' : 'Refreshing in background'}</span>
+              </div>
+            )}
             {tab === 'overview' && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard icon={Users} label="Users" value={users.length} color="text-blue-400" />
@@ -525,6 +635,134 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {tab === 'quiz' && (
+              <div className="grid gap-6">
+                <div className="flex items-center justify-between rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                  <div>
+                    <h3 className="text-2xl font-bold text-app-text">{lang === 'en' ? 'Quiz Questions' : 'أسئلة الاختبار'}</h3>
+                    <p className="mt-1 text-xs font-bold uppercase tracking-widest text-app-muted">
+                      {lang === 'en' ? 'Create, edit, and remove saved questions' : 'إنشاء وتعديل وحذف الأسئلة المحفوظة'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingQuestion(null);
+                      setIsQuizModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 rounded-2xl bg-app-accent px-5 py-3 text-xs font-black uppercase tracking-widest text-app-bg shadow-lg shadow-app-accent/20"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {lang === 'en' ? 'New Question' : 'سؤال جديد'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <StatCard icon={MessageSquare} label={lang === 'en' ? 'Questions' : 'الأسئلة'} value={quizStats.total} color="text-cyan-400" />
+                  <StatCard icon={CheckCircle2} label={lang === 'en' ? 'Verified' : 'الموثق'} value={`${quizStats.verified}/${quizStats.total}`} color="text-emerald-400" />
+                  <StatCard icon={Languages} label={lang === 'en' ? 'Both Languages' : 'كلتا اللغتين'} value={quizStats.bilingual} color="text-indigo-400" />
+                  <StatCard icon={Layers} label={lang === 'en' ? 'Avg Options' : 'متوسط الخيارات'} value={quizStats.averageOptions} color="text-amber-400" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Question Bank' : 'بنك الأسئلة'}</p>
+                    <div className="mt-4 grid gap-3 text-sm text-app-text">
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Published' : 'المنشور'}</span><span className="font-black">{quizStats.published}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Verified' : 'الموثق'}</span><span className="font-black">{quizStats.verified}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Visible in search' : 'نتائج البحث'}</span><span className="font-black">{filteredQuestions.length}</span></div>
+                    </div>
+                  </div>
+                  <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Language Mix' : 'توزيع اللغات'}</p>
+                    <div className="mt-4 grid gap-3 text-sm text-app-text">
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Both' : 'كلتاهما'}</span><span className="font-black">{quizStats.bilingual}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'English Only' : 'إنجليزي فقط'}</span><span className="font-black">{quizStats.englishOnly}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Arabic Only' : 'عربي فقط'}</span><span className="font-black">{quizStats.arabicOnly}</span></div>
+                    </div>
+                  </div>
+                  <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Option Health' : 'جودة الخيارات'}</p>
+                    <div className="mt-4 grid gap-3 text-sm text-app-text">
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Average options' : 'متوسط الخيارات'}</span><span className="font-black">{quizStats.averageOptions}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? '4+ options' : '4+ خيارات'}</span><span className="font-black">{questions.filter((question) => question.options.length >= 4).length}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Minimum only' : 'الحد الأدنى فقط'}</span><span className="font-black">{questions.filter((question) => question.options.length === 2).length}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredQuestions.map((question) => (
+                      <div key={question.id} className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="space-y-3">
+                            <div>
+                              <h4 className="text-lg font-bold leading-tight text-app-text">
+                                {lang === 'ar' ? question.question_ar || question.question_en : question.question_en || question.question_ar}
+                              </h4>
+                              {question.question_ar && question.question_en && (
+                                <p className="mt-1 text-sm text-app-muted">
+                                  {lang === 'ar' ? question.question_en : question.question_ar}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="rounded-xl bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-app-muted">
+                                {question.source_type}
+                              </span>
+                              <span className="rounded-xl bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-app-muted">
+                                {question.difficulty}
+                              </span>
+                              <span className="rounded-xl bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                {question.options.length} {lang === 'en' ? 'options' : 'خيارات'}
+                              </span>
+                            </div>
+                            <div className="grid gap-2">
+                              {question.options.map((option) => (
+                                <div
+                                  key={option.id}
+                                  className={cn(
+                                    'rounded-xl border px-4 py-3 text-sm',
+                                    option.id === question.correct_option_id
+                                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                      : 'border-white/5 bg-white/5 text-app-text'
+                                  )}
+                                >
+                                  {lang === 'ar' ? option.label_ar || option.label_en : option.label_en || option.label_ar}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 justify-end">
+                            <button
+                              onClick={() => {
+                                setEditingQuestion(question);
+                                setIsQuizModalOpen(true);
+                              }}
+                              className="rounded-xl bg-white/5 p-3 text-app-muted transition-all hover:bg-white/10 hover:text-app-accent"
+                            >
+                              <Pencil className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => deleteQuizQuestion(question.id)}
+                              className="rounded-xl bg-red-500/10 p-3 text-red-400 transition-all hover:bg-red-500/20"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                  {!filteredQuestions.length && (
+                    <div className="rounded-[2rem] border border-white/5 bg-app-card p-10 text-center text-app-muted">
+                      {lang === 'en' ? 'No quiz questions found.' : 'لا توجد أسئلة اختبار.'}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -797,9 +1035,6 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                                   try {
                                     await postService.deleteBroadcastNotification(b.id);
                                     setBroadcasts(prev => prev.filter(x => x.id !== b.id));
-                                    // Invalidate cache so deleted item doesn't reappear
-                                    cachedAdminData = null;
-                                    lastFetchTime = 0;
                                   } catch (err: any) {
                                     setError(err.message);
                                   }
@@ -836,6 +1071,20 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
           </div>
         )}
       </div>
+      <CreateQuizQuestionModal
+        isOpen={isQuizModalOpen}
+        onClose={() => {
+          setIsQuizModalOpen(false);
+          setEditingQuestion(null);
+        }}
+        lang={lang}
+        initialQuestion={editingQuestion}
+        onSuccess={(savedQuestion) => {
+          setQuestions((prev) => [savedQuestion, ...prev.filter((question) => question.id !== savedQuestion.id)]);
+          setIsQuizModalOpen(false);
+          setEditingQuestion(null);
+        }}
+      />
     </div>
   );
 };

@@ -1,0 +1,1 @@
+const o=[{id:60475,name:"Birmingham",countryCode:"GB",country:"United Kingdom",latitude:52.48142,longitude:-1.89983,fixed:1,sourceId:60475},{id:58153,name:"London",countryCode:"GB",country:"United Kingdom",latitude:51.50853,longitude:-.12574,fixed:1,sourceId:58153}],n={locations:o};export{n as default,o as locations};

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Loader2, X, HelpCircle, Lightbulb, BookOpen, Layers, MessageSquare, Languages } from 'lucide-react';
 import { contentService } from '../services/contentService';
 import { QuizQuestion, QuizQuestionOption, SourceType } from '../types';
 import { cn } from '../lib/utils';
+
+const QUIZ_DRAFT_KEY = 'quiz_question_modal_draft';
 
 const translations = {
   en: {
@@ -74,6 +76,7 @@ interface CreateQuizQuestionModalProps {
   onClose: () => void;
   onSuccess: (newQuestion: QuizQuestion) => void;
   lang: 'en' | 'ar';
+  initialQuestion?: QuizQuestion | null;
 }
 
 export const CreateQuizQuestionModal = ({
@@ -81,6 +84,7 @@ export const CreateQuizQuestionModal = ({
   onClose,
   onSuccess,
   lang,
+  initialQuestion = null,
 }: CreateQuizQuestionModalProps) => {
   const t = translations[lang];
   const [languageMode, setLanguageMode] = useState<'en' | 'ar' | 'both'>('both');
@@ -139,7 +143,118 @@ export const CreateQuizQuestionModal = ({
     setSourceReference('');
     setDifficulty('beginner');
     setError('');
+    try {
+      window.sessionStorage.removeItem(QUIZ_DRAFT_KEY);
+    } catch (e) {}
   };
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    if (!initialQuestion) {
+      resetForm();
+      return;
+    }
+
+    const hasEnglish = Boolean(initialQuestion.question_en?.trim());
+    const hasArabic = Boolean(initialQuestion.question_ar?.trim());
+    const nextLanguageMode = hasEnglish && hasArabic ? 'both' : hasArabic ? 'ar' : 'en';
+
+    setLanguageMode(nextLanguageMode);
+    setQuestionEn(initialQuestion.question_en || '');
+    setQuestionAr(initialQuestion.question_ar || '');
+    setExplanationEn(initialQuestion.explanation_en || '');
+    setExplanationAr(initialQuestion.explanation_ar || '');
+    setOptions(
+      initialQuestion.options?.length
+        ? initialQuestion.options
+            .map((option, index) => ({
+              id: option.id || crypto.randomUUID(),
+              label_en: option.label_en || '',
+              label_ar: option.label_ar || '',
+              sort_order: index,
+            }))
+        : [createEmptyOption(0), createEmptyOption(1)]
+    );
+    setCorrectOptionId(initialQuestion.correct_option_id || initialQuestion.options?.[0]?.id || '');
+    setSourceType(initialQuestion.source_type);
+    setSourceReference(initialQuestion.source_reference || '');
+    setDifficulty(initialQuestion.difficulty);
+    setError('');
+  }, [initialQuestion, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || initialQuestion) {
+      return;
+    }
+
+    try {
+      const stored = window.sessionStorage.getItem(QUIZ_DRAFT_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const draft = JSON.parse(stored);
+      setLanguageMode(draft.languageMode || 'both');
+      setQuestionEn(draft.questionEn || '');
+      setQuestionAr(draft.questionAr || '');
+      setExplanationEn(draft.explanationEn || '');
+      setExplanationAr(draft.explanationAr || '');
+      setOptions(
+        Array.isArray(draft.options) && draft.options.length
+          ? draft.options.map((option: QuizQuestionOption, index: number) => ({
+              id: option.id || crypto.randomUUID(),
+              label_en: option.label_en || '',
+              label_ar: option.label_ar || '',
+              sort_order: index,
+            }))
+          : [createEmptyOption(0), createEmptyOption(1)]
+      );
+      setCorrectOptionId(draft.correctOptionId || '');
+      setSourceType(draft.sourceType || 'quran');
+      setSourceReference(draft.sourceReference || '');
+      setDifficulty(draft.difficulty || 'beginner');
+    } catch (e) {}
+  }, [initialQuestion, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || initialQuestion) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(
+        QUIZ_DRAFT_KEY,
+        JSON.stringify({
+          languageMode,
+          questionEn,
+          questionAr,
+          explanationEn,
+          explanationAr,
+          options,
+          correctOptionId,
+          sourceType,
+          sourceReference,
+          difficulty,
+        })
+      );
+    } catch (e) {}
+  }, [
+    isOpen,
+    initialQuestion,
+    languageMode,
+    questionEn,
+    questionAr,
+    explanationEn,
+    explanationAr,
+    options,
+    correctOptionId,
+    sourceType,
+    sourceReference,
+    difficulty,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,6 +288,7 @@ export const CreateQuizQuestionModal = ({
       }
 
       const savedQuestion = await contentService.saveQuestion({
+        id: initialQuestion?.id,
         question_en: showEnglishFields ? questionEn : '',
         question_ar: showArabicFields ? questionAr || null : null,
         explanation_en: showEnglishFields ? explanationEn || null : null,
@@ -219,7 +335,7 @@ export const CreateQuizQuestionModal = ({
                   <HelpCircle className="h-7 w-7" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-app-text md:text-3xl">{t.title}</h2>
+                  <h2 className="text-2xl font-bold tracking-tight text-app-text md:text-3xl">{initialQuestion ? (lang === 'en' ? 'Edit Quiz Question' : 'تعديل سؤال الاختبار') : t.title}</h2>
                   <p className="mt-1 text-sm font-medium text-app-muted">{t.subtitle}</p>
                 </div>
               </div>
@@ -408,9 +524,9 @@ export const CreateQuizQuestionModal = ({
                   type="submit"
                   disabled={isSubmitting}
                   className="w-full rounded-2xl bg-app-accent py-4 text-sm font-black uppercase tracking-widest text-app-bg shadow-xl shadow-app-accent/20 transition-all active:scale-[0.98]"
-                >
-                  {isSubmitting ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : t.publish}
-                </button>
+                  >
+                    {isSubmitting ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : initialQuestion ? (lang === 'en' ? 'Save Changes' : 'حفظ التغييرات') : t.publish}
+                  </button>
               </div>
             </form>
           </div>

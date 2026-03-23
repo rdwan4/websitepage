@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '../supabaseClient.js';
@@ -38,6 +38,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    initializedRef.current = initialized;
+  }, [initialized]);
 
 
   const syncSession = async (nextSession: Session | null) => {
@@ -97,12 +102,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
-      setLoading(true);
+      const shouldBlockUi =
+        event === 'SIGNED_IN' ||
+        event === 'SIGNED_OUT' ||
+        event === 'USER_UPDATED' ||
+        !initializedRef.current;
+
+      if (shouldBlockUi) {
+        setLoading(true);
+      }
       void syncSession(nextSession).catch((error) => {
         console.error('Auth state sync error:', error);
-        setLoading(false);
+        if (shouldBlockUi) {
+          setLoading(false);
+        }
       });
     });
 
