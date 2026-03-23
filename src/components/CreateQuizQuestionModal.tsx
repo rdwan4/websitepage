@@ -80,6 +80,24 @@ export const CreateQuizQuestionModal = ({
     setOptions(curr => curr.map((opt, i) => (i === idx ? { ...opt, [field]: val } : opt)));
   };
 
+  const handleRemoveOption = (optionId: string) => {
+    setOptions((current) => {
+      if (current.length <= 2) {
+        return current;
+      }
+
+      const next = current
+        .filter((option) => option.id !== optionId)
+        .map((option, index) => ({ ...option, sort_order: index }));
+
+      if (correctOptionId === optionId) {
+        setCorrectOptionId(next[0]?.id || '');
+      }
+
+      return next;
+    });
+  };
+
   const handleAddOption = () => {
     if (options.length >= 5) return;
     setOptions(current => [...current, createEmptyOption(current.length)]);
@@ -106,11 +124,20 @@ export const CreateQuizQuestionModal = ({
 
     try {
       const prepared = options
-        .filter(option => option.label_en.trim())
-        .map((option, index) => ({ ...option, sort_order: index }));
+        .map((option, index) => ({
+          ...option,
+          label_en: option.label_en.trim(),
+          label_ar: option.label_ar?.trim() || null,
+          sort_order: index,
+        }))
+        .filter((option) => option.label_en || option.label_ar);
 
       if (prepared.length < 2) {
         throw new Error(lang === 'en' ? 'Add at least two options.' : 'أضف خيارين على الأقل.');
+      }
+
+      if (!questionEn.trim() && !questionAr.trim()) {
+        throw new Error(lang === 'en' ? 'Add the question in English or Arabic.' : 'أدخل السؤال بالإنجليزية أو العربية.');
       }
 
       const savedQuestion = await contentService.saveQuestion({
@@ -183,7 +210,6 @@ export const CreateQuizQuestionModal = ({
                      </div>
                      <div className="space-y-3">
                         <input
-                          required
                           value={questionEn}
                           onChange={e => setQuestionEn(e.target.value)}
                           placeholder={t.questionEn}
@@ -241,12 +267,26 @@ export const CreateQuizQuestionModal = ({
                           >
                              <div className={cn("flex items-center justify-between", lang === 'ar' && "flex-row-reverse")}>
                                 <span className="text-[9px] font-bold text-app-muted">Option {i+1}</span>
-                                <div className={cn("h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors", correctOptionId === opt.id ? "border-app-accent bg-app-accent" : "border-white/20")}>
-                                   {correctOptionId === opt.id && <Check className="h-2.5 w-2.5 text-app-bg stroke-[4]" />}
+                                <div className={cn("flex items-center gap-2", lang === 'ar' && "flex-row-reverse")}>
+                                   {options.length > 2 && (
+                                     <button
+                                       type="button"
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         handleRemoveOption(opt.id);
+                                       }}
+                                       className="rounded-full p-1 text-app-muted transition-colors hover:text-red-400"
+                                       aria-label={`Remove option ${i + 1}`}
+                                     >
+                                       <X className="h-3.5 w-3.5" />
+                                     </button>
+                                   )}
+                                   <div className={cn("h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors", correctOptionId === opt.id ? "border-app-accent bg-app-accent" : "border-white/20")}>
+                                      {correctOptionId === opt.id && <Check className="h-2.5 w-2.5 text-app-bg stroke-[4]" />}
+                                   </div>
                                 </div>
                              </div>
                              <input
-                               required
                                onClick={e => e.stopPropagation()}
                                value={opt.label_en}
                                onChange={e => handleOptionChange(i, 'label_en', e.target.value)}

@@ -473,18 +473,23 @@ export const contentService = {
         label_ar: (option.label_ar || '').trim() || null,
         sort_order: option.sort_order ?? index,
       }))
-      .filter((option) => option.label_en.length > 0);
+      .filter((option) => option.label_en.length > 0 || Boolean(option.label_ar))
+      .map((option) => ({
+        ...option,
+        label_en: option.label_en || option.label_ar || '',
+      }));
 
     if (preparedOptions.length < 2) {
       throw new Error('Add at least two options before saving the question.');
     }
 
     const questionEn = (questionPayload.question_en || '').trim();
+    const questionAr = (questionPayload.question_ar || '').trim();
     const sourceReference = (questionPayload.source_reference || '').trim();
     const questionCategory = (questionPayload.category || '').trim() || 'daily-quiz';
 
-    if (!questionEn) {
-      throw new Error('Question text is required.');
+    if (!questionEn && !questionAr) {
+      throw new Error('Question text is required in English or Arabic.');
     }
 
     if (!sourceReference) {
@@ -494,8 +499,8 @@ export const contentService = {
     const preparedQuestionPayload: Record<string, any> = {
       ...questionPayload,
       id: sanitizeUuid(questionPayload.id),
-      question_en: questionEn,
-      question_ar: (questionPayload.question_ar || '').trim() || null,
+      question_en: questionEn || questionAr,
+      question_ar: questionAr || null,
       explanation_en: (questionPayload.explanation_en || '').trim() || null,
       explanation_ar: (questionPayload.explanation_ar || '').trim() || null,
       source_reference: sourceReference,
@@ -521,6 +526,31 @@ export const contentService = {
     }
 
     let resolvedCorrectOptionId = sanitizeUuid(payload.correct_option_id);
+    const questionId = question.id;
+
+    if (questionPayload.id) {
+      const retainedOptionIds = preparedOptions
+        .map((option) => option.id)
+        .filter((optionId): optionId is string => Boolean(optionId));
+
+      let deleteQuery = supabase
+        .from('question_options')
+        .delete()
+        .eq('question_id', questionId);
+
+      if (retainedOptionIds.length > 0) {
+        deleteQuery = deleteQuery.not('id', 'in', `(${retainedOptionIds.map((id) => `"${id}"`).join(',')})`);
+      }
+
+      const { error: deleteRemovedOptionsError } = await deleteQuery;
+
+      if (deleteRemovedOptionsError) {
+        if (isMissingTableError(deleteRemovedOptionsError, 'question_options')) {
+          throw new Error(toSetupMessage('question_options'));
+        }
+        throw deleteRemovedOptionsError;
+      }
+    }
 
     if (preparedOptions.length) {
       const optionPayload = preparedOptions.map((option, index) => {
