@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Loader2, Plus, X, HelpCircle, Lightbulb, BookOpen, Layers, MessageSquare, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, X, HelpCircle, Lightbulb, BookOpen, Layers, MessageSquare, ChevronRight, Languages } from 'lucide-react';
 import { contentService } from '../services/contentService';
 import { QuizQuestion, QuizQuestionOption, SourceType } from '../types';
 import { cn } from '../lib/utils';
@@ -9,6 +9,10 @@ const translations = {
   en: {
     title: 'Daily Quiz Question',
     subtitle: 'Create engaging knowledge tests',
+    languageMode: 'Language',
+    englishOnly: 'English Only',
+    arabicOnly: 'Arabic Only',
+    bothLanguages: 'Both Together',
     questionEn: 'Question (English)',
     questionAr: 'Question (Arabic)',
     correctOption: 'Mark the correct answer',
@@ -63,6 +67,10 @@ export const CreateQuizQuestionModal = ({
   lang,
 }: CreateQuizQuestionModalProps) => {
   const t = translations[lang];
+  const languageLabels = lang === 'en'
+    ? { label: 'Language', english: 'English Only', arabic: 'Arabic Only', both: 'Both Together' }
+    : { label: 'Ø§Ù„Ù„ØºØ©', english: 'Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠ ÙÙ‚Ø·', arabic: 'Ø¹Ø±Ø¨ÙŠ ÙÙ‚Ø·', both: 'ÙƒÙ„ØªØ§ Ø§Ù„Ù„ØºØªÙŠÙ†' };
+  const [languageMode, setLanguageMode] = useState<'en' | 'ar' | 'both'>('both');
   const [questionEn, setQuestionEn] = useState('');
   const [questionAr, setQuestionAr] = useState('');
   const [explanationEn, setExplanationEn] = useState('');
@@ -75,6 +83,8 @@ export const CreateQuizQuestionModal = ({
   const [category, setCategory] = useState('Daily Knowledge');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const showEnglishFields = languageMode === 'en' || languageMode === 'both';
+  const showArabicFields = languageMode === 'ar' || languageMode === 'both';
 
   const handleOptionChange = (idx: number, field: 'label_en' | 'label_ar', val: string) => {
     setOptions(curr => curr.map((opt, i) => (i === idx ? { ...opt, [field]: val } : opt)));
@@ -104,6 +114,7 @@ export const CreateQuizQuestionModal = ({
   };
 
   const resetForm = () => {
+    setLanguageMode('both');
     setQuestionEn('');
     setQuestionAr('');
     setExplanationEn('');
@@ -136,15 +147,23 @@ export const CreateQuizQuestionModal = ({
         throw new Error(lang === 'en' ? 'Add at least two options.' : 'أضف خيارين على الأقل.');
       }
 
-      if (!questionEn.trim() && !questionAr.trim()) {
+      if ((showEnglishFields && !questionEn.trim()) || (showArabicFields && !questionAr.trim())) {
         throw new Error(lang === 'en' ? 'Add the question in English or Arabic.' : 'أدخل السؤال بالإنجليزية أو العربية.');
       }
 
+      if (prepared.some((option) => showEnglishFields && !option.label_en)) {
+        throw new Error(lang === 'en' ? 'Add English text for each option.' : 'Add English text for each option.');
+      }
+
+      if (prepared.some((option) => showArabicFields && !option.label_ar)) {
+        throw new Error(lang === 'en' ? 'Add Arabic text for each option.' : 'Add Arabic text for each option.');
+      }
+
       const savedQuestion = await contentService.saveQuestion({
-        question_en: questionEn,
-        question_ar: questionAr || null,
-        explanation_en: explanationEn || null,
-        explanation_ar: explanationAr || null,
+        question_en: showEnglishFields ? questionEn : '',
+        question_ar: showArabicFields ? questionAr || null : null,
+        explanation_en: showEnglishFields ? explanationEn || null : null,
+        explanation_ar: showArabicFields ? explanationAr || null : null,
         source_type: sourceType,
         source_reference: sourceReference,
         difficulty,
@@ -204,23 +223,42 @@ export const CreateQuizQuestionModal = ({
                {/* LEFT COLUMN: MAIN CONTENT */}
                <div className="lg:col-span-7 space-y-6">
                   <div className="space-y-3">
+                     <div className="space-y-1.5">
+                        <div className={cn("flex items-center gap-2 text-app-muted", lang === 'ar' && "flex-row-reverse")}>
+                           <Languages className="h-3 w-3" />
+                           <span className="text-[9px] font-black uppercase tracking-widest">{languageLabels.label}</span>
+                        </div>
+                        <select
+                          value={languageMode}
+                          onChange={e => setLanguageMode(e.target.value as 'en' | 'ar' | 'both')}
+                          className="w-full rounded-xl bg-app-bg border border-white/10 p-3 text-xs text-app-text outline-none"
+                        >
+                          <option value="en">{languageLabels.english}</option>
+                          <option value="ar">{languageLabels.arabic}</option>
+                          <option value="both">{languageLabels.both}</option>
+                        </select>
+                     </div>
                      <div className={cn("flex items-center gap-3 text-app-accent mb-1", lang === 'ar' && "flex-row-reverse")}>
                         <MessageSquare className="h-4 w-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'The Question' : 'نص السؤال'}</span>
                      </div>
                      <div className="space-y-3">
-                        <input
-                          value={questionEn}
-                          onChange={e => setQuestionEn(e.target.value)}
-                          placeholder={t.questionEn}
-                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50 font-bold"
-                        />
-                        <input
-                          value={questionAr}
-                          onChange={e => setQuestionAr(e.target.value)}
-                          placeholder={t.questionAr}
-                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50 font-bold"
-                        />
+                        {showEnglishFields && (
+                          <input
+                            value={questionEn}
+                            onChange={e => setQuestionEn(e.target.value)}
+                            placeholder={t.questionEn}
+                            className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50 font-bold"
+                          />
+                        )}
+                        {showArabicFields && (
+                          <input
+                            value={questionAr}
+                            onChange={e => setQuestionAr(e.target.value)}
+                            placeholder={t.questionAr}
+                            className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50 font-bold"
+                          />
+                        )}
                      </div>
                   </div>
 
@@ -230,20 +268,24 @@ export const CreateQuizQuestionModal = ({
                         <span className="text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'Explanation' : 'شرح الإجابة'}</span>
                      </div>
                      <div className="space-y-3">
-                        <textarea
-                          value={explanationEn}
-                          onChange={e => setExplanationEn(e.target.value)}
-                          placeholder={t.explanationEn}
-                          rows={3}
-                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50"
-                        />
-                        <textarea
-                          value={explanationAr}
-                          onChange={e => setExplanationAr(e.target.value)}
-                          placeholder={t.explanationAr}
-                          rows={3}
-                          className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50"
-                        />
+                        {showEnglishFields && (
+                          <textarea
+                            value={explanationEn}
+                            onChange={e => setExplanationEn(e.target.value)}
+                            placeholder={t.explanationEn}
+                            rows={3}
+                            className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-app-text outline-none focus:border-app-accent/50"
+                          />
+                        )}
+                        {showArabicFields && (
+                          <textarea
+                            value={explanationAr}
+                            onChange={e => setExplanationAr(e.target.value)}
+                            placeholder={t.explanationAr}
+                            rows={3}
+                            className="w-full rounded-2xl bg-app-bg border border-white/10 p-4 text-right text-app-text outline-none focus:border-app-accent/50"
+                          />
+                        )}
                      </div>
                   </div>
                </div>
@@ -286,6 +328,7 @@ export const CreateQuizQuestionModal = ({
                                    </div>
                                 </div>
                              </div>
+                             {showEnglishFields && (
                              <input
                                onClick={e => e.stopPropagation()}
                                value={opt.label_en}
@@ -293,6 +336,8 @@ export const CreateQuizQuestionModal = ({
                                placeholder="Answer (EN)"
                                className="bg-transparent outline-none text-sm text-app-text font-bold"
                              />
+                             )}
+                             {showArabicFields && (
                              <input
                                onClick={e => e.stopPropagation()}
                                value={opt.label_ar || ''}
@@ -300,6 +345,7 @@ export const CreateQuizQuestionModal = ({
                                placeholder="الإجابة (AR)"
                                className="bg-transparent outline-none text-sm text-right text-app-text font-bold"
                              />
+                             )}
                           </div>
                         ))}
                      </div>
