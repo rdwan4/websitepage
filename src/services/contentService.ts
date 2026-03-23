@@ -485,15 +485,10 @@ export const contentService = {
 
     const questionEn = (questionPayload.question_en || '').trim();
     const questionAr = (questionPayload.question_ar || '').trim();
-    const sourceReference = (questionPayload.source_reference || '').trim();
     const questionCategory = (questionPayload.category || '').trim() || 'daily-quiz';
 
     if (!questionEn && !questionAr) {
       throw new Error('Question text is required in English or Arabic.');
-    }
-
-    if (!sourceReference) {
-      throw new Error('Source reference is required.');
     }
 
     const preparedQuestionPayload: Record<string, any> = {
@@ -503,7 +498,7 @@ export const contentService = {
       question_ar: questionAr || null,
       explanation_en: (questionPayload.explanation_en || '').trim() || null,
       explanation_ar: (questionPayload.explanation_ar || '').trim() || null,
-      source_reference: sourceReference,
+      source_reference: (questionPayload.source_reference || '').trim() || null,
       category: questionCategory,
       correct_option_id: null,
     };
