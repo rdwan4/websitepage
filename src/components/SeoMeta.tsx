@@ -1,4 +1,5 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
+import { siteLinks } from '../config/siteLinks';
 
 type Language = 'en' | 'ar';
 
@@ -14,8 +15,8 @@ const OG_IMAGE = `${SITE_URL}/favicon.svg`;
 const routeMeta: Record<string, RouteMeta> = {
   '/': {
     title: {
-      en: 'Islam | Authentic Islamic Knowledge',
-      ar: 'إسلام | معرفة إسلامية أصيلة',
+      en: `${siteLinks.brand.en} | Authentic Islamic Knowledge`,
+      ar: `${siteLinks.brand.shortAr} | معرفة إسلامية موثوقة`,
     },
     description: {
       en: 'Explore Quran, prayer times, articles, and Islamic community knowledge.',
@@ -27,7 +28,7 @@ const routeMeta: Record<string, RouteMeta> = {
     },
   },
   '/quran': {
-    title: { en: 'Quran Reader | Islam', ar: 'مصحف القرآن | إسلام' },
+    title: { en: `Quran Reader | ${siteLinks.brand.en}`, ar: `مصحف القرآن | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Read the Mushaf page by page with bookmark support and offline-friendly Quran access.',
       ar: 'اقرأ المصحف صفحة صفحة مع حفظ العلامة ودعم القراءة المريحة وإمكانية الوصول بدون تعقيد.',
@@ -38,7 +39,7 @@ const routeMeta: Record<string, RouteMeta> = {
     },
   },
   '/prayer': {
-    title: { en: 'Prayer Time | Islam', ar: 'مواقيت الصلاة | إسلام' },
+    title: { en: `Prayer Time | ${siteLinks.brand.en}`, ar: `مواقيت الصلاة | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'See today prayer times, qibla direction, azan selection, reminders, and location-aware prayer settings.',
       ar: 'اعرف مواقيت الصلاة واتجاه القبلة وخيارات الأذان والتنبيهات بإعدادات تناسب موقعك الحالي.',
@@ -49,7 +50,7 @@ const routeMeta: Record<string, RouteMeta> = {
     },
   },
   '/academy': {
-    title: { en: 'Prayer Time | Islam', ar: 'مواقيت الصلاة | إسلام' },
+    title: { en: `Prayer Time | ${siteLinks.brand.en}`, ar: `مواقيت الصلاة | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Legacy academy route now opens the prayer time experience.',
       ar: 'المسار القديم للأكاديمية يوجّه الآن إلى صفحة مواقيت الصلاة.',
@@ -60,7 +61,7 @@ const routeMeta: Record<string, RouteMeta> = {
     },
   },
   '/articles': {
-    title: { en: 'Articles | Islam', ar: 'المقالات | إسلام' },
+    title: { en: `Articles | ${siteLinks.brand.en}`, ar: `المقالات | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Read insightful Islamic articles, reflections, and contemporary discussions.',
       ar: 'اقرأ مقالات إسلامية نافعة وتأملات هادئة وموضوعات معاصرة بأسلوب واضح.',
@@ -70,9 +71,8 @@ const routeMeta: Record<string, RouteMeta> = {
       ar: 'مقالات إسلامية, تأملات إيمانية, التاريخ الإسلامي, التعلم الإسلامي',
     },
   },
-
   '/community': {
-    title: { en: 'Community | Islam', ar: 'المجتمع | إسلام' },
+    title: { en: `Community | ${siteLinks.brand.en}`, ar: `المجتمع | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Join the Islamic community and explore approved posts, lessons, reflections, and shared knowledge.',
       ar: 'انضم إلى المجتمع الإسلامي وتصفح المنشورات والدروس والتأملات والمحتوى المعتمد.',
@@ -82,8 +82,30 @@ const routeMeta: Record<string, RouteMeta> = {
       ar: 'المجتمع الإسلامي, مجتمع المسلمين, دروس مشتركة, منشورات إسلامية',
     },
   },
+  '/about': {
+    title: { en: `About Us | ${siteLinks.brand.en}`, ar: `من نحن | ${siteLinks.brand.shortAr}` },
+    description: {
+      en: 'Learn about Islamic Light, our mission, and the type of Islamic knowledge we publish.',
+      ar: 'تعرّف على النور الإسلامي ورسالتنا ونوعية المعرفة الإسلامية التي ننشرها.',
+    },
+    keywords: {
+      en: 'about Islamic Light, Islamic website, Islamic learning platform',
+      ar: 'من نحن, موقع إسلامي, منصة معرفة إسلامية',
+    },
+  },
+  '/contact': {
+    title: { en: `Contact Us | ${siteLinks.brand.en}`, ar: `اتصل بنا | ${siteLinks.brand.shortAr}` },
+    description: {
+      en: 'Contact Islamic Light for support, corrections, or privacy requests.',
+      ar: 'تواصل مع النور الإسلامي للدعم أو التصحيحات أو طلبات الخصوصية.',
+    },
+    keywords: {
+      en: 'contact Islamic Light, support email, privacy requests',
+      ar: 'اتصل بنا, بريد الدعم, طلبات الخصوصية',
+    },
+  },
   '/privacy': {
-    title: { en: 'Privacy Policy | Islam', ar: 'سياسة الخصوصية | إسلام' },
+    title: { en: `Privacy Policy | ${siteLinks.brand.en}`, ar: `سياسة الخصوصية | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Read our privacy policy and how the platform handles data.',
       ar: 'اطلع على سياسة الخصوصية وكيف تتعامل المنصة مع البيانات والمعلومات.',
@@ -94,7 +116,7 @@ const routeMeta: Record<string, RouteMeta> = {
     },
   },
   '/terms': {
-    title: { en: 'Terms of Service | Islam', ar: 'شروط الخدمة | إسلام' },
+    title: { en: `Terms of Service | ${siteLinks.brand.en}`, ar: `شروط الخدمة | ${siteLinks.brand.shortAr}` },
     description: {
       en: 'Review the platform terms, publishing rules, and community standards.',
       ar: 'راجع شروط المنصة وقواعد النشر ومعايير المجتمع قبل الاستخدام.',
@@ -141,7 +163,7 @@ export const SeoMeta = ({ pathname, lang }: { pathname: string; lang: Language }
     upsertMeta('meta[name="keywords"]', 'name', 'keywords', keywords);
     upsertMeta('meta[name="robots"]', 'name', 'robots', 'index,follow,max-image-preview:large');
     upsertMeta('meta[property="og:type"]', 'property', 'og:type', 'website');
-    upsertMeta('meta[property="og:site_name"]', 'property', 'og:site_name', 'Islam');
+    upsertMeta('meta[property="og:site_name"]', 'property', 'og:site_name', siteLinks.brand.en);
     upsertMeta('meta[property="og:locale"]', 'property', 'og:locale', lang === 'ar' ? 'ar_IQ' : 'en_US');
     upsertMeta('meta[property="og:title"]', 'property', 'og:title', title);
     upsertMeta('meta[property="og:description"]', 'property', 'og:description', description);

@@ -151,7 +151,12 @@ export const Hero = ({ lang }: { lang: Language }) => {
                 animate={{ x: mousePos.x * -0.4, y: mousePos.y * -0.4 }}
                 className="relative z-20 aspect-[4/5] rounded-[4rem] border-[12px] border-white/5 glass shadow-2xl overflow-hidden group"
               >
-                <img src="https://picsum.photos/seed/islamic-vision/1200/1500" className="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-1000" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(21,195,154,0.28),_transparent_35%),linear-gradient(160deg,_rgba(6,18,46,0.2),_rgba(6,18,46,0.92))]" />
+                <div className="absolute inset-x-8 top-10 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-app-accent">Islamic Light</p>
+                  <p className="mt-3 text-2xl font-bold text-app-text">Quran, prayer, and clear Islamic learning.</p>
+                  <p className="mt-3 text-sm leading-relaxed text-app-muted">A clearer public identity helps users trust the site and makes the platform look complete.</p>
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-app-bg via-transparent to-transparent" />
 
                 {/* FLOATING SMART CARD */}

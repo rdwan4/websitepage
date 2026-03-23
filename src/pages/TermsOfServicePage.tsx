@@ -8,65 +8,62 @@ type Language = 'en' | 'ar';
 const text = {
   en: {
     title: 'Terms of Service',
-    updated: 'Last updated: March 11, 2026',
+    updated: 'Last updated: March 23, 2026',
     intro:
-      'By using Islamic Vision, you agree to these terms. If you do not agree, please do not use the platform.',
+      `By using ${siteLinks.brand.en}, you agree to these terms. If you do not agree, please do not use the platform.`,
     sections: [
       {
         title: '1. Acceptable Use',
-        body: 'You must use the platform lawfully and respectfully. Harassment, abuse, hate speech, and illegal activity are prohibited.',
+        body: 'You must use the platform lawfully and respectfully. Abuse, harassment, hate speech, and illegal activity are prohibited.',
       },
       {
         title: '2. User Content',
-        body: 'You are responsible for the content you submit. We may remove content that violates community rules or applicable law.',
+        body: 'You are responsible for the content you submit. We may remove content that violates community rules, platform policy, or applicable law.',
       },
       {
         title: '3. Accounts',
-        body: 'You are responsible for safeguarding your account credentials and any activity under your account.',
+        body: 'You are responsible for protecting your account credentials and for activity taking place under your account.',
       },
       {
         title: '4. Platform Availability',
-        body: 'We may update, suspend, or discontinue features at any time to improve quality, security, or compliance.',
+        body: 'We may update, suspend, or discontinue parts of the service when needed for quality, security, maintenance, or compliance.',
       },
       {
         title: '5. Limitation of Liability',
-        body: 'The service is provided as-is to the extent allowed by law. We are not liable for indirect damages or losses.',
+        body: 'The service is provided as-is to the extent permitted by law. We are not liable for indirect damages or losses.',
       },
       {
-        title: '6. Community Rules',
-        body: 'Do not post misinformation, extremist material, spam, explicit content, or copyrighted material without permission. Repeated violations may lead to content removal, account restriction, or permanent ban.',
-      },
-      {
-        title: '7. Contact',
+        title: '6. Contact',
         body: `For support or legal questions: ${siteLinks.supportEmail}`,
       },
     ],
     back: 'Back to Home',
   },
   ar: {
-    title: 'شروط الاستخدام',
-    updated: 'آخر تحديث: 11 مارس 2026',
-    intro: 'باستخدام Islamic Vision فإنك توافق على هذه الشروط. إذا لم توافق، يرجى عدم استخدام المنصة.',
+    title: 'شروط الخدمة',
+    updated: 'آخر تحديث: 23 مارس 2026',
+    intro:
+      `باستخدام ${siteLinks.brand.shortAr} فإنك توافق على هذه الشروط. إذا لم توافق، يرجى عدم استخدام المنصة.`,
     sections: [
       {
         title: '1. الاستخدام المقبول',
-        body: 'يجب استخدام المنصة بشكل قانوني ومحترم. يُمنع التحرش والإساءة وخطاب الكراهية والأنشطة غير القانونية.',
+        body: 'يجب استخدام المنصة بشكل قانوني ومحترم. يمنع الإساءة والتحرش وخطاب الكراهية والأنشطة غير القانونية.',
       },
       {
         title: '2. محتوى المستخدم',
-        body: 'أنت مسؤول عن المحتوى الذي تنشره. يمكننا إزالة المحتوى المخالف لقواعد المجتمع أو القوانين.',
+        body: 'أنت مسؤول عن المحتوى الذي ترسله أو تنشره. ويمكننا إزالة المحتوى المخالف لقواعد المجتمع أو سياسات المنصة أو القوانين المعمول بها.',
       },
       {
         title: '3. الحسابات',
-        body: 'أنت مسؤول عن حماية بيانات دخولك وأي نشاط يتم عبر حسابك.',
+        body: 'أنت مسؤول عن حماية بيانات دخولك وعن أي نشاط يتم من خلال حسابك.',
       },
       {
         title: '4. توفر المنصة',
-        body: 'قد نقوم بتحديث أو إيقاف بعض الميزات في أي وقت لتحسين الجودة أو الأمان أو الامتثال.',
+        body: 'قد نقوم بتحديث أو إيقاف بعض أجزاء الخدمة عند الحاجة لأسباب تتعلق بالجودة أو الأمان أو الصيانة أو الامتثال.',
       },
       {
         title: '5. حدود المسؤولية',
-        body: 'تُقدّم الخدمة كما هي ضمن ما يسمح به القانون، ولا نتحمل الأضرار غير المباشرة أو الخسائر التابعة.',
+        body: 'تقدم الخدمة كما هي ضمن ما يسمح به القانون، ولا نتحمل الأضرار غير المباشرة أو الخسائر التابعة.',
       },
       {
         title: '6. التواصل',
@@ -86,7 +83,7 @@ export const TermsOfServicePage = ({ lang }: { lang: Language }) => {
         <div className={cn('mx-auto max-w-4xl rounded-[2rem] border border-white/10 bg-app-card p-8 md:p-12', lang === 'ar' && 'text-right')}>
           <h1 className="mb-2 text-4xl font-serif text-app-text">{t.title}</h1>
           <p className="mb-8 text-sm text-app-muted">{t.updated}</p>
-          <p className="mb-10 text-app-muted leading-relaxed">{t.intro}</p>
+          <p className="mb-10 leading-relaxed text-app-muted">{t.intro}</p>
 
           <div className="space-y-8">
             {t.sections.map((section) => (

@@ -9,6 +9,7 @@ import { Comment, Post } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { buildPostPath, getPostSection, PublicPostSection } from '../lib/postRoutes';
 import { CreatePostModal } from '../components/CreatePostModal';
+import { siteLinks } from '../config/siteLinks';
 
 const getEmbeddableVideoUrl = (url: string) => {
   if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
@@ -117,7 +118,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           }
           const loadedComments = await postService.getCommentsByPost(found.id);
           setComments(loadedComments);
-          document.title = `${found.title} | Islamic Vision`;
+          document.title = `${found.title} | ${siteLinks.brand.en}`;
         }
       } finally {
         setLoading(false);

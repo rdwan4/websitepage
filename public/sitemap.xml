@@ -21,14 +21,19 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.islamiclight.online/library</loc>
+    <loc>https://www.islamiclight.online/community</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.islamiclight.online/community</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <loc>https://www.islamiclight.online/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.islamiclight.online/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.islamiclight.online/quiz</loc>

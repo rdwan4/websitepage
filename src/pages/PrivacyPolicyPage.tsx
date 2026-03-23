@@ -8,29 +8,29 @@ type Language = 'en' | 'ar';
 const text = {
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: March 11, 2026',
+    updated: 'Last updated: March 23, 2026',
     intro:
-      'Islamic Vision respects your privacy. This policy explains what information we collect, why we collect it, and how we use and protect it.',
+      `${siteLinks.brand.en} respects your privacy. This policy explains what information we collect, why we collect it, and how we use and protect it.`,
     sections: [
       {
         title: '1. Information We Collect',
-        body: 'We may collect account details (name, email), profile content, posts/comments, and technical data needed for security and performance.',
+        body: 'We may collect account details such as name and email, profile content, posts, comments, and limited technical data needed for security and performance.',
       },
       {
         title: '2. How We Use Information',
-        body: 'We use your information to operate the platform, personalize your experience, moderate community content, and improve reliability.',
+        body: 'We use information to operate the platform, improve reliability, personalize parts of the experience, and moderate community content.',
       },
       {
         title: '3. Sharing and Third-Party Services',
-        body: 'We do not sell your personal data. We may use trusted service providers for hosting, authentication, analytics, and storage.',
+        body: 'We do not sell personal data. We may rely on trusted providers for hosting, authentication, storage, and other core platform services.',
       },
       {
         title: '4. Cookies, Advertising, and Local Storage',
-        body: 'We use local storage to improve usability. Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website. Google’s use of advertising cookies enables it and its partners to serve ads based on your internet usage. You may opt out of personalized advertising by visiting Google Ads Settings.',
+        body: 'We use local storage and similar technologies to improve usability. Third-party vendors, including Google, may use cookies to serve ads based on previous visits to this website or other websites.',
       },
       {
         title: '5. Your Rights',
-        body: 'You can request access, correction, or deletion of your personal information, subject to legal and security obligations.',
+        body: 'You may request access, correction, or deletion of your personal information, subject to legal and security obligations.',
       },
       {
         title: '6. Contact',
@@ -41,29 +41,29 @@ const text = {
   },
   ar: {
     title: 'سياسة الخصوصية',
-    updated: 'آخر تحديث: 11 مارس 2026',
+    updated: 'آخر تحديث: 23 مارس 2026',
     intro:
-      'تحترم Islamic Vision خصوصيتك. توضح هذه السياسة البيانات التي نجمعها ولماذا نجمعها وكيف نستخدمها ونحميها.',
+      `تحترم ${siteLinks.brand.shortAr} خصوصيتك. توضح هذه السياسة البيانات التي نجمعها ولماذا نجمعها وكيف نستخدمها ونحميها.`,
     sections: [
       {
         title: '1. البيانات التي نجمعها',
-        body: 'قد نجمع بيانات الحساب (الاسم والبريد)، ومحتوى الملف الشخصي، والمنشورات/التعليقات، وبيانات تقنية للأمان والأداء.',
+        body: 'قد نجمع بيانات الحساب مثل الاسم والبريد الإلكتروني، ومحتوى الملف الشخصي، والمنشورات، والتعليقات، وبعض البيانات التقنية اللازمة للأمان والأداء.',
       },
       {
         title: '2. كيف نستخدم البيانات',
-        body: 'نستخدم البيانات لتشغيل المنصة، وتخصيص التجربة، وإدارة المحتوى المجتمعي، وتحسين الاستقرار.',
+        body: 'نستخدم البيانات لتشغيل المنصة وتحسين الاستقرار وتخصيص بعض جوانب التجربة وإدارة المحتوى المجتمعي.',
       },
       {
-        title: '3. المشاركة وخدمات الطرف الثالث',
-        body: 'لا نبيع بياناتك الشخصية. قد نستخدم مزودي خدمات موثوقين للاستضافة والمصادقة والتحليلات والتخزين.',
+        title: '3. المشاركة والخدمات الخارجية',
+        body: 'نحن لا نبيع البيانات الشخصية. وقد نعتمد على مزودي خدمات موثوقين للاستضافة والمصادقة والتخزين وبعض خدمات المنصة الأساسية.',
       },
       {
-        title: '4. ملفات تعريف الارتباط والإعلانات',
-        body: 'نستخدم التخزين المحلي لتحسين الاستخدام. يستخدم مورّدو الجهات الخارجية، بمن فيهم Google، ملفات تعريف الارتباط لعرض الإعلانات بناءً على زياراتك السابقة لهذا الموقع. يتيح استخدام Google لملفات تعريف ارتباط الإعلانات لها ولشركائها عرض الإعلانات بناءً على استخدامك للإنترنت. يمكنك إيقاف الإعلانات المخصصة بزيارة إعدادات إعلانات Google.',
+        title: '4. ملفات الارتباط والإعلانات والتخزين المحلي',
+        body: 'نستخدم التخزين المحلي وتقنيات مشابهة لتحسين الاستخدام. وقد يستخدم مزودون خارجيون، بمن فيهم Google، ملفات ارتباط لعرض الإعلانات بناءً على زيارات سابقة لهذا الموقع أو لمواقع أخرى.',
       },
       {
         title: '5. حقوقك',
-        body: 'يمكنك طلب الوصول إلى بياناتك أو تصحيحها أو حذفها، بما يتوافق مع الالتزامات القانونية والأمنية.',
+        body: 'يمكنك طلب الوصول إلى بياناتك أو تصحيحها أو حذفها بما يتوافق مع الالتزامات القانونية والأمنية.',
       },
       {
         title: '6. التواصل',
@@ -83,7 +83,7 @@ export const PrivacyPolicyPage = ({ lang }: { lang: Language }) => {
         <div className={cn('mx-auto max-w-4xl rounded-[2rem] border border-white/10 bg-app-card p-8 md:p-12', lang === 'ar' && 'text-right')}>
           <h1 className="mb-2 text-4xl font-serif text-app-text">{t.title}</h1>
           <p className="mb-8 text-sm text-app-muted">{t.updated}</p>
-          <p className="mb-10 text-app-muted leading-relaxed">{t.intro}</p>
+          <p className="mb-10 leading-relaxed text-app-muted">{t.intro}</p>
 
           <div className="space-y-8">
             {t.sections.map((section) => (
@@ -102,4 +102,3 @@ export const PrivacyPolicyPage = ({ lang }: { lang: Language }) => {
     </div>
   );
 };
-

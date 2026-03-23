@@ -1,1 +1,0 @@
-const t=[{id:16,name:"Abu Dhabi",countryCode:"AE",country:"United Arab Emirates",latitude:24.46667,longitude:54.36667,fixed:1,sourceId:16},{id:144633,name:"Dubai",countryCode:"AE",country:"United Arab Emirates",latitude:25.2048,longitude:55.2708,fixed:1,sourceId:144633}],e={locations:t};export{e as default,t as locations};

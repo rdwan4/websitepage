@@ -38,6 +38,8 @@ const AccountPage = lazy(() => import('./pages/AccountPage').then((module) => ({
 const QuizPage = lazy(() => import('./pages/QuizPage').then((module) => ({ default: module.QuizPage })));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage })));
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage').then((module) => ({ default: module.TermsOfServicePage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then((module) => ({ default: module.AboutPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then((module) => ({ default: module.ContactPage })));
 const AdminPostApprovalsPage = lazy(() => import('./pages/AdminPostApprovalsPage').then((module) => ({ default: module.AdminPostApprovalsPage })));
 const QuranReaderPage = lazy(() => import('./pages/QuranReaderPage').then((module) => ({ default: module.QuranReaderPage })));
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((module) => ({ default: module.PostDetailPage })));
@@ -266,6 +268,8 @@ function App() {
                 <Route path="/guidance" element={<DailyGuidancePage lang={lang} />} />
                 <Route path="/voices" element={<VoicesPage lang={lang} />} />
                 <Route path="/quiz" element={<QuizPage lang={lang} />} />
+                <Route path="/about" element={<AboutPage lang={lang} />} />
+                <Route path="/contact" element={<ContactPage lang={lang} />} />
                 <Route path="/privacy" element={<PrivacyPolicyPage lang={lang} />} />
                 <Route path="/terms" element={<TermsOfServicePage lang={lang} />} />
                 <Route path="/account" element={<ProtectedRoute allow={Boolean(profile)} loading={loading || !initialized}><AccountPage lang={lang} /></ProtectedRoute>} />

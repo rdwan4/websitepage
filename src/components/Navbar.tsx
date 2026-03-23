@@ -23,13 +23,14 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { isNativeApp } from '../lib/runtime';
 import { ContentCategory } from '../types';
+import { siteLinks } from '../config/siteLinks';
 
 type Language = 'en' | 'ar';
 type Theme = 'light' | 'dark';
 
 const translations = {
   en: {
-    name: 'Islam',
+    name: siteLinks.brand.shortEn,
     arabic: 'Arabic',
     english: 'English',
     signIn: 'Sign In',
@@ -46,7 +47,7 @@ const translations = {
     }
   },
   ar: {
-    name: 'إسلام',
+    name: siteLinks.brand.shortAr,
     arabic: 'العربية',
     english: 'English',
     signIn: 'دخول',
@@ -127,7 +128,7 @@ export const Navbar = ({
           <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-app-card/80 p-1.5 shadow-lg"><img src="/favicon.svg" className="h-full w-full object-contain" /></div>
           <div className={cn("flex flex-col leading-none", lang === 'ar' && "items-end")}>
             <span className="font-serif text-xl font-black text-app-text tracking-tight">{t.name}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-app-accent mt-1">Authentic Knowledge</span>
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-app-accent">{siteLinks.brand.taglineEn}</span>
           </div>
         </Link>
 
