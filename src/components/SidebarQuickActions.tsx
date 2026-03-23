@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   BookOpen,
@@ -249,7 +249,7 @@ export const SidebarQuickActions = ({
         className={cn(
           'glass fixed z-[100] rounded-2xl border border-white/10 p-2',
           'top-1/2 -translate-y-1/2 flex-col gap-2 flex xl:gap-3 max-md:scale-90 max-md:opacity-80 hover:max-md:opacity-100 transition-all',
-          (location.pathname === '/prayer' || location.pathname === '/academy') && !nativeApp && 'hidden',
+          (location.pathname === '/prayer' || location.pathname === '/academy') && 'hidden',
           lang === 'ar' ? 'left-2 xl:left-6' : 'right-2 xl:right-6'
         )}
       >

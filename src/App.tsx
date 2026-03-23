@@ -11,6 +11,7 @@ import { LocationPermissionGate } from './components/LocationPermissionGate';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { SidebarQuickActions } from './components/SidebarQuickActions';
+import { NotificationReaderModal } from './components/NotificationReaderModal';
 import { MouseParticles } from './components/MouseParticles';
 import { Footer } from './components/Footer';
 import { SeoMeta } from './components/SeoMeta';
@@ -18,6 +19,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 
 import { ContentCategory, QuizQuestion } from './types';
 import { isNativeApp } from './lib/runtime';
+import { useNotificationStore } from './store/notificationStore';
 import { prayerSettingsService } from './services/prayerSettingsService';
 import { prayerNotificationService } from './services/prayerNotificationService';
 import { offlineReminderService } from './services/offlineReminderService';
@@ -87,6 +89,12 @@ function App() {
   }, [navigate]);
 
   useEffect(() => {
+    if (isNativeApp()) {
+      void prayerNotificationService.ensurePermissions();
+    }
+  }, []);
+
+  useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
     window.localStorage.setItem(LANGUAGE_KEY, lang);
@@ -151,6 +159,46 @@ function App() {
     };
   }, [lang]);
 
+  useEffect(() => {
+    if (!isNativeApp()) return;
+
+    const PENDING_KEY = 'pending_notification';
+
+    const showNotificationFromStorage = () => {
+      try {
+        const stored = localStorage.getItem(PENDING_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.title && parsed?.body) {
+            useNotificationStore.getState().setActiveNotification({ title: parsed.title, body: parsed.body });
+            localStorage.removeItem(PENDING_KEY);
+          }
+        }
+      } catch {}
+    };
+
+    // 1. When app is open and user taps a notification
+    import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+      LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+        const n = action.notification;
+        const title = n.extra?.notif_title || n.title || '';
+        const body = n.extra?.notif_body || n.body || '';
+        if (title || body) {
+          useNotificationStore.getState().setActiveNotification({ title, body });
+          localStorage.removeItem(PENDING_KEY);
+        }
+      });
+    });
+
+    // 2. Check on startup — catch cold-start notification taps stored in localStorage
+    showNotificationFromStorage();
+
+    // 3. Also check when app returns to foreground
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) showNotificationFromStorage();
+    });
+  }, []);
+
   const [postModalFilter, setPostModalFilter] = useState<CategoryFilterMode>('sidebar');
 
   const openCreatePost = (category?: ContentCategory | string, filter: CategoryFilterMode = 'sidebar') => {
@@ -164,6 +212,7 @@ function App() {
   return (
     <AppErrorBoundary lang={lang}>
       <LocationPermissionGate />
+      <NotificationReaderModal lang={lang} />
 
       <div className={cn('flex flex-col min-h-screen bg-app-bg pb-24 text-app-text md:pb-0')}>
         <SeoMeta pathname={location.pathname} lang={lang} />

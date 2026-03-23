@@ -792,7 +792,18 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                                 <Pencil className="h-5 w-5" />
                               </button>
                               <button
-                                onClick={() => postService.deleteBroadcastNotification(b.id).then(() => refreshData())}
+                                onClick={async () => {
+                                  if (!confirm(lang === 'en' ? 'Delete this notification?' : 'حذف هذا الإشعار؟')) return;
+                                  try {
+                                    await postService.deleteBroadcastNotification(b.id);
+                                    setBroadcasts(prev => prev.filter(x => x.id !== b.id));
+                                    // Invalidate cache so deleted item doesn't reappear
+                                    cachedAdminData = null;
+                                    lastFetchTime = 0;
+                                  } catch (err: any) {
+                                    setError(err.message);
+                                  }
+                                }}
                                 className="p-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
                               >
                                 <Trash2 className="h-5 w-5" />

@@ -55,7 +55,7 @@ export const offlineReminderService = {
 
     const settings = await prayerSettingsService.getSettings();
     if (!settings.smartRemindersEnabled) {
-      const idsToCancel = [0, 1, 2, 3, 4, 5, 6].map(i => ({ id: LOCAL_WISDOM_ID_PREFIX + i }));
+      const idsToCancel = Array.from({ length: 14 }, (_, i) => ({ id: LOCAL_WISDOM_ID_PREFIX + i }));
       await LocalNotifications.cancel({ notifications: idsToCancel });
       return;
     }
@@ -90,8 +90,8 @@ export const offlineReminderService = {
     const notifications = [];
     const now = new Date();
 
-    // Schedule for the next 7 days
-    for (let i = 0; i < 7; i++) {
+    // Schedule for the next 14 days
+    for (let i = 0; i < 14; i++) {
       let bank: OfflineReminder[];
       if (i % 3 === 0 && realHadiths.length) bank = realHadiths;
       else if (i % 3 === 1 && realDuas.length) bank = realDuas;
@@ -115,6 +115,10 @@ export const offlineReminderService = {
         schedule: { at: fireAt, allowWhileIdle: true },
         channelId: OFFLINE_CHANNEL_ID,
         smallIcon: 'ic_launcher_foreground',
+        extra: {
+          notif_title: lang === 'ar' ? random.title_ar : random.title_en,
+          notif_body: lang === 'ar' ? random.text_ar : random.text_en,
+        },
       });
     }
 

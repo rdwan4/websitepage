@@ -1,4 +1,4 @@
-﻿import { CalculationMethod, Coordinates, Madhab, PrayerTimes, Qibla } from 'adhan';
+import { CalculationMethod, Coordinates, Madhab, PrayerTimes, Qibla } from 'adhan';
 import fixedPrayerDatasetIndexJson from '../data/fixedPrayerDatasetIndex.json';
 
 export type Language = 'en' | 'ar';
@@ -93,8 +93,8 @@ export const AZAN_OPTIONS: Array<{
     reciter: { en: 'Deep and resonant azan tone', ar: 'نبرة أذان عميقة ورنانة' },
     fullSrc: '/azan/raad-alkurdi.mp3',
     clipSrc: '/azan-clips/raad-alkurdi-notification.mp3',
-    androidSound: 'raad_alkurdi_notification.mp3',
-    androidFullSound: 'raad_alkurdi.mp3',
+    androidSound: 'raad_alkurdi_notification',
+    androidFullSound: 'raad_alkurdi',
   },
   {
     id: 'besho-qadir',
@@ -102,8 +102,8 @@ export const AZAN_OPTIONS: Array<{
     reciter: { en: 'Balanced and clear azan tone', ar: 'نبرة أذان متوازنة وواضحة' },
     fullSrc: '/azan/besho-qadir.mp3',
     clipSrc: '/azan-clips/besho-qadir-notification.mp3',
-    androidSound: 'besho_qadir_notification.mp3',
-    androidFullSound: 'besho_qadir.mp3',
+    androidSound: 'besho_qadir_notification',
+    androidFullSound: 'besho_qadir',
   },
   {
     id: 'omar-hashim',
@@ -111,8 +111,8 @@ export const AZAN_OPTIONS: Array<{
     reciter: { en: 'Soft and spiritual azan tone', ar: 'نبرة أذان هادئة وروحانية' },
     fullSrc: '/azan/omar-hashim.mp3',
     clipSrc: '/azan-clips/omar-hashim-notification.mp3',
-    androidSound: 'omar_hashim_notification.mp3',
-    androidFullSound: 'omar_hashim.mp3',
+    androidSound: 'omar_hashim_notification',
+    androidFullSound: 'omar_hashim',
   },
   {
     id: 'ramadan-shakur',
@@ -120,8 +120,8 @@ export const AZAN_OPTIONS: Array<{
     reciter: { en: 'Short and calm azan tone', ar: 'نبرة أذان قصيرة وهادئة' },
     fullSrc: '/azan/ramadan-shakur.mp3',
     clipSrc: '/azan-clips/ramadan-shakur-notification.mp3',
-    androidSound: 'ramadan_shakur_notification.mp3',
-    androidFullSound: 'ramadan_shakur.mp3',
+    androidSound: 'ramadan_shakur_notification',
+    androidFullSound: 'ramadan_shakur',
   },
 ];
 

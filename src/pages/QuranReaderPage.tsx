@@ -329,6 +329,8 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     setPage((current) => quranService.clampPage(current + newDirection));
   };
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#e9e2cc] pb-28 pt-24 md:pt-28">
       <div className="container mx-auto px-4 md:px-6">
@@ -376,7 +378,29 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-5">
-          <aside className={cn('order-2 h-fit rounded-2xl border border-black/10 bg-white/75 shadow-lg lg:order-1', nativeApp ? 'p-3' : 'p-4')}>
+          {/* Mobile toggle for sidebar */}
+          <div className="lg:hidden order-1 flex gap-2">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={cn(
+                'flex-1 rounded-xl border border-black/10 px-4 py-3 text-sm font-semibold transition-all',
+                isSidebarOpen
+                  ? 'bg-emerald-700 text-white shadow-md'
+                  : 'bg-white/75 text-slate-900 hover:bg-white'
+              )}
+            >
+              {isSidebarOpen
+                ? (lang === 'ar' ? '✕ إغلاق القائمة' : '✕ Close Menu')
+                : (lang === 'ar' ? '☰ السور والتنقل' : '☰ Surahs & Navigation')}
+            </button>
+          </div>
+
+          <aside className={cn(
+            'order-2 h-fit rounded-2xl border border-black/10 bg-white/75 shadow-lg lg:order-1',
+            nativeApp ? 'p-3' : 'p-4',
+            // On mobile: hide unless toggled open
+            isSidebarOpen ? 'block' : 'hidden lg:block'
+          )}>
             <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
               {t.jump}
             </label>
@@ -537,7 +561,7 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             {ayahError && <p className="mt-1 text-[11px] font-semibold text-red-700">{ayahError}</p>}
           </aside>
 
-          <section className="order-1 rounded-2xl border border-black/10 bg-[#ddd4bd] p-3 shadow-xl md:p-5 lg:order-2">
+          <section className="order-1 lg:order-2 rounded-2xl border border-black/10 bg-[#ddd4bd] p-3 shadow-xl md:p-5">
             <div className="relative mx-auto max-w-[560px] overflow-hidden rounded-xl border border-black/15 bg-[#efe8d3] p-2 shadow-inner">
               <div className="relative aspect-[3/4.35] w-full overflow-hidden perspective-1000">
                 <AnimatePresence initial={false} custom={direction} mode="popLayout">

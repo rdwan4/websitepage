@@ -12,7 +12,7 @@ import { isNativeApp } from '../lib/runtime';
 const CHANNEL_PREFIX = 'prayer-azan-';
 const CHANNEL_VERSION = 'v2';
 const NOTIFICATION_ID_BASE = 4000;
-const SCHEDULE_DAYS = 2;
+const SCHEDULE_DAYS = 14;
 
 const prayerLabels: Record<Language, Record<PrayerKey, string>> = {
   en: {
@@ -198,15 +198,20 @@ export const prayerNotificationService = {
               : `${label} for ${location.label}${settings.reminderMinutes ? ` in ${settings.reminderMinutes} minutes` : ' now'}`;
 
             const notificationId = NOTIFICATION_ID_BASE + prayerIndex * 10 + dayOffset;
+            const notifTitle = lang === 'ar' ? 'تذكير بالصلاة' : 'Prayer Reminder';
 
             return {
               id: notificationId,
-              title: lang === 'ar' ? 'تذكير بالصلاة' : 'Prayer Reminder',
+              title: notifTitle,
               body,
               schedule: { at: fireAt, allowWhileIdle: true },
               channelId: getChannelId(settings.selectedAzan, settings.allowFullPlayback),
               smallIcon: 'ic_launcher_foreground',
               sound: sound,
+              extra: {
+                notif_title: notifTitle,
+                notif_body: body,
+              },
             };
           }).filter(Boolean);
         })
