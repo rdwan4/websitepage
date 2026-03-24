@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
 import { isNativeApp } from '../lib/runtime';
+import { getPostPreviewImage } from '../lib/media';
 
 interface CommunityGroup {
   key: string;
@@ -160,9 +161,9 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {grouped.map((group, i) => (
               <motion.div key={group.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex flex-col group rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-app-card shadow-xl transition-all hover:border-app-accent/30 overflow-hidden">
-                {group.startPost.image_url && (
+                {getPostPreviewImage(group.startPost) && (
                   <div className="relative h-40 md:h-44 w-full overflow-hidden bg-app-card-dark">
-                    <img src={group.startPost.image_url} alt={group.startPost.title} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={getPostPreviewImage(group.startPost)!} alt={group.startPost.title} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                 )}
                 <div className="flex flex-1 flex-col p-5 md:p-6">

@@ -10,6 +10,7 @@ import { CreatePostModal } from '../components/CreatePostModal';
 import { PostViewerModal } from '../components/PostViewerModal';
 import { buildPostPath } from '../lib/postRoutes';
 import { isNativeApp } from '../lib/runtime';
+import { getPostPreviewImage } from '../lib/media';
 
 interface ArticlesPageProps {
   lang: 'en' | 'ar';
@@ -260,6 +261,9 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
           ) : groupedCourses.length > 0 ? (
             <div className={cn('grid grid-cols-1 md:grid-cols-2', nativeApp ? 'gap-4 md:gap-8' : 'gap-6 md:gap-10')}>
               {groupedCourses.map((course, i) => (
+                (() => {
+                  const previewImage = getPostPreviewImage(course.previewPost);
+                  return (
                 <motion.div
                   key={course.key}
                   initial={{ opacity: 0, y: 20 }}
@@ -270,10 +274,10 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                     nativeApp ? 'rounded-[1.2rem] shadow-lg md:rounded-[2rem]' : 'rounded-[1.55rem] shadow-xl md:rounded-[3rem]'
                   )}
                 >
-                  {course.previewPost.image_url && (
+                  {previewImage && (
                     <div className={cn('relative w-full overflow-hidden md:h-auto md:w-2/5', nativeApp ? 'h-44' : 'h-52')}>
                       <img
-                        src={course.previewPost.image_url}
+                        src={previewImage}
                         alt={course.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         referrerPolicy="no-referrer"
@@ -350,6 +354,8 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                     </div>
                   </div>
                 </motion.div>
+                  );
+                })()
               ))}
             </div>
           ) : (

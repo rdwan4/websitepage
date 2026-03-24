@@ -94,7 +94,7 @@ export const AZAN_OPTIONS: Array<{
     fullSrc: '/azan/raad-alkurdi.mp3',
     clipSrc: '/azan-clips/raad-alkurdi-notification.mp3',
     androidSound: 'raad_alkurdi_notification',
-    androidFullSound: 'raad_alkurdi',
+    androidFullSound: 'raad_alkurdi_full',
   },
   {
     id: 'besho-qadir',
@@ -103,7 +103,7 @@ export const AZAN_OPTIONS: Array<{
     fullSrc: '/azan/besho-qadir.mp3',
     clipSrc: '/azan-clips/besho-qadir-notification.mp3',
     androidSound: 'besho_qadir_notification',
-    androidFullSound: 'besho_qadir',
+    androidFullSound: 'besho_qadir_full',
   },
   {
     id: 'omar-hashim',
@@ -112,7 +112,7 @@ export const AZAN_OPTIONS: Array<{
     fullSrc: '/azan/omar-hashim.mp3',
     clipSrc: '/azan-clips/omar-hashim-notification.mp3',
     androidSound: 'omar_hashim_notification',
-    androidFullSound: 'omar_hashim',
+    androidFullSound: 'omar_hashim_full',
   },
   {
     id: 'ramadan-shakur',
@@ -121,7 +121,7 @@ export const AZAN_OPTIONS: Array<{
     fullSrc: '/azan/ramadan-shakur.mp3',
     clipSrc: '/azan-clips/ramadan-shakur-notification.mp3',
     androidSound: 'ramadan_shakur_notification',
-    androidFullSound: 'ramadan_shakur',
+    androidFullSound: 'ramadan_shakur_full',
   },
 ];
 

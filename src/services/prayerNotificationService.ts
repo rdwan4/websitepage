@@ -10,7 +10,7 @@ import {
 import { isNativeApp } from '../lib/runtime';
 
 const CHANNEL_PREFIX = 'prayer-azan-';
-const CHANNEL_VERSION = 'v2';
+const CHANNEL_VERSION = 'v3';
 const NOTIFICATION_ID_BASE = 4000;
 const SCHEDULE_DAYS = 14;
 

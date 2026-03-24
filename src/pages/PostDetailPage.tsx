@@ -10,19 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { buildPostPath, getPostSection, PublicPostSection } from '../lib/postRoutes';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { siteLinks } from '../config/siteLinks';
-
-const getEmbeddableVideoUrl = (url: string) => {
-  if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
-  if (url.includes('youtu.be/')) {
-    const videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
-  }
-  if (url.includes('vimeo.com/')) {
-    const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
-    return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
-  }
-  return url;
-};
+import { getEmbeddableVideoUrl, getPostPreviewImage } from '../lib/media';
 
 const VIEWER_SESSION_KEY = 'viewer_session_id';
 
@@ -100,6 +88,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const backPath = `/${normalizedSection}`;
   const nativeApp = isNativeApp();
   const embeddedVideoUrl = useMemo(() => (post?.media_url ? getEmbeddableVideoUrl(post.media_url) : ''), [post?.media_url]);
+  const previewImage = useMemo(() => getPostPreviewImage(post || {}), [post]);
   const shouldEmbedPdf = !isNativeApp() && typeof window !== 'undefined' && window.innerWidth >= 768;
 
   useEffect(() => {
@@ -275,8 +264,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
               </div>
             )}
 
-            {post.image_url && post.post_type !== 'pdf' && (
-              <img src={post.image_url} alt={post.title} className={cn('w-full object-cover', nativeApp ? 'max-h-[18rem] rounded-[1.2rem] md:max-h-[24rem] md:rounded-[2rem]' : 'max-h-[30rem] rounded-[2rem]')} referrerPolicy="no-referrer" />
+            {previewImage && post.post_type !== 'pdf' && post.post_type !== 'video' && (
+              <img src={previewImage} alt={post.title} className={cn('w-full object-cover', nativeApp ? 'max-h-[18rem] rounded-[1.2rem] md:max-h-[24rem] md:rounded-[2rem]' : 'max-h-[30rem] rounded-[2rem]')} referrerPolicy="no-referrer" />
             )}
 
             <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>

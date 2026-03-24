@@ -16,6 +16,7 @@ import {
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
+import { getVideoThumbnailUrl } from '../lib/media';
 import { Category, ContentCategory, Post, PostType } from '../types';
 
 type Language = 'en' | 'ar';
@@ -415,7 +416,7 @@ export const CreatePostModal = ({
       title: finalTitle || normalizedSecondaryTitle || 'Untitled',
       content: finalContent || normalizedSecondaryContent || '',
       post_type: type,
-      image_url: imageUrl,
+      image_url: imageUrl || (type === 'video' ? getVideoThumbnailUrl(mediaUrl) : null),
       media_url: mediaUrl,
       series_title: seriesTitle.trim() || null,
       series_slug: seriesTitle.trim() ? toSeriesSlug(seriesTitle) : null,

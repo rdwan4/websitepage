@@ -8,19 +8,7 @@ import { postService } from '../services/postService';
 import { supabase } from '../supabaseClient.js';
 import { Comment, Post } from '../types';
 import { isNativeApp } from '../lib/runtime';
-
-const getEmbeddableVideoUrl = (url: string) => {
-  if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
-  if (url.includes('youtu.be/')) {
-    const videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
-  }
-  if (url.includes('vimeo.com/')) {
-    const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
-    return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
-  }
-  return url;
-};
+import { getEmbeddableVideoUrl, getPostPreviewImage } from '../lib/media';
 
 const copy = {
   en: {
@@ -86,6 +74,7 @@ export const PostViewerModal = ({
     () => (currentPost?.media_url ? getEmbeddableVideoUrl(currentPost.media_url) : ''),
     [currentPost?.media_url]
   );
+  const previewImage = useMemo(() => getPostPreviewImage(currentPost || {}), [currentPost]);
 
   const loadComments = async () => {
     if (!currentPost?.id) return;
@@ -236,10 +225,36 @@ export const PostViewerModal = ({
 
             <div className="grid gap-6 lg:grid-cols-12">
               <div className="lg:col-span-8 space-y-6">
-                {currentPost.image_url && <img src={currentPost.image_url} className="w-full rounded-[1.5rem] md:rounded-[2rem] border border-white/5 shadow-xl" />}
+                {currentPost.post_type === 'video' && currentPost.media_url && (
+                  <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black md:rounded-[2rem]">
+                    <div className="aspect-video">
+                      <iframe
+                        src={embeddedVideoUrl}
+                        title={currentPost.title}
+                        className="h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                )}
+                {previewImage && currentPost.post_type !== 'video' && (
+                  <img src={previewImage} className="w-full rounded-[1.5rem] border border-white/5 shadow-xl md:rounded-[2rem]" referrerPolicy="no-referrer" />
+                )}
                 <div className="p-6 md:p-8 rounded-[1.5rem] bg-white/[0.02] border border-white/5 leading-relaxed text-[0.95rem] md:text-[1.05rem] text-app-text whitespace-pre-wrap">
                   {currentPost.content}
                 </div>
+                {currentPost.media_url && (
+                  <a
+                    href={currentPost.media_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-app-accent hover:underline"
+                  >
+                    {t.openExternal}
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
               </div>
 
               <div className="lg:col-span-4 space-y-6">

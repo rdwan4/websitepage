@@ -9,6 +9,7 @@ import { isNativeApp } from '../lib/runtime';
 import { PostViewerModal } from '../components/PostViewerModal';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
+import { getPostPreviewImage } from '../lib/media';
 
 interface VoicesPageProps {
   lang: 'en' | 'ar';
@@ -181,10 +182,10 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
                 transition={{ delay: i * 0.1 }}
                 className="group bg-app-card rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-app-accent/30 transition-all shadow-xl flex flex-col"
               >
-                {course.previewPost.image_url && (
+                {getPostPreviewImage(course.previewPost) && (
                   <div className="relative h-64 overflow-hidden">
                     <img
-                      src={course.previewPost.image_url}
+                      src={getPostPreviewImage(course.previewPost)!}
                       alt={course.title}
                       className="w-full h-full object-cover transition-transform group-hover:scale-110"
                       referrerPolicy="no-referrer"
