@@ -142,7 +142,7 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
               </Link>
             )}
             <h1 className={cn('font-serif text-app-text leading-tight', nativeApp ? 'mb-3 text-3xl md:text-4xl' : 'mb-8 text-6xl md:text-7xl')}>
-              {lang === 'en' ? 'Voices of Vision' : 'أصوات الرؤية'}
+              {lang === 'en' ? 'Voices of Islamic Light' : 'أصوات النور الإسلامي'}
             </h1>
             {!nativeApp && <p className="text-app-muted text-xl leading-relaxed">
               {lang === 'en'
