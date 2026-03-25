@@ -21,8 +21,66 @@
       rel="stylesheet"
     />
     <style>
+      :root {
+        color-scheme: light;
+      }
+
       body {
         font-family: "Tajawal", sans-serif;
+        margin: 0;
+        background: #f6f8fc;
+        color: #10213a;
+      }
+
+      #seo-fallback {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }
+
+      #seo-fallback a {
+        color: #0f5bd8;
+      }
+
+      #seo-fallback .hero,
+      #seo-fallback .grid article {
+        background: #ffffff;
+        border: 1px solid #dbe3f0;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(16, 33, 58, 0.05);
+      }
+
+      #seo-fallback .hero {
+        padding: 32px;
+        margin-bottom: 24px;
+      }
+
+      #seo-fallback .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+      }
+
+      #seo-fallback .grid article {
+        padding: 20px;
+      }
+
+      #seo-fallback .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      #seo-fallback .disclaimer {
+        margin-top: 24px;
+        font-size: 0.95rem;
+        color: #4b5d79;
+      }
+
+      .app-ready #seo-fallback {
+        display: none;
       }
     </style>
     <title>Islamic Light | Authentic Islamic Knowledge</title>
@@ -93,7 +151,73 @@
     </script>
   </head>
   <body>
+    <section id="seo-fallback" aria-label="Islamic Light site summary">
+      <div class="hero">
+        <h1>Islamic Light</h1>
+        <p>
+          Islamic Light is a bilingual Islamic website that provides Quran reading,
+          prayer time tools, Islamic articles, daily guidance, community posts,
+          and educational resources in Arabic and English.
+        </p>
+        <p>
+          The platform is designed to help Muslim and English-speaking visitors
+          access beneficial, respectful, and clearly organized Islamic content.
+        </p>
+        <div class="links">
+          <a href="/about">About</a>
+          <a href="/articles">Articles</a>
+          <a href="/guidance">Daily Guidance</a>
+          <a href="/quran">Quran Reader</a>
+          <a href="/prayer">Prayer Times</a>
+          <a href="/contact">Contact</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article>
+          <h2>Quran And Worship</h2>
+          <p>
+            Visitors can read Quran pages, review prayer times, and use worship
+            tools that support daily Islamic practice.
+          </p>
+        </article>
+        <article>
+          <h2>Articles And Guidance</h2>
+          <p>
+            The site publishes Islamic reading material, reminders, and topical
+            guidance intended for ongoing learning and reflection.
+          </p>
+        </article>
+        <article>
+          <h2>Community Features</h2>
+          <p>
+            Registered users can engage with community content, posts, comments,
+            and moderated educational discussions.
+          </p>
+        </article>
+        <article>
+          <h2>Policies And Contact</h2>
+          <p>
+            Islamic Light provides public privacy, terms, and contact pages.
+            Support email: <a href="mailto:kurdishphelps@gmail.com">kurdishphelps@gmail.com</a>.
+          </p>
+        </article>
+      </div>
+
+      <p class="disclaimer">
+        If JavaScript is disabled, this summary remains visible so visitors and
+        automated reviewers can still understand the purpose and structure of the website.
+      </p>
+    </section>
     <div id="root"></div>
+    <noscript>
+      <div style="max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; color: #4b5d79;">
+        JavaScript is required for the full interactive experience, but the main site information,
+        policies, and contact details are available above.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
