@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Browser } from '@capacitor/browser';
 import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from 'lucide-react';
@@ -108,6 +108,18 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           const loadedComments = await postService.getCommentsByPost(found.id);
           setComments(loadedComments);
           document.title = `${found.title} | ${siteLinks.brand.en}`;
+
+          // Update Meta Description
+          const metaDesc = found.excerpt || found.content?.slice(0, 160) || '';
+          let metaNode = document.head.querySelector('meta[name="description"]');
+          if (metaNode) {
+            metaNode.setAttribute('content', metaDesc);
+          } else {
+            metaNode = document.createElement('meta');
+            metaNode.setAttribute('name', 'description');
+            metaNode.setAttribute('content', metaDesc);
+            document.head.appendChild(metaNode);
+          }
         }
       } finally {
         setLoading(false);

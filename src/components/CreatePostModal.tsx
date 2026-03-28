@@ -117,8 +117,10 @@ export const CreatePostModal = ({
   const [postLanguage, setPostLanguage] = useState<PostLanguage>('en');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [excerpt, setExcerpt] = useState('');
   const [secondaryTitle, setSecondaryTitle] = useState('');
   const [secondaryContent, setSecondaryContent] = useState('');
+  const [secondaryExcerpt, setSecondaryExcerpt] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
@@ -207,8 +209,10 @@ export const CreatePostModal = ({
       setPostLanguage('both');
       setTitle(postToEdit.title);
       setContent(postToEdit.content);
+      setExcerpt(postToEdit.excerpt || '');
       setSecondaryTitle('');
       setSecondaryContent('');
+      setSecondaryExcerpt('');
       setCategoryId(postToEdit.category_id || '');
       setImageUrl(postToEdit.image_url || '');
       setMediaUrl(postToEdit.media_url || '');
@@ -227,8 +231,10 @@ export const CreatePostModal = ({
     setPostLanguage(lang === 'ar' ? 'ar' : 'en');
     setTitle('');
     setContent('');
+    setExcerpt('');
     setSecondaryTitle('');
     setSecondaryContent('');
+    setSecondaryExcerpt('');
     setCategoryId(initialCategory?.id || '');
     setImageUrl('');
     setMediaUrl('');
@@ -257,8 +263,10 @@ export const CreatePostModal = ({
       setPostLanguage(parsed.postLanguage || (lang === 'ar' ? 'ar' : 'en'));
       setTitle(parsed.title || '');
       setContent(parsed.content || '');
+      setExcerpt(parsed.excerpt || '');
       setSecondaryTitle(parsed.secondaryTitle || '');
       setSecondaryContent(parsed.secondaryContent || '');
+      setSecondaryExcerpt(parsed.secondaryExcerpt || '');
       setCategoryId(lockedCategory?.id || parsed.categoryId || categoryId || '');
       setImageUrl(parsed.imageUrl || '');
       setMediaUrl(parsed.mediaUrl || '');
@@ -399,8 +407,10 @@ export const CreatePostModal = ({
 
     const normalizedPrimaryTitle = title.trim();
     const normalizedPrimaryContent = content.trim();
+    const normalizedPrimaryExcerpt = excerpt.trim();
     const normalizedSecondaryTitle = secondaryTitle.trim();
     const normalizedSecondaryContent = secondaryContent.trim();
+    const normalizedSecondaryExcerpt = secondaryExcerpt.trim();
 
     const finalTitle = postLanguage === 'both' && normalizedSecondaryTitle
       ? `${normalizedPrimaryTitle} / ${normalizedSecondaryTitle}`
@@ -410,11 +420,16 @@ export const CreatePostModal = ({
       ? `${normalizedPrimaryContent}\n\n-----\n\n${normalizedSecondaryContent}`
       : normalizedPrimaryContent;
 
+    const finalExcerpt = postLanguage === 'both' && normalizedSecondaryExcerpt
+      ? `${normalizedPrimaryExcerpt} / ${normalizedSecondaryExcerpt}`
+      : normalizedPrimaryExcerpt;
+
     const payload = {
       author_id: profile.id,
       category_id: effectiveCategoryId,
       title: finalTitle || normalizedSecondaryTitle || 'Untitled',
       content: finalContent || normalizedSecondaryContent || '',
+      excerpt: finalExcerpt || normalizedSecondaryExcerpt || null,
       post_type: type,
       image_url: imageUrl || (type === 'video' ? getVideoThumbnailUrl(mediaUrl) : null),
       media_url: mediaUrl,
@@ -575,26 +590,56 @@ export const CreatePostModal = ({
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {(postLanguage === 'en' || postLanguage === 'both') && (
-                      <textarea
-                        rows={4}
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
-                        placeholder="English content..."
-                      />
-                    )}
-                    {(postLanguage === 'ar' || postLanguage === 'both') && (
-                      <textarea
-                        rows={4}
-                        value={secondaryContent}
-                        onChange={(e) => setSecondaryContent(e.target.value)}
-                        dir="rtl"
-                        className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
-                        placeholder="المحتوى بالعربي..."
-                      />
-                    )}
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <label className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                        {lang === 'en' ? 'Article Content' : 'محتوى المقال'}
+                      </label>
+                      {(postLanguage === 'en' || postLanguage === 'both') && (
+                        <textarea
+                          rows={4}
+                          value={content}
+                          onChange={(e) => setContent(e.target.value)}
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
+                          placeholder="English content..."
+                        />
+                      )}
+                      {(postLanguage === 'ar' || postLanguage === 'both') && (
+                        <textarea
+                          rows={4}
+                          value={secondaryContent}
+                          onChange={(e) => setSecondaryContent(e.target.value)}
+                          dir="rtl"
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
+                          placeholder="المحتوى بالعربي..."
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-3 opacity-80">
+                      <label className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-app-accent/60 ml-1">
+                        {lang === 'en' ? 'SEO Description (Appears in Google Search)' : 'وصف SEO (يظهر في نتائج جوجل)'}
+                      </label>
+                      {(postLanguage === 'en' || postLanguage === 'both') && (
+                        <textarea
+                          rows={2}
+                          value={excerpt}
+                          onChange={(e) => setExcerpt(e.target.value)}
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-xs text-app-text focus:border-app-accent/50 focus:outline-none"
+                          placeholder="English SEO short summary..."
+                        />
+                      )}
+                      {(postLanguage === 'ar' || postLanguage === 'both') && (
+                        <textarea
+                          rows={2}
+                          value={secondaryExcerpt}
+                          onChange={(e) => setSecondaryExcerpt(e.target.value)}
+                          dir="rtl"
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-xs text-app-text focus:border-app-accent/50 focus:outline-none text-right"
+                          placeholder="وصف الملخص لمحركات البحث بالعربي..."
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 
