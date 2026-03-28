@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'online.islamiclight.app',
-  appName: 'إسلام',
+  appName: 'صلاتي وقرآني',
   webDir: 'dist',
   android: {
     allowMixedContent: true,

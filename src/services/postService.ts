@@ -202,6 +202,9 @@ const DEFAULT_CATEGORIES: Array<Pick<Category, 'name' | 'name_ar' | 'slug'>> = [
   { name: 'Community', name_ar: '\u0627\u0644\u0645\u062c\u062a\u0645\u0639', slug: 'community' },
   { name: 'Academy', name_ar: '\u0627\u0644\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629', slug: 'academy' },
 ];
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+
+const buildApiUrl = (path: string) => (API_BASE_URL ? `${API_BASE_URL}${path}` : path);
 
 export const postService = {
   async ensureProfile(authUser: User): Promise<Profile> {
@@ -1099,6 +1102,38 @@ export const postService = {
     }
 
     return true;
+  },
+
+  async sendBroadcastNow(notificationId: string): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+    total: number;
+    invalidTokensCleared?: number;
+    message?: string;
+  }> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error('Admin session missing. Please sign in again.');
+    }
+
+    const response = await fetch(buildApiUrl(`/api/push/broadcasts/${notificationId}/send`), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Push delivery failed.');
+    }
+
+    return payload;
   },
 
   async getUserNotificationPreference(userId: string): Promise<UserNotificationPreference | null> {

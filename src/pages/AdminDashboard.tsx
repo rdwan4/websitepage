@@ -373,8 +373,20 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     } else {
       saved = await postService.createBroadcastNotification(payload);
     }
+
+    if (broadcastForm.sendNow) {
+      try {
+        await postService.sendBroadcastNow(saved.id);
+      } catch (sendError: any) {
+        throw new Error(
+          `${lang === 'en' ? 'Broadcast saved, but push delivery failed' : 'تم حفظ الإشعار لكن فشل الإرسال'}: ${sendError.message}`
+        );
+      }
+    }
+
     setBroadcasts(prev => [saved, ...prev.filter(b => b.id !== saved.id)]);
     setBroadcastForm(emptyBroadcast);
+    await refreshData(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 

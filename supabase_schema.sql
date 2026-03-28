@@ -18,6 +18,7 @@ create table if not exists public.profiles (
   avatar_url text,
   score integer not null default 0,
   role text not null default 'user' check (role in ('user', 'admin')),
+  fcm_token text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
