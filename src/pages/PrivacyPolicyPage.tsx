@@ -8,66 +8,74 @@ type Language = 'en' | 'ar';
 const text = {
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: March 23, 2026',
+    updated: 'Last updated: March 29, 2026',
     intro:
-      `${siteLinks.brand.en} respects your privacy. This policy explains what information we collect, why we collect it, and how we use and protect it.`,
+      `At ${siteLinks.brand.en}, available at ${window.location.host}, one of our top priorities is the privacy of our visitors. This Privacy Policy document outlines the types of information we collect, how it is used, and how we protect your data in compliance with international standards, including Google AdSense requirements.`,
     sections: [
       {
         title: '1. Information We Collect',
-        body: 'We may collect account details such as name and email, profile content, posts, comments, and limited technical data needed for security and performance.',
+        body: 'We collect several types of information to provide and improve our services. This includes: (a) Personal Data such as name and email when you register. (b) Log Files including IP addresses, browser type, ISP, and date/time stamps. (c) User Content such as posts and comments submitted to our community platforms.',
       },
       {
-        title: '2. How We Use Information',
-        body: 'We use information to operate the platform, improve reliability, personalize parts of the experience, and moderate community content.',
+        title: '2. Cookies and Web Beacons',
+        body: 'Like any other website, Islamic Light uses "cookies" to store information including visitors\' preferences, and the pages on the website that the visitor accessed or visited. The information is used to optimize the users\' experience by customizing our web page content based on visitors\' browser type and/or other information.',
       },
       {
-        title: '3. Sharing and Third-Party Services',
-        body: 'We do not sell personal data. We may rely on trusted providers for hosting, authentication, storage, and other core platform services.',
+        title: '3. Google DoubleClick DART Cookie',
+        body: 'Google is one of the third-party vendors on our site. It also uses cookies, known as DART cookies, to serve ads to our site visitors based upon their visit to our site and other sites on the internet. However, visitors may choose to decline the use of DART cookies by visiting the Google ad and content network Privacy Policy at the following URL: https://policies.google.com/technologies/ads',
       },
       {
-        title: '4. Cookies, Advertising, and Local Storage',
-        body: 'We use local storage and similar technologies to improve usability. Third-party vendors, including Google, may use cookies to serve ads based on previous visits to this website or other websites.',
+        title: '4. Third-Party Privacy Policies',
+        body: 'Our Privacy Policy does not apply to other advertisers or websites. Thus, we are advising you to consult the respective Privacy Policies of these third-party ad servers for more detailed information. It may include their practices and instructions about how to opt-out of certain options. You can choose to disable cookies through your individual browser options.',
       },
       {
-        title: '5. Your Rights',
-        body: 'You may request access, correction, or deletion of your personal information, subject to legal and security obligations.',
+        title: '5. GDPR and CCPA Protection Rights',
+        body: 'We would like to make sure you are fully aware of all of your data protection rights. Every user is entitled to the following: The right to access, the right to rectification, the right to erasure, the right to restrict processing, and the right to object to processing. If you make a request, we have one month to respond to you.',
       },
       {
-        title: '6. Contact',
-        body: `For privacy requests, contact: ${siteLinks.supportEmail}`,
+        title: '6. Children\'s Information',
+        body: 'Another part of our priority is adding protection for children while using the internet. We encourage parents and guardians to observe, participate in, and/or monitor and guide their online activity. Islamic Light does not knowingly collect any Personal Identifiable Information from children under the age of 13.',
+      },
+      {
+        title: '7. Consent',
+        body: `By using our website, you hereby consent to our Privacy Policy and agree to its Terms and Conditions. For any privacy-related inquiries, please contact us at ${siteLinks.supportEmail}.`,
       },
     ],
     back: 'Back to Home',
   },
   ar: {
     title: 'سياسة الخصوصية',
-    updated: 'آخر تحديث: 23 مارس 2026',
+    updated: 'آخر تحديث: 29 مارس 2026',
     intro:
-      `تحترم ${siteLinks.brand.shortAr} خصوصيتك. توضح هذه السياسة البيانات التي نجمعها ولماذا نجمعها وكيف نستخدمها ونحميها.`,
+      `في ${siteLinks.brand.shortAr}، المتاحة عبر ${window.location.host}، ندرك تماماً أهمية خصوصية زوارنا. توضح وثيقة سياسة الخصوصية هذه أنواع المعلومات التي نجمعها، وكيفية استخدامها، وكيفية حماية بياناتك وفقاً للمعايير العالمية، بما في ذلك متطلبات Google AdSense.`,
     sections: [
       {
-        title: '1. البيانات التي نجمعها',
-        body: 'قد نجمع بيانات الحساب مثل الاسم والبريد الإلكتروني، ومحتوى الملف الشخصي، والمنشورات، والتعليقات، وبعض البيانات التقنية اللازمة للأمان والأداء.',
+        title: '1. المعلومات التي نجمعها',
+        body: 'نجمع أنواعاً مختلفة من المعلومات لتحسين خدماتنا، بما في ذلك: (أ) البيانات الشخصية مثل الاسم والبريد عند التسجيل. (ب) ملفات السجل التي تشمل عناوين IP ونوع المتصفح وتاريخ الزيارة. (ج) محتوى المستخدم مثل المنشورات والتعليقات في المجتمع.',
       },
       {
-        title: '2. كيف نستخدم البيانات',
-        body: 'نستخدم البيانات لتشغيل المنصة وتحسين الاستقرار وتخصيص بعض جوانب التجربة وإدارة المحتوى المجتمعي.',
+        title: '2. ملفات تعريف الارتباط (Cookies)',
+        body: 'مثل أي موقع ويب آخر، يستخدم "النور الإسلامي" ملفات تعريف الارتباط لتخزين معلومات تفضيلات الزوار والصفحات التي تمت زيارتها. تُستخدم هذه المعلومات لتحسين تجربة المستخدم من خلال تخصيص محتوى صفحة الويب بناءً على نوع متصفح الزوار ومعلومات أخرى.',
       },
       {
-        title: '3. المشاركة والخدمات الخارجية',
-        body: 'نحن لا نبيع البيانات الشخصية. وقد نعتمد على مزودي خدمات موثوقين للاستضافة والمصادقة والتخزين وبعض خدمات المنصة الأساسية.',
+        title: '3. ملف تعريف الارتباط Google DoubleClick DART',
+        body: 'تعد Google أحد البائعين الخارجيين على موقعنا. تستخدم ملفات تعريف الارتباط DART لعرض الإعلانات لزوار موقعنا بناءً على زيارتهم لموقع إسلاميك لايت ومواقع أخرى على الإنترنت. يمكن للزوار اختيار رفض استخدام ملفات تعريف الارتباط DART من خلال زيارة سياسة خصوصية إعلانات Google وشبكة المحتوى على الرابط التالي: https://policies.google.com/technologies/ads',
       },
       {
-        title: '4. ملفات الارتباط والإعلانات والتخزين المحلي',
-        body: 'نستخدم التخزين المحلي وتقنيات مشابهة لتحسين الاستخدام. وقد يستخدم مزودون خارجيون، بمن فيهم Google، ملفات ارتباط لعرض الإعلانات بناءً على زيارات سابقة لهذا الموقع أو لمواقع أخرى.',
+        title: '4. سياسات خصوصية الطرف الثالث',
+        body: 'لا تنطبق سياسة الخصوصية الخاصة بنا على المعلنين أو المواقع الإلكترونية الأخرى. لذا، ننصحك باستشارة سياسات الخصوصية الخاصة بخوادم إعلانات الطرف الثالث للحصول على معلومات أكثر تفصيلاً حول ممارساتهم وكيفية إلغاء الاشتراك في خيارات معينة عبر إعدادات متصفحك.',
       },
       {
-        title: '5. حقوقك',
-        body: 'يمكنك طلب الوصول إلى بياناتك أو تصحيحها أو حذفها بما يتوافق مع الالتزامات القانونية والأمنية.',
+        title: '5. حقوق حماية البيانات (GDPR & CCPA)',
+        body: 'نريد التأكد من أنك مدرك تماماً لجميع حقوق حماية البيانات الخاصة بك. يحق لكل مستخدم: حق الوصول، حق التصحيح، حق المسح، حق تقييد المعالجة، وحق الاعتراض على المعالجة. إذا قدمت طلباً، فلدينا شهر واحد للرد عليك.',
       },
       {
-        title: '6. التواصل',
-        body: `لطلبات الخصوصية: ${siteLinks.supportEmail}`,
+        title: '6. معلومات الأطفال',
+        body: 'جزء من أولويتنا هو توفير الحماية للأطفال أثناء استخدام الإنترنت. نحن نشجع الآباء والأوصياء على مراقبة وتوجيه نشاطهم عبر الإنترنت. لا يجمع "النور الإسلامي" عن عمد أي معلومات تعريف شخصية من الأطفال دون سن 13 عاماً.',
+      },
+      {
+        title: '7. الموافقة',
+        body: `باستخدام موقعنا، فإنك توافق بموجب ذلك على سياسة الخصوصية الخاصة بنا وتوافق على شروطها وأحكامها. للاستفسارات المتعلقة بالخصوصية، يرجى التواصل معنا عبر: ${siteLinks.supportEmail}`,
       },
     ],
     back: 'العودة للرئيسية',
@@ -82,23 +90,30 @@ export const PrivacyPolicyPage = ({ lang }: { lang: Language }) => {
       <div className="container mx-auto px-6">
         <div className={cn('mx-auto max-w-4xl rounded-[2rem] border border-white/10 bg-app-card p-8 md:p-12', lang === 'ar' && 'text-right')}>
           <h1 className="mb-2 text-4xl font-serif text-app-text">{t.title}</h1>
-          <p className="mb-8 text-sm text-app-muted">{t.updated}</p>
-          <p className="mb-10 leading-relaxed text-app-muted">{t.intro}</p>
+          <p className="mb-8 text-sm text-app-muted text-app-accent/80 font-bold uppercase tracking-widest">{t.updated}</p>
+          <p className="mb-10 leading-relaxed text-app-text/90 italic border-l-4 border-app-accent pl-6 py-2 bg-app-accent/5 rounded-r-xl">{t.intro}</p>
 
-          <div className="space-y-8">
+          <div className="space-y-12">
             {t.sections.map((section) => (
-              <section key={section.title}>
-                <h2 className="mb-3 text-lg font-bold text-app-text">{section.title}</h2>
-                <p className="leading-relaxed text-app-muted">{section.body}</p>
+              <section key={section.title} className="relative group">
+                <div className="absolute -left-4 top-0 h-full w-1 bg-app-accent/10 group-hover:bg-app-accent transition-colors duration-500 rounded-full" />
+                <h2 className="mb-4 text-xl font-bold text-app-text flex items-center gap-3">
+                   <span className="text-app-accent">●</span> {section.title}
+                </h2>
+                <p className="leading-relaxed text-app-muted text-base pl-2">{section.body}</p>
               </section>
             ))}
           </div>
 
-          <Link to="/" className="mt-10 inline-block text-sm font-bold text-app-accent hover:underline">
-            {t.back}
-          </Link>
+          <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center">
+             <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-app-accent hover:underline px-6 py-3 bg-app-accent/10 rounded-2xl transition-all hover:bg-app-accent/20">
+               ← {t.back}
+             </Link>
+             <div className="text-app-muted text-[10px] uppercase tracking-widest opacity-30">AdSense Compliant v2.0</div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
