@@ -1,4 +1,4 @@
-﻿import { User } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient.js';
 import {
   Post,
@@ -20,6 +20,7 @@ import {
 import { normalizeLeaderboardEntry, normalizeProfile, normalizeProfiles } from './profileUtils';
 import { isMissingTableError, toSetupMessage } from './dbErrorUtils';
 
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const buildPostSelect = () => '*, category:categories(*), author:profiles(display_name, avatar_url)';
 
 const withAuthorName = (post: any): Post => ({
@@ -1188,19 +1189,21 @@ export const postService = {
   },
 
   async markBroadcastDelivered(notificationId: string, userId: string): Promise<void> {
+    console.log(`PostService: Marking broadcast ${notificationId} delivered for user ${userId}`);
     const { error } = await supabase
       .from('broadcast_notification_deliveries')
       .upsert(
         {
           notification_id: notificationId,
           user_id: userId,
-          status: 'scheduled',
+          status: 'displayed',
           delivered_at: new Date().toISOString(),
         },
         { onConflict: 'notification_id,user_id' }
       );
 
     if (error) {
+      console.error('PostService: markBroadcastDelivered FAILED', error.message);
       if (isMissingTableError(error, 'broadcast_notification_deliveries')) {
         return;
       }
@@ -1325,6 +1328,16 @@ export const postService = {
 
     const mappedPosts = (data || []).map(withAuthorName);
     return attachPostCounts(mappedPosts);
+  },
+
+  async getPushDiagnostics(): Promise<{ total_with_tokens: number; recipients: any[] } | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    const response = await fetch(`${VITE_API_BASE_URL}/api/push/diagnostics`, {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
+    if (!response.ok) return null;
+    return response.json();
   },
 
   subscribeToLeaderboard(callback: () => void) {

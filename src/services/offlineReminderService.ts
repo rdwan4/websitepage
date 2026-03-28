@@ -55,6 +55,7 @@ export const offlineReminderService = {
 
     const settings = await prayerSettingsService.getSettings();
     if (!settings.smartRemindersEnabled) {
+      // Only cancel our specific range (8000-8014)
       const idsToCancel = Array.from({ length: 14 }, (_, i) => ({ id: LOCAL_WISDOM_ID_PREFIX + i }));
       await LocalNotifications.cancel({ notifications: idsToCancel });
       return;

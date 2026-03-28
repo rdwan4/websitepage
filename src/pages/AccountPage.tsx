@@ -9,12 +9,17 @@ import {
   PenSquare,
   Shield,
   UserRound,
+  Bell,
+  RefreshCw,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { isNativeApp } from '../lib/runtime';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
+import { broadcastNotificationService } from '../services/broadcastNotificationService';
+import { Preferences } from '@capacitor/preferences';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { Activity, Comment, Post, PostProgress, QuizScore } from '../types';
 
 const labels = {
@@ -78,6 +83,7 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [scores, setScores] = useState<QuizScore[]>([]);
   const [progress, setProgress] = useState<Array<PostProgress & { post?: Post }>>([]);
+  const [pushStatus, setPushStatus] = useState<{ token?: string; permission?: string }>({});
 
   useEffect(() => {
     setDisplayName(profile?.display_name || '');
@@ -118,7 +124,32 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     };
 
     loadAccountData();
-  }, [profile]);
+
+    if (nativeApp) {
+      const checkPush = async () => {
+        const { value: token } = await Preferences.get({ key: 'last-fcm-token-v6' });
+        const perm = await PushNotifications.checkPermissions();
+        setPushStatus({ token: token || undefined, permission: perm.receive });
+      };
+      checkPush();
+    }
+  }, [profile, nativeApp]);
+
+  const handleManualSync = async () => {
+    setSaving(true);
+    try {
+      await broadcastNotificationService.init();
+      await broadcastNotificationService.syncTokenToProfile();
+      const { value: token } = await Preferences.get({ key: 'last-fcm-token-v6' });
+      const perm = await PushNotifications.checkPermissions();
+      setPushStatus({ token: token || undefined, permission: perm.receive });
+      setMessage(lang === 'en' ? 'Push token re-synced successfully.' : 'تم إعادة مزامنة معرف الإشعارات بنجاح.');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!profile) {
     return null;
@@ -357,7 +388,48 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                       <EmptyState text={lang === 'en' ? 'No lesson progress saved yet.' : 'لا توجد بيانات تقدم محفوظة بعد.'} />
                     )}
                   </SectionCard>
+
+                  {nativeApp && (
+                    <SectionCard title={lang === 'en' ? 'Device & Push Status' : 'حالة الجهاز والإشعارات'}>
+                       <div className="space-y-4">
+                          <div className="flex items-center justify-between rounded-2xl bg-white/5 p-4">
+                            <div>
+                               <div className="text-[10px] uppercase tracking-widest text-app-muted mb-1">Push Permission</div>
+                               <div className={cn("text-sm font-bold", pushStatus.permission === 'granted' ? "text-emerald-500" : "text-amber-500")}>
+                                 {pushStatus.permission || 'Checking...'}
+                               </div>
+                            </div>
+                            <Bell className={cn("h-5 w-5", pushStatus.permission === 'granted' ? "text-emerald-500" : "text-amber-500")} />
+                          </div>
+
+                          <div className={cn("rounded-2xl bg-white/5 p-4", !profile.fcm_token && "border border-amber-500/30")}>
+                             <div className="text-[10px] uppercase tracking-widest text-app-muted mb-1">Server Token Status</div>
+                             <div className="text-sm font-bold text-app-text">
+                               {profile.fcm_token ? (
+                                 <span className="text-emerald-500">Registered on Server</span>
+                               ) : (
+                                 <span className="text-amber-500">Not Synced to Supabase</span>
+                               )}
+                             </div>
+                             {pushStatus.token && (
+                               <div className="mt-2 text-[9px] font-mono text-app-muted break-all">
+                                 Local: {pushStatus.token.substring(0, 20)}...
+                               </div>
+                             )}
+                          </div>
+
+                          <button 
+                            onClick={handleManualSync}
+                            className="w-full flex items-center justify-center gap-2 rounded-2xl border border-app-accent/30 bg-app-accent/5 px-4 py-3 text-xs font-bold uppercase tracking-widest text-app-accent transition-colors hover:bg-app-accent/10"
+                          >
+                             <RefreshCw className={cn("h-4 w-4", saving && "animate-spin")} />
+                             Force Refresh Token
+                          </button>
+                       </div>
+                    </SectionCard>
+                  )}
                 </div>
+
               </>
             )}
           </div>

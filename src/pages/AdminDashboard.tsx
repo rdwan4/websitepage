@@ -21,7 +21,9 @@ import {
   X,
   CheckCircle2,
   Globe,
-  LayoutGrid
+  LayoutGrid,
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -71,7 +73,7 @@ const text = {
 const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', image_url: '', accent_label_en: '', accent_label_ar: '', source_reference: '', source_type: 'quran', category: 'reflection', position: 0, is_published: true };
 const emptyDaily: DailyForm = { id: '', category: 'hadith', title: '', title_ar: '', english_text: '', arabic_text: '', transliteration: '', source_type: 'hadith', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: true };
 const emptyCommunity: CommunityForm = { title: '', content: '', image_url: '', category_id: '', post_type: 'image', is_approved: true };
-const emptyBroadcast: BroadcastForm = {
+const getEmptyBroadcast = (): BroadcastForm => ({
   type: 'general',
   title_en: '',
   title_ar: '',
@@ -81,7 +83,9 @@ const emptyBroadcast: BroadcastForm = {
   scheduleTime: new Date(Date.now() + 60 * 60 * 1000).toISOString().split('T')[1].slice(0, 5),
   is_active: true,
   sendNow: false,
-};
+});
+
+const emptyBroadcast = getEmptyBroadcast();
 
 // Cache admin state globally so it doesn't refresh constantly when switching tabs/windows
 let cachedAdminData: any = null;
@@ -105,6 +109,37 @@ const readAdminDraft = () => {
   }
 };
 
+const sanitizeBroadcastDraft = (draft: Partial<BroadcastForm> | null | undefined): BroadcastForm => {
+  if (!draft || typeof draft !== 'object') {
+    return emptyBroadcast;
+  }
+
+  const hasMeaningfulContent = Boolean(
+    draft.title_en?.trim() ||
+    draft.title_ar?.trim() ||
+    draft.body_en?.trim() ||
+    draft.body_ar?.trim()
+  );
+
+  // If a persisted draft contains an old edited broadcast id but no real content,
+  // reset it to a fresh broadcast so the "Send Now" flow stays accessible.
+  if (draft.id && !hasMeaningfulContent) {
+    return emptyBroadcast;
+  }
+
+  return {
+    ...emptyBroadcast,
+    ...draft,
+    id: hasMeaningfulContent ? draft.id : undefined,
+  };
+};
+
+const clearAdminDraft = () => {
+  try {
+    window.sessionStorage.removeItem(ADMIN_DRAFT_KEY);
+  } catch (e) {}
+};
+
 export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const adminDraft = readAdminDraft();
   const t = text[lang];
@@ -121,21 +156,13 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [posts, setPosts] = useState<Post[]>(cachedAdminData?.p || []);
   const [categories, setCategories] = useState<Category[]>(cachedAdminData?.c || []);
   const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>(cachedAdminData?.b || []);
-  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics>(
-    cachedAdminData?.bm || {
-      total_users: 0,
-      opted_in_users: 0,
-      opted_out_users: 0,
-      delivered_total: 0,
-      pending_total: 0,
-      by_notification: [],
-    }
-  );
+  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics | null>(cachedAdminData?.bm || null);
+  const [pushDiagnostics, setPushDiagnostics] = useState<{ total_with_tokens: number; recipients: any[] } | null>(cachedAdminData?.pd || null);
 
   const [guidanceForm, setGuidanceForm] = useState<GuidanceForm>(adminDraft?.guidanceForm || emptyGuidance);
   const [dailyForm, setDailyForm] = useState<DailyForm>(adminDraft?.dailyForm || emptyDaily);
   const [communityForm, setCommunityForm] = useState<CommunityForm>(adminDraft?.communityForm || emptyCommunity);
-  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(adminDraft?.broadcastForm || emptyBroadcast);
+  const [broadcastForm, setBroadcastForm] = useState<BroadcastForm>(sanitizeBroadcastDraft(adminDraft?.broadcastForm) || getEmptyBroadcast());
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const hasHydratedData =
@@ -188,13 +215,14 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
       setCategories(cachedAdminData.c);
       setBroadcasts(cachedAdminData.b);
       setBroadcastMetrics(cachedAdminData.bm);
+      setPushDiagnostics(cachedAdminData.pd);
       setLoading(false);
       return;
     }
     
     setLoading(true);
     try {
-      const [u, g, d, q, p, c, b, bm] = await Promise.all([
+      const [u, g, d, q, p, c, b, bm, pd] = await Promise.all([
         authService.getAllProfiles(),
         contentService.getGuidanceItems(false),
         contentService.listDailyContent(),
@@ -203,8 +231,9 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
         postService.getCategories(),
         postService.getBroadcastNotifications(),
         postService.getBroadcastAdminMetrics(),
+        postService.getPushDiagnostics(),
       ]);
-      cachedAdminData = { u, g, d, q, p, c, b, bm };
+      cachedAdminData = { u, g, d, q, p, c, b, bm, pd };
       try {
         window.sessionStorage.setItem('admin_dashboard_cache', JSON.stringify({
           time: Date.now(),
@@ -212,7 +241,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
         }));
       } catch (e) {}
 
-      setUsers(u); setGuidance(g); setDaily(d); setQuestions(q); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm);
+      setUsers(u); setGuidance(g); setDaily(d); setQuestions(q); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm); setPushDiagnostics(pd);
     } catch (err: any) {
       setError(err.message);
     } finally { setLoading(false); }
@@ -220,6 +249,23 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   useEffect(() => {
     void refreshData();
+
+    // Subscribe to realtime updates for broadcasts so the list isn't "static"
+    const channel = supabase
+      .channel('broadcast-admin-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'broadcast_notifications' },
+        () => {
+          console.log('Admin: Broadcast update detected, refreshing...');
+          void refreshData(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -249,6 +295,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
       c: categories,
       b: broadcasts,
       bm: broadcastMetrics,
+      pd: pushDiagnostics,
     };
     try {
       window.sessionStorage.setItem(
@@ -259,7 +306,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
         })
       );
     } catch (e) {}
-  }, [loading, users, guidance, daily, questions, posts, categories, broadcasts, broadcastMetrics]);
+  }, [loading, users, guidance, daily, questions, posts, categories, broadcasts, broadcastMetrics, pushDiagnostics]);
 
   const runSave = async (task: () => Promise<void>) => {
     setSaving(true); setError('');
@@ -374,20 +421,29 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
       saved = await postService.createBroadcastNotification(payload);
     }
 
+    let hasPushError: Error | null = null;
     if (broadcastForm.sendNow) {
       try {
         await postService.sendBroadcastNow(saved.id);
       } catch (sendError: any) {
-        throw new Error(
+        hasPushError = new Error(
           `${lang === 'en' ? 'Broadcast saved, but push delivery failed' : 'تم حفظ الإشعار لكن فشل الإرسال'}: ${sendError.message}`
         );
       }
     }
 
     setBroadcasts(prev => [saved, ...prev.filter(b => b.id !== saved.id)]);
-    setBroadcastForm(emptyBroadcast);
+    const resetForm = getEmptyBroadcast();
+    setBroadcastForm(resetForm);
+    clearAdminDraft(); // Wipe the draft so it doesn't reappear on reload
+
     await refreshData(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Throw the error *after* clearing the form so that the UI resets but still shows the warning toast.
+    if (hasPushError) {
+      throw hasPushError;
+    }
   });
 
   return (
@@ -964,7 +1020,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                       </button>
 
                       {broadcastForm.id && (
-                        <button onClick={() => setBroadcastForm(emptyBroadcast)} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center w-full mt-2">
+                        <button onClick={() => { setBroadcastForm(emptyBroadcast); clearAdminDraft(); }} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center w-full mt-2">
                           {t.cancelEditing}
                         </button>
                       )}
@@ -981,6 +1037,26 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                     <button onClick={() => void refreshData(true)} className="text-[10px] font-black uppercase text-app-accent hover:underline">
                       {lang === 'en' ? 'Refresh' : 'تحديث'}
                     </button>
+                  </div>
+                  <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center flex flex-col items-center gap-2">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-app-accent/20 text-app-accent">
+                      <Zap className="h-8 w-8" />
+                    </div>
+                    <div className="mt-4 text-3xl font-bold text-app-text">{pushDiagnostics?.total_with_tokens || 0}</div>
+                    <div className="text-sm text-app-muted font-bold uppercase tracking-widest">Push Targets (Devices)</div>
+                    {(pushDiagnostics?.total_with_tokens || 0) === 0 && (
+                      <div className="mt-2 flex items-center gap-2 rounded-xl bg-amber-500/10 px-4 py-2 text-[10px] text-amber-500 font-bold uppercase">
+                        <AlertCircle className="h-3 w-3" />
+                        Tokens not syncing. Log in on APK!
+                      </div>
+                    )}
+                  </div>
+                  <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-500">
+                      <CheckCircle2 className="h-8 w-8" />
+                    </div>
+                    <div className="mt-4 text-3xl font-bold text-app-text">{broadcastMetrics?.delivered_total || 0}</div>
+                    <div className="mt-1 text-sm text-app-muted font-bold uppercase tracking-widest">Received Receipts</div>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     {broadcasts

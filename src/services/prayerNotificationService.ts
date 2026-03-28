@@ -138,8 +138,13 @@ export const prayerNotificationService = {
   async clearScheduledNotifications() {
     if (!isNativeApp()) return;
     const pending = await LocalNotifications.getPending();
-    if (!pending.notifications.length) return;
-    await LocalNotifications.cancel({ notifications: pending.notifications.map((item) => ({ id: item.id })) });
+    const toCancel = pending.notifications
+      .filter(n => n.id >= NOTIFICATION_ID_BASE && n.id < 5000)
+      .map(item => ({ id: item.id }));
+    
+    if (toCancel.length) {
+      await LocalNotifications.cancel({ notifications: toCancel });
+    }
   },
 
   async schedulePrayerNotifications(params: {
