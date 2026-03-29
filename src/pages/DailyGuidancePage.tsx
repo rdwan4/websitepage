@@ -143,6 +143,7 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
     { id: 'hadith', label: t.tabs.hadith, icon: BookOpen },
     { id: 'dua', label: t.tabs.dua, icon: Heart },
     { id: 'dhikr', label: t.tabs.dhikr, icon: Quote },
+    { id: 'others', label: t.tabs.others, icon: ImageIcon },
   ];
 
   return (
