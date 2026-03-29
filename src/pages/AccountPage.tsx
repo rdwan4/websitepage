@@ -200,7 +200,7 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   ];
 
   return (
-    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-32 pb-20')}>
+    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-40 pb-20')}>
       <div className={cn('container mx-auto', nativeApp ? 'px-4 md:px-6' : 'px-6')}>
         <div className={cn('flex flex-col md:flex-row md:items-center justify-between', nativeApp ? 'gap-5 mb-8' : 'gap-8 mb-10', lang === 'ar' && 'md:flex-row-reverse text-right')}>
           <div className="max-w-3xl">

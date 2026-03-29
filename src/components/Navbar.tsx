@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Book,
@@ -115,8 +115,6 @@ export const Navbar = ({
     { name: t.nav.prayer, path: '/prayer', icon: Clock3 },
     { name: t.nav.community, path: '/community', icon: Users },
     { name: t.nav.academy, path: '/academy', icon: GraduationCap },
-
-    { name: t.nav.articles, path: '/articles', icon: FileText },
   ];
 
   return (

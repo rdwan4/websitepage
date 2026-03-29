@@ -87,18 +87,9 @@ const getEmptyBroadcast = (): BroadcastForm => ({
 
 const emptyBroadcast = getEmptyBroadcast();
 
-// Cache admin state globally so it doesn't refresh constantly when switching tabs/windows
-let cachedAdminData: any = null;
+// Removed brittle global cache
 const ADMIN_DRAFT_KEY = 'admin_dashboard_draft';
-const ADMIN_CACHE_KEY = 'admin_dashboard_cache';
 
-try {
-  const stored = window.sessionStorage.getItem(ADMIN_CACHE_KEY);
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    cachedAdminData = parsed.data;
-  }
-} catch (e) {}
 
 const readAdminDraft = () => {
   try {
@@ -144,20 +135,20 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   const adminDraft = readAdminDraft();
   const t = text[lang];
   const [tab, setTab] = useState<Tab>(adminDraft?.tab || 'overview');
-  const [loading, setLoading] = useState(!cachedAdminData);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState(adminDraft?.query || '');
 
-  const [users, setUsers] = useState<Profile[]>(cachedAdminData?.u || []);
-  const [guidance, setGuidance] = useState<GuidanceItem[]>(cachedAdminData?.g || []);
-  const [daily, setDaily] = useState<DailyCollectionEntry[]>(cachedAdminData?.d || []);
-  const [questions, setQuestions] = useState<QuizQuestion[]>(cachedAdminData?.q || []);
-  const [posts, setPosts] = useState<Post[]>(cachedAdminData?.p || []);
-  const [categories, setCategories] = useState<Category[]>(cachedAdminData?.c || []);
-  const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>(cachedAdminData?.b || []);
-  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics | null>(cachedAdminData?.bm || null);
-  const [pushDiagnostics, setPushDiagnostics] = useState<{ total_with_tokens: number; recipients: any[] } | null>(cachedAdminData?.pd || null);
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [guidance, setGuidance] = useState<GuidanceItem[]>([]);
+  const [daily, setDaily] = useState<DailyCollectionEntry[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastNotification[]>([]);
+  const [broadcastMetrics, setBroadcastMetrics] = useState<BroadcastAdminMetrics | null>(null);
+  const [pushDiagnostics, setPushDiagnostics] = useState<{ total_with_tokens: number; recipients: any[] } | null>(null);
 
   const [guidanceForm, setGuidanceForm] = useState<GuidanceForm>(adminDraft?.guidanceForm || emptyGuidance);
   const [dailyForm, setDailyForm] = useState<DailyForm>(adminDraft?.dailyForm || emptyDaily);
@@ -206,41 +197,23 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   }, [questions]);
 
   const refreshData = async (force = false) => {
-    if (!force && cachedAdminData) {
-      setUsers(cachedAdminData.u);
-      setGuidance(cachedAdminData.g);
-      setDaily(cachedAdminData.d);
-      setQuestions(cachedAdminData.q || []);
-      setPosts(cachedAdminData.p);
-      setCategories(cachedAdminData.c);
-      setBroadcasts(cachedAdminData.b);
-      setBroadcastMetrics(cachedAdminData.bm);
-      setPushDiagnostics(cachedAdminData.pd);
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
     try {
-      const [u, g, d, q, p, c, b, bm, pd] = await Promise.all([
-        authService.getAllProfiles(),
-        contentService.getGuidanceItems(false),
-        contentService.listDailyContent(),
-        contentService.listQuestions(),
-        postService.getPosts({ limit: 100 }),
-        postService.getCategories(),
-        postService.getBroadcastNotifications(),
-        postService.getBroadcastAdminMetrics(),
-        postService.getPushDiagnostics(),
-      ]);
-      cachedAdminData = { u, g, d, q, p, c, b, bm, pd };
-      try {
-        window.sessionStorage.setItem('admin_dashboard_cache', JSON.stringify({
-          time: Date.now(),
-          data: cachedAdminData,
-        }));
-      } catch (e) {}
+      const runSafe = async (p: any, fallback: any) => {
+        try { return await p; } catch (e) { console.error('Admin sync error:', e); return fallback; }
+      };
 
+      const [u, g, d, q, p, c, b, bm, pd] = await Promise.all([
+        runSafe(authService.getAllProfiles(), []),
+        runSafe(contentService.getGuidanceItems(false), []),
+        runSafe(contentService.listDailyContent(), []),
+        runSafe(contentService.listQuestions(), []),
+        runSafe(postService.getPosts({ limit: 100 }), []),
+        runSafe(postService.getCategories(), []),
+        runSafe(postService.getBroadcastNotifications(), []),
+        runSafe(postService.getBroadcastAdminMetrics(), null),
+        runSafe(postService.getPushDiagnostics(), null),
+      ]);
       setUsers(u); setGuidance(g); setDaily(d); setQuestions(q); setPosts(p); setCategories(c); setBroadcasts(b); setBroadcastMetrics(bm); setPushDiagnostics(pd);
     } catch (err: any) {
       setError(err.message);
@@ -286,26 +259,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   useEffect(() => {
     if (loading) return;
-    cachedAdminData = {
-      u: users,
-      g: guidance,
-      d: daily,
-      q: questions,
-      p: posts,
-      c: categories,
-      b: broadcasts,
-      bm: broadcastMetrics,
-      pd: pushDiagnostics,
-    };
-    try {
-      window.sessionStorage.setItem(
-        ADMIN_CACHE_KEY,
-        JSON.stringify({
-          time: Date.now(),
-          data: cachedAdminData,
-        })
-      );
-    } catch (e) {}
+    // Removed stale session caching
   }, [loading, users, guidance, daily, questions, posts, categories, broadcasts, broadcastMetrics, pushDiagnostics]);
 
   const runSave = async (task: () => Promise<void>) => {
@@ -447,16 +401,25 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   });
 
   return (
-    <div className="min-h-screen bg-app-bg pt-20 pb-20 md:pt-28">
+    <div className="min-h-screen bg-app-bg pt-32 pb-20 md:pt-40">
       <div className="container mx-auto px-4 md:px-6">
-        <div className={cn("mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between", lang === 'ar' && "lg:flex-row-reverse")}>
+        <div className={cn("mb-12 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between px-2", lang === 'ar' && "lg:flex-row-reverse")}>
           <div className={cn(lang === 'ar' && "text-right")}>
-            <h1 className="text-3xl font-bold tracking-tight text-app-text sm:text-5xl lg:text-6xl">{t.title}</h1>
-            <p className="mt-2 text-xs text-app-muted uppercase tracking-[0.3em] font-black">{t.subtitle}</p>
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.4em] text-app-accent opacity-60">System Core</p>
+            <h1 className="text-4xl font-black tracking-tighter text-app-text sm:text-6xl lg:text-7xl">{t.title}</h1>
+            <p className="mt-4 text-sm text-app-muted font-medium">{t.subtitle}</p>
           </div>
-          <div className="relative w-full max-w-md">
-            <Search className={cn("absolute top-1/2 -translate-y-1/2 h-5 w-5 text-app-muted", lang === 'ar' ? "right-4" : "left-4")} />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.search} className={cn("w-full rounded-2xl bg-white/5 border border-white/10 py-4 text-sm text-app-text outline-none focus:border-app-accent/50", lang === 'ar' ? "pr-12" : "pl-12")} />
+          <div className="relative w-full max-w-md group">
+            <Search className={cn("absolute top-1/2 -translate-y-1/2 h-5 w-5 text-app-muted group-focus-within:text-app-accent transition-colors", lang === 'ar' ? "right-5" : "left-5")} />
+            <input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder={t.search} 
+              className={cn(
+                "w-full rounded-[2rem] bg-white/[0.03] border border-white/10 py-5 text-sm text-app-text outline-none focus:border-app-accent/40 focus:bg-white/[0.05] transition-all shadow-xl", 
+                lang === 'ar' ? "pr-14 pl-6" : "pl-14 pr-6"
+              )} 
+            />
           </div>
         </div>
 
@@ -477,6 +440,13 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
           </div>
         ) : (
           <div className="grid gap-8">
+            {error && (
+              <div className="rounded-[2rem] border border-red-500/20 bg-red-500/10 p-6 flex flex-col gap-2">
+                <p className="text-red-400 font-black uppercase text-xs tracking-widest">System Sync Warning</p>
+                <p className="text-app-text/80 text-sm font-bold">{error}</p>
+                <button onClick={() => void refreshData(true)} className="mt-2 text-xs font-black uppercase text-red-400 underline tracking-widest w-fit">Recalibrate Sync</button>
+              </div>
+            )}
             {loading && hasHydratedData && (
               <div className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-app-muted">
                 <Loader2 className="h-4 w-4 animate-spin text-app-accent" />
@@ -1178,18 +1148,20 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 };
 
 const StatCard = ({ icon: Icon, label, value, color }: { icon: any; label: string; value: string | number; color: string }) => (
-  <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 md:p-8 shadow-2xl relative overflow-hidden group">
-    <div className="absolute -top-4 -right-4 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-      <Icon className="h-24 w-24" />
+  <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/5 bg-app-card p-8 shadow-2xl transition-all hover:border-white/10 hover:shadow-app-accent/5">
+    <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-app-accent/5 blur-3xl transition-all group-hover:bg-app-accent/10" />
+    <div className="relative z-10 flex flex-col">
+      <div className="mb-6 flex items-center justify-between">
+        <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-2xl transition-all group-hover:scale-110 shadow-inner", color)}>
+          <Icon className="h-6 w-6" />
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-muted mb-1">{label}</p>
+        <h4 className="text-4xl font-serif font-bold text-app-text mb-2 tracking-tighter">{value}</h4>
+      </div>
     </div>
-    <div className={cn("mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 shadow-inner", color)}>
-      <Icon className="h-5 w-5" />
-    </div>
-    <p className="text-[10px] font-black text-app-muted uppercase tracking-[0.2em]">{label}</p>
-    <p className="mt-1 text-3xl font-bold text-app-text tracking-tighter">{value}</p>
   </div>
 );
 
-const Sparkles = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M19 17v4" /><path d="M3 5h4" /><path d="M17 19h4" /></svg>
-);
+

@@ -1,15 +1,15 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Globe, ArrowLeft, Search, Clock, User, Share2, Heart, Pencil, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 import { isNativeApp } from '../lib/runtime';
-import { PostViewerModal } from '../components/PostViewerModal';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { getPostPreviewImage } from '../lib/media';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface VoicesPageProps {
   lang: 'en' | 'ar';
@@ -24,13 +24,12 @@ interface CourseGroup {
 }
 
 export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const nativeApp = isNativeApp();
   const [blogs, setBlogs] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activePost, setActivePost] = useState<Post | null>(null);
-  const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -63,10 +62,6 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
     try {
       setDeletingId(postId);
       await postService.deletePost(postId);
-      if (activePost?.id === postId) {
-        setActivePost(null);
-        setActiveCoursePosts(null);
-      }
       await fetchBlogs();
     } catch (error) {
       console.error('Error deleting blog post:', error);
@@ -119,18 +114,6 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
 
   return (
     <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-32 pb-20')}>
-      <PostViewerModal
-        isOpen={!!activePost}
-        onClose={() => {
-          setActivePost(null);
-          setActiveCoursePosts(null);
-        }}
-        post={activePost}
-        coursePosts={activeCoursePosts}
-        lang={lang}
-        onUpdated={() => void fetchBlogs()}
-        onRequestEdit={(post) => setEditingPost(post)}
-      />
 
       <div className="container mx-auto px-6">
         <div className={cn('flex flex-col md:flex-row md:items-center justify-between', nativeApp ? 'gap-4 mb-8' : 'gap-6 mb-12', lang === 'ar' && 'md:flex-row-reverse text-right')}>
@@ -180,7 +163,8 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="group bg-app-card rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-app-accent/30 transition-all shadow-xl flex flex-col"
+                className="group bg-app-card rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-app-accent/30 transition-all shadow-xl flex flex-col cursor-pointer"
+                onClick={() => navigate(buildPostPath(course.startPost))}
               >
                 {getPostPreviewImage(course.previewPost) && (
                   <div className="relative h-64 overflow-hidden">
@@ -207,9 +191,9 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
                   <p className="text-app-muted text-sm line-clamp-3 mb-8 flex-1 leading-relaxed">{course.previewPost.content}</p>
                   <div className={cn('flex items-center justify-between mt-auto pt-6 border-t border-white/5', lang === 'ar' && 'flex-row-reverse')}>
                     <button
-                      onClick={() => {
-                        setActivePost(course.startPost);
-                        setActiveCoursePosts(course.posts);
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(buildPostPath(course.startPost));
                       }}
                       className="text-app-accent text-sm font-bold hover:underline flex items-center gap-2"
                     >

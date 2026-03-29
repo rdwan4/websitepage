@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Users, Search, MessageCircle, Heart, Share2, Plus, Clock, ArrowRight, BookOpen, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
-import { PostViewerModal } from '../components/PostViewerModal';
 import { isNativeApp } from '../lib/runtime';
 import { getPostPreviewImage } from '../lib/media';
+import { buildPostPath } from '../lib/postRoutes';
 
 interface CommunityGroup {
   key: string;
@@ -20,16 +20,15 @@ interface CommunityGroup {
 }
 
 export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' | 'ar'; initialCategory?: string }) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const nativeApp = isNativeApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [activePost, setActivePost] = useState<Post | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
   const [activeParentForCreate, setActiveParentForCreate] = useState<Post | null>(null);
 
   const SIDEBAR_CATEGORY_SLUGS = ['inspiration', 'hadith', 'dua'];
@@ -104,7 +103,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
   }, [posts, searchQuery, lang]);
 
   return (
-    <div className={cn('min-h-screen bg-app-bg pt-20 md:pt-32', nativeApp ? 'pb-28 md:pb-20' : 'pb-24 md:pb-20')}>
+    <div className={cn('min-h-screen bg-app-bg pt-20 md:pt-44', nativeApp ? 'pb-28 md:pb-20' : 'pb-24 md:pb-20')}>
       <div className="container mx-auto px-4 sm:px-6">
         <div className={cn('flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8 md:mb-16', lang === 'ar' && 'md:flex-row-reverse text-right')}>
           <div className="max-w-3xl">
@@ -160,7 +159,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {grouped.map((group, i) => (
-              <motion.div key={group.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex flex-col group rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-app-card shadow-xl transition-all hover:border-app-accent/30 overflow-hidden">
+              <motion.div key={group.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex flex-col group rounded-[1.5rem] md:rounded-[2rem] border border-white/5 bg-app-card shadow-xl transition-all hover:border-app-accent/30 overflow-hidden cursor-pointer" onClick={() => navigate(buildPostPath(group.startPost))}>
                 {getPostPreviewImage(group.startPost) && (
                   <div className="relative h-40 md:h-44 w-full overflow-hidden bg-app-card-dark">
                     <img src={getPostPreviewImage(group.startPost)!} alt={group.startPost.title} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -174,19 +173,18 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
                   <h3 className={cn("font-bold text-app-text mb-2 leading-tight group-hover:text-app-accent transition-colors line-clamp-2", nativeApp ? "text-lg" : "text-xl")}>{group.title}</h3>
                   <p className="text-app-muted text-sm leading-relaxed mb-4 flex-1 line-clamp-2 md:line-clamp-3">{group.startPost.content}</p>
                   <div className={cn("flex items-center justify-between border-t border-white/5 pt-4 md:pt-5", lang === 'ar' && "flex-row-reverse")}>
-                    <button onClick={async () => { 
-                      setActivePost(group.startPost);
-                      const fullCourse = await postService.getCoursePosts(group.key);
-                      setActiveCoursePosts(fullCourse && fullCourse.length > 0 ? fullCourse : group.posts);
+                    <button onClick={(e) => { 
+                      e.stopPropagation();
+                      navigate(buildPostPath(group.startPost));
                     }} className="flex items-center gap-2 text-app-accent font-black text-xs uppercase tracking-widest hover:underline">
                       {lang === 'en' ? 'Read More' : 'اقرأ المزيد'} <ArrowRight className={cn("h-4 w-4", lang === 'ar' && "rotate-180")} />
                     </button>
                     <div className="flex gap-2">
                       {canManagePost(group.startPost) && (
-                        <button onClick={() => setEditingPost(group.startPost)} className="p-2 rounded-lg bg-white/5 text-app-muted hover:text-app-accent hover:bg-white/10 transition-all"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingPost(group.startPost); }} className="p-2 rounded-lg bg-white/5 text-app-muted hover:text-app-accent hover:bg-white/10 transition-all"><Pencil className="h-4 w-4" /></button>
                       )}
                       {canManagePost(group.startPost) && (
-                        <button onClick={() => handleDeletePost(group.startPost.id)} disabled={deletingId === group.startPost.id} className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); void handleDeletePost(group.startPost.id); }} disabled={deletingId === group.startPost.id} className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>
                       )}
                       <div className="flex items-center gap-1 text-app-muted ml-2">
                         <Heart className="h-4 w-4" />
@@ -200,26 +198,6 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
           </div>
         )}
       </div>
-
-      <PostViewerModal
-        isOpen={!!activePost}
-        post={activePost}
-        coursePosts={activeCoursePosts}
-        lang={lang}
-        onClose={() => { setActivePost(null); setActiveCoursePosts(null); }}
-        onUpdated={fetchPosts}
-        onRequestEdit={(p) => {
-          setActivePost(null);
-          setActiveCoursePosts(null);
-          setEditingPost(p);
-        }}
-        onRequestAddChild={(p) => {
-          setActivePost(null);
-          setActiveCoursePosts(null);
-          setActiveParentForCreate(p);
-          setIsCreateOpen(true);
-        }}
-      />
 
       {isCreateOpen && (
         <CreatePostModal

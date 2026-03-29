@@ -206,7 +206,7 @@ export const PrayerTimePage = ({ lang, setLang, theme, toggleTheme }: { lang: La
   };
 
   return (
-    <div className={cn("min-h-screen bg-app-bg pb-24 px-4", nativeApp ? "pt-4" : "pt-24")}>
+    <div className={cn("min-h-screen bg-app-bg pb-24 px-4", nativeApp ? "pt-4" : "pt-44")}>
       <div className="container mx-auto max-w-6xl">
 
         {/* TOP BAR (Floating style) */}

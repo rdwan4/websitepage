@@ -947,18 +947,27 @@ export const postService = {
     return data;
   },
 
-  async deleteComment(commentId: string, userId: string) {
-    const { data: existingComment } = await supabase
+  async deleteComment(commentId: string, userId: string, isAdmin = false) {
+    let query = supabase.from('comments').delete().eq('id', commentId);
+    if (!isAdmin) {
+      query = query.eq('user_id', userId);
+    }
+    const { error } = await query;
+    if (error) throw error;
+    return true;
+  },
+
+  async updateComment(commentId: string, userId: string, content: string) {
+    const { data, error } = await supabase
       .from('comments')
-      .select('id, post_id')
+      .update({ content })
       .eq('id', commentId)
       .eq('user_id', userId)
-      .maybeSingle();
+      .select()
+      .single();
 
-    const { error } = await supabase.from('comments').delete().eq('id', commentId).eq('user_id', userId);
     if (error) throw error;
-
-    return true;
+    return data;
   },
 
   async saveQuizScore(score: Partial<QuizScore>) {

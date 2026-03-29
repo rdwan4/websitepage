@@ -29,7 +29,6 @@ import { computePrayerTimesAsync, getManualLocation } from './lib/prayer';
 const PrayerTimePage = lazy(() => import('./pages/PrayerTimePage').then((module) => ({ default: module.PrayerTimePage })));
 const PrayerSettingsPage = lazy(() => import('./pages/PrayerSettingsPage').then((module) => ({ default: module.PrayerSettingsPage })));
 const CommunityHighlightsPage = lazy(() => import('./pages/CommunityHighlightsPage').then((module) => ({ default: module.CommunityHighlightsPage })));
-
 const DailyGuidancePage = lazy(() => import('./pages/DailyGuidancePage').then((module) => ({ default: module.DailyGuidancePage })));
 const ArticlesPage = lazy(() => import('./pages/ArticlesPage').then((module) => ({ default: module.ArticlesPage })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
@@ -200,6 +199,19 @@ function App() {
     CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (isActive) showNotificationFromStorage();
     });
+
+    // 4. Hardware Back Button Handling 
+    // This prevents the app from exiting when the user just wants to go back to the previous page.
+    CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        // Option: Minimize app or show confirm exit if at home page.
+        // For now, if we cannot go back anymore, let Capacitor handle exit.
+        CapacitorApp.exitApp();
+      }
+    });
+
   }, []);
 
   const [postModalFilter, setPostModalFilter] = useState<CategoryFilterMode>('sidebar');

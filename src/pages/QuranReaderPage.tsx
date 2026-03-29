@@ -332,7 +332,7 @@ export const QuranReaderPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#e9e2cc] pb-28 pt-24 md:pt-28">
+    <div className="min-h-screen bg-[#e9e2cc] pb-28 pt-44 md:pt-44">
       <div className="container mx-auto px-4 md:px-6">
         <div
           className={cn(

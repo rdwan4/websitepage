@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Browser } from '@capacitor/browser';
-import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Eye, Heart, Loader2, MessageCircle, Pencil, Send, Trash2, Calendar, User, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isNativeApp } from '../lib/runtime';
 import { postService } from '../services/postService';
@@ -28,7 +28,6 @@ const openExternalUrl = async (url: string) => {
     await Browser.open({ url });
     return;
   }
-
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
@@ -43,11 +42,12 @@ const copy = {
     noComments: 'No comments yet.',
     signIn: 'Sign in to like or comment.',
     back: {
-      articles: 'Back to Articles',
-      academy: 'Back to Academy',
-      library: 'Back to Library',
-      community: 'Back to Community',
+      articles: 'Articles',
+      academy: 'Academy',
+      library: 'Library',
+      community: 'Community',
     } as Record<PublicPostSection, string>,
+    readingTime: 'Reading Time',
   },
   ar: {
     notFound: 'المنشور غير موجود.',
@@ -59,11 +59,12 @@ const copy = {
     noComments: 'لا توجد تعليقات بعد.',
     signIn: 'سجّل الدخول للإعجاب أو التعليق.',
     back: {
-      articles: 'العودة إلى المقالات',
-      academy: 'العودة إلى الأكاديمية',
-      library: 'العودة إلى المكتبة',
-      community: 'العودة إلى المجتمع',
+      articles: 'المقالات',
+      academy: 'الأكاديمية',
+      library: 'المكتبة',
+      community: 'المجتمع',
     } as Record<PublicPostSection, string>,
+    readingTime: 'وقت القراءة',
   },
 };
 
@@ -80,6 +81,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const [liking, setLiking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
   const [likesCount, setLikesCount] = useState(0);
   const [viewsCount, setViewsCount] = useState(0);
   const viewedPostIds = useRef<Set<string>>(new Set());
@@ -89,7 +92,6 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const nativeApp = isNativeApp();
   const embeddedVideoUrl = useMemo(() => (post?.media_url ? getEmbeddableVideoUrl(post.media_url) : ''), [post?.media_url]);
   const previewImage = useMemo(() => getPostPreviewImage(post || {}), [post]);
-  const shouldEmbedPdf = !isNativeApp() && typeof window !== 'undefined' && window.innerWidth >= 768;
 
   useEffect(() => {
     const load = async () => {
@@ -109,7 +111,6 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           setComments(loadedComments);
           document.title = `${found.title} | ${siteLinks.brand.en}`;
 
-          // Update Meta Description
           const metaDesc = found.excerpt || found.content?.slice(0, 160) || '';
           let metaNode = document.head.querySelector('meta[name="description"]');
           if (metaNode) {
@@ -125,7 +126,6 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
         setLoading(false);
       }
     };
-
     void load();
   }, [navigate, postId, section]);
 
@@ -172,6 +172,45 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!profile) return;
+    const confirmed = window.confirm(lang === 'ar' ? 'هل تريد حذف التعليق؟' : 'Delete this comment?');
+    if (!confirmed) return;
+
+    try {
+      await postService.deleteComment(commentId, profile.id, profile.role === 'admin');
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      alert(lang === 'ar' ? 'تعذر الحذف' : 'Failed to delete comment');
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!profile || !editingCommentText.trim()) return;
+
+    try {
+      await postService.updateComment(commentId, profile.id, editingCommentText.trim());
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editingCommentText.trim() } : c));
+      setEditingCommentId(null);
+      setEditingCommentText('');
+    } catch (err) {
+      console.error('Error updating comment:', err);
+      alert(lang === 'ar' ? 'تعذر التعديل' : 'Failed to update comment');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!post) return;
+    const url = window.location.href;
+    if (nativeApp && (navigator as any).share) {
+      await (navigator as any).share({ title: post.title, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert(lang === 'ar' ? 'تم نسخ الرابط' : 'Link copied to clipboard');
+    }
+  };
+
   const canManagePost = Boolean(profile && post && (profile.role === 'admin' || profile.id === post.author_id));
 
   const handleDelete = async () => {
@@ -190,209 +229,286 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
 
   if (loading) {
     return (
-      <div className={cn('min-h-screen bg-app-bg text-app-text', nativeApp ? 'pt-24' : 'pt-32')}>
-        <div className={cn('container mx-auto', nativeApp ? 'px-4 py-14 md:px-6' : 'px-6 py-20')}>
-          <div className="flex items-center gap-3 text-app-muted">
-            <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
-            {t.loading}
-          </div>
-        </div>
+      <div className="min-h-screen bg-app-bg flex items-center justify-center">
+         <div className="flex items-center gap-3 text-app-muted">
+            <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
+            <span className="text-sm font-bold uppercase tracking-widest">{t.loading}</span>
+         </div>
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className={cn('min-h-screen bg-app-bg text-app-text', nativeApp ? 'pt-24' : 'pt-32')}>
-        <div className={cn('container mx-auto', nativeApp ? 'px-4 py-14 md:px-6' : 'px-6 py-20')}>
-          {!nativeApp && (
-            <Link to={backPath} className="mb-6 inline-flex items-center gap-2 text-app-accent hover:underline">
-              <ArrowLeft className="h-4 w-4" />
-              {t.back[normalizedSection]}
-            </Link>
-          )}
-          <p className="text-app-muted">{t.notFound}</p>
-        </div>
+      <div className="min-h-screen bg-app-bg pt-32 px-6 text-center">
+        <p className="text-app-muted text-xl">{t.notFound}</p>
+        <Link to="/" className="mt-8 inline-block text-app-accent font-bold hover:underline">Back to Safety</Link>
       </div>
     );
   }
 
   return (
-    <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pb-28 pt-24 md:pb-20' : 'pb-20 pt-32')}>
-      <div className={cn('container mx-auto', nativeApp ? 'px-4 md:px-6' : 'px-6')}>
-        <div className={cn('mb-10', lang === 'ar' && 'text-right')}>
-          {!nativeApp && (
-            <Link to={backPath} className={cn('mb-6 inline-flex items-center gap-2 text-app-accent hover:underline', lang === 'ar' && 'flex-row-reverse')}>
-              <ArrowLeft className="h-4 w-4" />
-              {t.back[normalizedSection]}
-            </Link>
-          )}
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-app-accent">{post.category?.name || post.post_type}</p>
-          <h1 className={cn('font-serif text-app-text', nativeApp ? 'mb-3 text-[1.9rem] leading-tight md:text-4xl' : 'mb-4 text-4xl md:text-5xl')}>{post.title}</h1>
-          <p className="text-sm text-app-muted">{post.author_name || 'Admin'}</p>
-        </div>
+    <div className={cn('min-h-screen bg-app-bg text-app-text relative', nativeApp ? 'pb-28 pt-10' : 'pb-24 pt-10')}>
+      {/* Floating Back Button (Sticky) */}
+      <button
+        onClick={() => {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate(backPath);
+          }
+        }}
+        className={cn(
+          'fixed z-[100] flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-app-card/40 text-app-text backdrop-blur-xl transition-all hover:bg-app-accent/20 active:scale-95 shadow-2xl',
+          'top-[100px]',
+          lang === 'ar' ? 'right-6' : 'left-6'
+        )}
+        title={t.back[normalizedSection]}
+      >
+        <ArrowLeft className={cn('h-5 w-5', lang === 'ar' && 'rotate-180')} />
+      </button>
 
-        <div className={cn('grid grid-cols-1 lg:grid-cols-3', nativeApp ? 'gap-5 md:gap-6' : 'gap-8')}>
-          <div className={cn('lg:col-span-2', nativeApp ? 'space-y-4 md:space-y-5' : 'space-y-6')}>
-            {post.post_type === 'video' && post.media_url && (
-              <div className={cn('overflow-hidden border border-white/10 bg-black', nativeApp ? 'rounded-[1.2rem] md:rounded-[2rem]' : 'rounded-[2rem]')}>
-                <div className="aspect-video">
-                  <iframe
-                    src={embeddedVideoUrl}
-                    title={post.title}
-                    className="h-full w-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+      {/* 1. Header & Navigation (Full Width) */}
+      <div className="border-b border-white/5 bg-app-card/30 backdrop-blur-xl mb-12">
+        <div className="container mx-auto px-6 py-6 md:py-10">
+          <button 
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate(backPath);
+              }
+            }}
+            className={cn('mb-8 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-app-accent hover:opacity-70 transition-colors', lang === 'ar' && 'flex-row-reverse')}
+          >
+            <ArrowLeft className={cn('h-3.5 w-3.5', lang === 'ar' && 'rotate-180')} />
+            {t.back[normalizedSection]}
+          </button>
+
+          <div className={cn('max-w-4xl', lang === 'ar' && 'text-right')}>
+            <span className="mb-4 inline-block px-3 py-1 rounded-full bg-app-accent/10 border border-app-accent/20 text-[10px] font-black uppercase tracking-widest text-app-accent">
+              {post.category?.name || post.post_type}
+            </span>
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold leading-tight mb-8">
+              {post.title}
+            </h1>
+            
+            <div className={cn('flex flex-wrap items-center gap-6 text-sm text-app-muted', lang === 'ar' && 'flex-row-reverse')}>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-app-accent/10 flex items-center justify-center border border-white/5">
+                  <User className="h-4 w-4 text-app-accent" />
                 </div>
+                <span className="font-bold text-app-text/80">{post.author_name || 'Admin'}</span>
               </div>
-            )}
-
-            {post.post_type === 'pdf' && post.media_url && (
-              <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-app-muted">
-                    {lang === 'en' ? 'PDF files open in the device viewer on mobile.' : 'ملفات PDF تفتح في عارض الجهاز على الهاتف.'}
-                  </p>
-                  <button
-                    onClick={() => void openExternalUrl(post.media_url!)}
-                    className={cn('inline-flex items-center gap-2 rounded-xl bg-app-accent font-bold text-app-bg', nativeApp ? 'px-3.5 py-2 text-xs md:px-4 md:py-2.5 md:text-sm' : 'px-4 py-2.5 text-sm')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    {t.openExternal}
-                  </button>
-                </div>
-                {shouldEmbedPdf && (
-                  <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-white">
-                    <iframe src={post.media_url} title={post.title} className="h-[70vh] w-full" />
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span>{new Date(post.created_at).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
               </div>
-            )}
-
-            {post.post_type === 'audio' && post.media_url && (
-              <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
-                <audio src={post.media_url} controls className="w-full" />
-              </div>
-            )}
-
-            {previewImage && post.post_type !== 'pdf' && post.post_type !== 'video' && (
-              <img src={previewImage} alt={post.title} className={cn('w-full object-cover', nativeApp ? 'max-h-[18rem] rounded-[1.2rem] md:max-h-[24rem] md:rounded-[2rem]' : 'max-h-[30rem] rounded-[2rem]')} referrerPolicy="no-referrer" />
-            )}
-
-            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
-              <div className={cn('prose prose-invert max-w-none whitespace-pre-wrap text-app-text', nativeApp ? 'text-[0.96rem] leading-7' : 'text-base leading-relaxed')}>
-                {post.content}
-              </div>
-            </div>
-
-            {post.media_url && (
-              <a href={post.media_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-app-accent hover:underline">
-                {t.openExternal}
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-          </div>
-
-          <div className={cn(nativeApp ? 'space-y-4 md:space-y-5' : 'space-y-6')}>
-            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => void handleLike()}
-                  disabled={liking || !profile}
-                  className="flex items-center gap-2 text-sm font-bold text-app-text transition-colors hover:text-app-accent disabled:opacity-50"
-                >
-                  {liking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />}
-                  {likesCount}
-                </button>
-                <div className="flex items-center gap-2 text-sm font-bold text-app-text">
-                  <MessageCircle className="h-4 w-4" />
-                  {comments.length}
-                </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-app-text">
-                  <Eye className="h-4 w-4" />
-                  {viewsCount}
-                </div>
-              </div>
-              {canManagePost && (
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    onClick={() => setEditingPost(post)}
-                    className={cn('inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 font-bold text-app-text hover:bg-white/10', nativeApp ? 'px-2.5 py-1.5 text-[11px] md:px-3 md:py-2 md:text-xs' : 'px-3 py-2 text-xs')}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    {lang === 'en' ? 'Edit' : 'تعديل'}
-                  </button>
-                  <button
-                    onClick={() => void handleDelete()}
-                    disabled={deleting}
-                    className={cn('inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 font-bold text-red-300 hover:bg-red-500/20 disabled:opacity-50', nativeApp ? 'px-2.5 py-1.5 text-[11px] md:px-3 md:py-2 md:text-xs' : 'px-3 py-2 text-xs')}
-                  >
-                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    {lang === 'en' ? 'Delete' : 'حذف'}
-                  </button>
-                </div>
-              )}
-              {!profile && <p className="mt-4 text-xs text-app-muted">{t.signIn}</p>}
-            </div>
-
-            <div className={cn('border border-white/10 bg-white/5', nativeApp ? 'rounded-[1.2rem] p-4 md:rounded-[2rem] md:p-6' : 'rounded-[2rem] p-6')}>
-              <h2 className="mb-4 text-lg font-bold text-app-text">{t.comments}</h2>
-              <div className="mb-4 space-y-4">
-                {comments.length ? (
-                  comments.map((comment) => (
-                    <div key={comment.id} className={cn('rounded-2xl border border-white/10 bg-app-card', nativeApp ? 'p-3.5 md:p-4' : 'p-4')}>
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="text-sm font-bold text-app-text">{comment.user?.name || 'User'}</span>
-                        <span className="text-xs text-app-muted">{new Date(comment.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-sm leading-relaxed text-app-muted">{comment.content}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-app-muted">{t.noComments}</p>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <textarea
-                  value={commentText}
-                  onChange={(event) => setCommentText(event.target.value)}
-                  rows={4}
-                  placeholder={t.writeComment}
-                  className={cn('w-full resize-none rounded-2xl border border-white/10 bg-app-card px-4 text-sm text-app-text focus:border-app-accent/50 focus:outline-none', nativeApp ? 'py-2.5' : 'py-3')}
-                />
-                <button
-                  onClick={() => void handleComment()}
-                  disabled={submitting || !commentText.trim() || !profile}
-                  className={cn('flex w-full items-center justify-center gap-2 rounded-2xl bg-app-accent text-sm font-bold text-app-bg disabled:opacity-50', nativeApp ? 'py-2.5' : 'py-3')}
-                >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {t.postComment}
-                </button>
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                <span>{viewsCount} Views</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <CreatePostModal
-        isOpen={!!editingPost}
-        onClose={() => setEditingPost(null)}
-        lang={lang}
-        postToEdit={editingPost}
-        categoryFilter="non-sidebar"
-        onSuccess={async () => {
-          setEditingPost(null);
-          if (!postId) return;
-          const refreshed = await postService.getPostById(postId);
-          setPost(refreshed);
-          if (refreshed) {
-            setLikesCount(refreshed.likes_count || 0);
-            setViewsCount(refreshed.views_count || 0);
-          }
-        }}
-      />
+      {/* 2. Main Content Wrapper */}
+      <div className="container mx-auto px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+          
+          {/* Main Article Column */}
+          <article className="lg:col-span-8">
+            {/* Featured Media */}
+            <div className="mb-12 overflow-hidden rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-2xl">
+              {post.post_type === 'video' && post.media_url ? (
+                <div className="aspect-video">
+                  <iframe src={embeddedVideoUrl} title={post.title} className="h-full w-full" allowFullScreen />
+                </div>
+              ) : post.post_type === 'pdf' && post.media_url ? (
+                <div className="p-8 text-center space-y-4">
+                   <p className="text-app-muted text-sm">{lang === 'en' ? 'Review documentation below or open directly.' : 'راجع الوثائق أدناه أو افتح مباشرة.'}</p>
+                   <button onClick={() => void openExternalUrl(post.media_url!)} className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-app-accent text-app-bg font-black uppercase text-xs tracking-widest">
+                     <ExternalLink className="h-4 w-4" /> {t.openExternal}
+                   </button>
+                </div>
+              ) : post.post_type === 'audio' && post.media_url ? (
+                <div className="p-8 bg-app-accent/5 backdrop-blur-md">
+                   <audio src={post.media_url} controls className="w-full" />
+                </div>
+              ) : previewImage && (
+                <img src={previewImage} alt={post.title} className="w-full object-cover max-h-[500px]" referrerPolicy="no-referrer" />
+              )}
+            </div>
+
+            {/* Article Content */}
+            <div className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed whitespace-pre-wrap mb-16', lang === 'ar' && 'text-right')}>
+               {post.content}
+            </div>
+
+            {/* Post Interaction (Likes/Share) */}
+            <div className={cn("flex items-center gap-6 py-8 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>
+              <button 
+                onClick={handleLike}
+                disabled={liking || !profile}
+                className={cn("flex h-14 items-center gap-3 rounded-2xl border border-white/10 px-6 font-bold transition-all hover:bg-app-accent/10", liking ? "text-app-accent" : "text-app-text")}
+              >
+                {liking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Heart className={cn("h-5 w-5", likesCount > 0 && "fill-app-accent text-app-accent")} />}
+                <span>{likesCount} Likes</span>
+              </button>
+              <button 
+                onClick={handleShare}
+                className="flex h-14 items-center gap-3 rounded-2xl border border-white/10 px-6 font-bold text-app-text transition-all hover:bg-white/5"
+              >
+                <Share2 className="h-5 w-5" />
+                <span>Share</span>
+              </button>
+              {canManagePost && (
+                <div className="flex gap-2">
+                   <button onClick={() => setEditingPost(post)} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-white/10 text-app-accent hover:bg-app-accent/10 transition-all"><Pencil className="h-5 w-5" /></button>
+                   <button onClick={handleDelete} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"><Trash2 className="h-5 w-5" /></button>
+                </div>
+              )}
+            </div>
+
+            {/* Comments Section */}
+            <section className={cn("mt-16 pt-12 border-t border-white/5", lang === 'ar' && "text-right")}>
+              <h2 className="text-2xl font-serif font-bold mb-8">{t.comments} ({comments.length})</h2>
+              
+              <div className="space-y-6 mb-10">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="p-6 rounded-3xl bg-white/[0.03] border border-white/5 relative group">
+                    <div className={cn("flex items-center justify-between mb-3", lang === 'ar' && "flex-row-reverse")}>
+                       <span className="font-bold text-app-accent">{comment.user?.name || comment.user?.display_name || 'User'}</span>
+                       <div className={cn("flex items-center gap-3", lang === 'ar' && "flex-row-reverse")}>
+                          {(profile?.id === comment.user_id || profile?.role === 'admin') && (
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button 
+                                 onClick={() => {
+                                   setEditingCommentId(comment.id);
+                                   setEditingCommentText(comment.content);
+                                 }}
+                                 className="p-1.5 text-app-muted hover:text-app-accent transition-colors"
+                               >
+                                 <Pencil className="h-3.5 w-3.5" />
+                               </button>
+                               <button 
+                                 onClick={() => void handleDeleteComment(comment.id)}
+                                 className="p-1.5 text-app-muted hover:text-red-400 transition-colors"
+                               >
+                                 <Trash2 className="h-3.5 w-3.5" />
+                               </button>
+                            </div>
+                          )}
+                          <span className="text-[10px] uppercase font-black tracking-widest text-app-muted">{new Date(comment.created_at).toLocaleDateString()}</span>
+                       </div>
+                    </div>
+                    
+                    {editingCommentId === comment.id ? (
+                      <div className="space-y-3">
+                        <textarea
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          className="w-full bg-app-bg/50 border border-white/10 rounded-xl p-3 text-sm outline-none focus:border-app-accent/50"
+                          rows={3}
+                        />
+                        <div className={cn("flex gap-2", lang === 'ar' && "flex-row-reverse")}>
+                          <button onClick={() => void handleUpdateComment(comment.id)} className="bg-app-accent text-app-bg px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Save</button>
+                          <button onClick={() => setEditingCommentId(null)} className="bg-white/5 text-app-text px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-app-text/90 leading-relaxed text-sm">{comment.content}</p>
+                    )}
+                  </div>
+                ))}
+                {!comments.length && <p className="text-app-muted">{t.noComments}</p>}
+              </div>
+
+              {profile ? (
+                <div className="space-y-4">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    rows={4}
+                    placeholder={t.writeComment}
+                    className="w-full resize-none rounded-[2rem] border border-white/10 bg-app-card/50 p-6 text-app-text focus:border-app-accent/50 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleComment}
+                    disabled={submitting || !commentText.trim()}
+                    className="inline-flex items-center gap-3 rounded-2xl bg-app-accent px-8 py-4 font-black uppercase text-xs tracking-[0.2em] text-app-bg transition-all hover:brightness-110 disabled:opacity-50"
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {t.postComment}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-6 rounded-3xl bg-app-accent/5 border border-app-accent/20 text-center">
+                   <p className="text-sm font-bold text-app-text">{t.signIn}</p>
+                </div>
+              )}
+            </section>
+          </article>
+
+          {/* Sidebar (Full-Page Style) */}
+          <aside className="lg:col-span-4 hidden lg:block">
+            <div className="sticky top-32 space-y-8">
+               <div className="p-8 rounded-[2.5rem] border border-white/5 bg-app-card/30">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-app-accent mb-6">About the Section</h4>
+                  <p className="text-sm text-app-muted leading-relaxed">
+                    You are reading content in the <strong>{post.category?.name || 'Islamic Light Community'}</strong> module. Our platform ensures that all knowledge shared here is authentic and verified.
+                  </p>
+               </div>
+               
+               {/* Vertical Ads Slot or Quick Actions */}
+               <div className="p-8 rounded-[2.5rem] border border-white/5 bg-white/5">
+                  <div className="flex flex-col gap-4">
+                     {canManagePost && (
+                        <button onClick={() => setEditingPost(post)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all">
+                          <Pencil className="h-4 w-4" /> Manage this Post
+                        </button>
+                     )}
+                     <a 
+                       href={`mailto:${siteLinks.supportEmail}`} 
+                       className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all"
+                       onClick={(e) => {
+                         if (isNativeApp()) {
+                           e.preventDefault();
+                           window.location.href = `mailto:${siteLinks.supportEmail}`;
+                         }
+                       }}
+                      >
+                        <MessageCircle className="h-4 w-4" /> Report Issue
+                     </a>
+                  </div>
+               </div>
+            </div>
+          </aside>
+
+        </div>
+      </div>
+
+      {editingPost && (
+        <CreatePostModal
+          isOpen={!!editingPost}
+          onClose={() => setEditingPost(null)}
+          lang={lang}
+          postToEdit={editingPost}
+          categoryFilter="non-sidebar"
+          onSuccess={async () => {
+            setEditingPost(null);
+            if (!postId) return;
+            const refreshed = await postService.getPostById(postId);
+            setPost(refreshed);
+            if (refreshed) {
+              setLikesCount(refreshed.likes_count || 0);
+              setViewsCount(refreshed.views_count || 0);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
+

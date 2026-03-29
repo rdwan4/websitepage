@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { contentService } from '../services/contentService';
 import { postService } from '../services/postService';
 import { ContentCategory, DailyCollectionEntry, DailyContentSet, Post } from '../types';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { isNativeApp } from '../lib/runtime';
 
 type Language = 'en' | 'ar';
@@ -121,25 +121,16 @@ export const SidebarQuickActions = ({
 }) => {
   const { profile } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const nativeApp = isNativeApp();
-  const [isOpen, setIsOpen] = useState<ActionId | null>(null);
-  const [dailySets, setDailySets] = useState<Record<ContentCategory, DailyContentSet | null>>({
-    inspiration: null,
-    hadith: null,
-    dua: null,
-  });
+  
   const [categoryPosts, setCategoryPosts] = useState<Record<ContentCategory, Post[]>>({
     inspiration: [],
     hadith: [],
     dua: [],
   });
-  const [loadingCategory, setLoadingCategory] = useState<ContentCategory | null>(null);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [dhikrCount, setDhikrCount] = useState(0);
-  const [dhikrIndex, setDhikrIndex] = useState(0);
-  const [contentIndex, setContentIndex] = useState(0);
-  const [postIndex, setPostIndex] = useState(0);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   const t = translations[lang];
@@ -163,24 +154,6 @@ export const SidebarQuickActions = ({
     return baseActions;
   }, [profile?.role]);
 
-  const selectedSet = useMemo(() => (isOpen && isOpen !== 'dhikr' ? dailySets[isOpen] : null), [dailySets, isOpen]);
-  const selectedPosts = useMemo(() => (isOpen && isOpen !== 'dhikr' ? categoryPosts[isOpen] : []), [categoryPosts, isOpen]);
-  const selectedTitle = isOpen && isOpen !== 'dhikr' ? (t[actionToCategory[isOpen]] as { title: string }).title : '';
-
-  const ensureCategory = async (category: ContentCategory) => {
-    if (dailySets[category]) return;
-    setLoadingCategory(category);
-    setLoadError('');
-    try {
-      const set = await contentService.getDailyCollection(category);
-      setDailySets((current) => ({ ...current, [category]: set }));
-    } catch (error: any) {
-      setLoadError(error.message || 'Failed to load daily content.');
-    } finally {
-      setLoadingCategory(null);
-    }
-  };
-
   const loadSidebarPosts = async () => {
     setLoadingPosts(true);
     try {
@@ -198,7 +171,6 @@ export const SidebarQuickActions = ({
   };
 
   useEffect(() => {
-    void Promise.all([ensureCategory('inspiration'), ensureCategory('hadith'), ensureCategory('dua')]);
     void loadSidebarPosts();
   }, []);
 
@@ -211,18 +183,6 @@ export const SidebarQuickActions = ({
     return () => window.removeEventListener('posts-updated', handlePostsUpdated);
   }, []);
 
-  const handleAction = (id: ActionId) => {
-    setIsOpen(id);
-    setContentIndex(0);
-    setPostIndex(0);
-    if (id !== 'dhikr') void ensureCategory(id);
-  };
-
-  const nextContent = () => {
-    if (selectedSet?.items.length) setContentIndex((current) => (current + 1) % selectedSet.items.length);
-    if (selectedPosts.length) setPostIndex((current) => (current + 1) % selectedPosts.length);
-  };
-
   const handleDeleteSidebarPost = async (postId: string) => {
     if (!profile || profile.role !== 'admin' || deletingPostId) return;
 
@@ -233,7 +193,6 @@ export const SidebarQuickActions = ({
       setDeletingPostId(postId);
       await postService.deletePost(postId);
       await loadSidebarPosts();
-      setPostIndex(0);
       window.dispatchEvent(new Event('posts-updated'));
     } catch (error) {
       console.error('Error deleting sidebar post:', error);
@@ -259,7 +218,12 @@ export const SidebarQuickActions = ({
             onClick={() => {
               if (action.id === 'create_post') return onCreatePost(undefined, 'all');
               if (action.id === 'create_quiz') return onCreateQuiz();
-              handleAction(action.id as ActionId);
+              // Navigate to Daily Guidance page for these categories
+              if (action.id === 'dhikr') {
+                navigate('/guidance?tab=dhikr');
+              } else {
+                navigate(`/guidance?tab=${action.id}`);
+              }
             }}
             className={cn(
               'flex items-center justify-center rounded-xl transition-all hover:scale-110 active:scale-95',
@@ -273,128 +237,6 @@ export const SidebarQuickActions = ({
         ))}
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6" onClick={() => setIsOpen(null)}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-app-bg/80 backdrop-blur-xl" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} onClick={(e) => e.stopPropagation()} className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[3rem] border border-white/10 bg-app-card p-10 shadow-2xl">
-              <button onClick={() => setIsOpen(null)} className="absolute right-6 top-6 rounded-full p-2 text-app-text/40 transition-all hover:bg-white/5 hover:text-app-text">
-                <X className="h-5 w-5" />
-              </button>
-
-              {isOpen === 'dhikr' ? (
-                <div className="text-center">
-                  <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-gold">{t.dhikr.title}</h3>
-                  <p className="mx-auto mb-8 max-w-lg text-sm text-app-muted">{t.dhikr.subtitle}</p>
-                  <div className="mb-10">
-                    <p className="mb-2 text-3xl font-bold text-app-text">{t.dhikr.phrases[dhikrIndex]}</p>
-                    <button onClick={() => { setDhikrIndex((current) => (current + 1) % t.dhikr.phrases.length); setDhikrCount(0); }} className="mx-auto flex items-center justify-center gap-2 text-xs text-app-muted transition-colors hover:text-gold">
-                      <RefreshCw className="h-3 w-3" />
-                      {t.dhikr.change}
-                    </button>
-                  </div>
-                  <div onClick={() => setDhikrCount((current) => current + 1)} className="group mx-auto flex h-40 w-40 cursor-pointer flex-col items-center justify-center rounded-full border-4 border-gold/20 transition-all hover:bg-gold/5 active:scale-95">
-                    <span className="mb-1 font-serif text-5xl text-gold">{dhikrCount}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-gold/40 group-hover:text-gold/60">{t.dhikr.count}</span>
-                  </div>
-                  <button onClick={() => setDhikrCount(0)} className="mt-8 text-xs text-app-muted transition-colors hover:text-red-400">{t.dhikr.reset}</button>
-                </div>
-              ) : (
-                <div>
-                  <div className="mb-8 text-center">
-                    <h3 className={cn('mb-3 text-xs font-bold uppercase tracking-[0.2em]', isOpen === 'inspiration' ? 'text-app-accent' : isOpen === 'hadith' ? 'text-indigo-400' : 'text-emerald-400')}>
-                      {selectedTitle}
-                    </h3>
-                    {profile?.role === 'admin' && (
-                      <button onClick={() => onCreatePost(isOpen || undefined, 'sidebar')} className="rounded-2xl border border-app-accent/20 bg-app-accent/10 px-5 py-3 text-xs font-bold uppercase tracking-widest text-app-accent transition-all hover:bg-app-accent/20">
-                        {t.createHere}
-                      </button>
-                    )}
-                  </div>
-
-                  {loadingCategory === isOpen ? (
-                    <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-app-accent" /></div>
-                  ) : loadError ? (
-                    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm text-red-400">{loadError}</div>
-                  ) : (
-                    <div className="space-y-8">
-                      {selectedSet?.items.length ? (
-                        <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                          <AnimatePresence mode="wait">
-                            <motion.div key={`${isOpen}-${contentIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="min-h-[220px]">
-                              <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-app-accent">{getEntryTitle(selectedSet.items[contentIndex], lang)}</p>
-                              <p className="mb-6 text-xl font-bold leading-relaxed text-app-text">{getEntryBody(selectedSet.items[contentIndex], lang)}</p>
-                              <div className="space-y-2 rounded-2xl border border-white/10 bg-app-card p-4 text-left">
-                                <p className="text-sm text-app-muted"><span className="font-semibold text-app-text">{t.source}: </span>{selectedSet.items[contentIndex].source_reference}</p>
-                                {selectedSet.items[contentIndex].authenticity_notes && (
-                                  <p className="text-sm text-app-muted"><span className="font-semibold text-app-text">{t.authenticity}: </span>{selectedSet.items[contentIndex].authenticity_notes}</p>
-                                )}
-                              </div>
-                            </motion.div>
-                          </AnimatePresence>
-
-                          <button onClick={nextContent} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-app-card py-4 text-sm font-bold text-app-text transition-all hover:bg-white/10">
-                            <RefreshCw className="h-4 w-4" />
-                            {lang === 'en' ? 'Next daily item' : 'العنصر اليومي التالي'}
-                          </button>
-                        </section>
-                      ) : (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-app-muted">{t.empty}</div>
-                      )}
-
-                      <section>
-                        <div className="mb-4 flex items-center justify-between">
-                          <h4 className="text-lg font-bold text-app-text">{t.latestPosts}</h4>
-                          <div className="flex items-center gap-3">
-                            {loadingPosts && <Loader2 className="h-4 w-4 animate-spin text-app-accent" />}
-                            <button onClick={() => { void loadSidebarPosts(); nextContent(); }} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-app-text transition-all hover:bg-white/10">
-                              <RefreshCw className="h-3.5 w-3.5" />
-                              {lang === 'en' ? 'Refresh' : 'تحديث'}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          {selectedPosts.length ? (
-                            <AnimatePresence mode="wait">
-                              <motion.article key={`${isOpen}-post-${postIndex}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="rounded-[2rem] border border-white/10 bg-white/5 p-5">
-                                <div className="mb-3 flex items-center justify-between gap-4">
-                                  <div>
-                                    <h5 className="font-bold text-app-text">{selectedPosts[postIndex]?.title}</h5>
-                                    <p className="text-xs text-app-muted">{selectedPosts[postIndex]?.author_name || 'Admin'}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {profile?.role === 'admin' && (
-                                      <button onClick={() => void handleDeleteSidebarPost(selectedPosts[postIndex].id)} disabled={deletingPostId === selectedPosts[postIndex].id} className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition-all hover:bg-red-500/20 disabled:opacity-50">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        {lang === 'en' ? 'Delete' : 'حذف'}
-                                      </button>
-                                    )}
-                                    {selectedPosts[postIndex]?.media_url && (
-                                      <a href={selectedPosts[postIndex].media_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-app-accent transition-all hover:bg-white/10">
-                                        {getPostActionLabel(selectedPosts[postIndex], lang)}
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {selectedPosts[postIndex]?.image_url && <img src={selectedPosts[postIndex].image_url} alt={selectedPosts[postIndex].title} className="mb-4 h-48 w-full rounded-2xl object-cover" referrerPolicy="no-referrer" />}
-                                <p className="whitespace-pre-wrap text-sm leading-relaxed text-app-muted">{selectedPosts[postIndex]?.content}</p>
-                              </motion.article>
-                            </AnimatePresence>
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-app-muted">{t.emptyPosts}</div>
-                          )}
-                        </div>
-                      </section>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </>
   );
 };

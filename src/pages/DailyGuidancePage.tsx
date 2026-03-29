@@ -1,10 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { ArrowLeft, BookOpen, ImageIcon, Loader2, Plus, Quote, Sparkles, Pencil, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  ArrowLeft, 
+  BookOpen, 
+  ImageIcon, 
+  Loader2, 
+  Plus, 
+  Quote, 
+  Sparkles, 
+  Pencil, 
+  Trash2,
+  RefreshCw,
+  Heart
+} from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { isNativeApp } from '../lib/runtime';
-import { Post, ContentCategory, GuidanceItem } from '../types';
+import { Post, ContentCategory, GuidanceItem, DailyCollectionEntry } from '../types';
 import { contentService } from '../services/contentService';
 import { postService } from '../services/postService';
 import { useAuth } from '../context/AuthContext';
@@ -14,56 +26,71 @@ const copy = {
   en: {
     back: 'Back to Home',
     title: 'Daily Guidance',
-    subtitle:
-      'A curated space for verified reflections, visual reminders, and short readings that can be managed from the admin area.',
+    subtitle: 'A curated space for verified reflections, sacred texts, and spiritual focus.',
     source: 'Source',
-    emptyTitle: 'No guidance cards published yet',
-    emptyBody:
-      'Publish curated guidance cards from the admin dashboard to populate this page.',
-    categories: {
-      reflection: 'Reflection',
-      story: 'Story',
-      gallery: 'Gallery',
-      'daily-wisdom': 'Daily Wisdom',
+    authenticity: 'Authenticity',
+    emptyTitle: 'No items published yet',
+    emptyBody: 'Publish content from the admin dashboard to populate this section.',
+    dhikr: {
+      title: 'Dhikr Focus',
+      subtitle: 'A quiet space for continuous remembrance.',
+      phrases: ['SubhanAllah', 'Alhamdulillah', 'Allahu Akbar', 'La ilaha illallah', 'Astaghfirullah'],
+      count: 'Count',
+      reset: 'Reset',
+      change: 'Change Phrase'
     },
+    tabs: {
+      inspiration: 'Inspiration',
+      hadith: 'Hadith',
+      dua: 'Dua',
+      dhikr: 'Dhikr',
+      others: 'Articles'
+    }
   },
   ar: {
     back: 'العودة إلى الرئيسية',
     title: 'الهداية اليومية',
-    subtitle:
-      'مساحة منتقاة للتأملات الموثقة والتذكير البصري والقراءات القصيرة، ويمكن إدارتها من لوحة التحكم.',
+    subtitle: 'مساحة منتقاة للتأملات الموثقة والنصوص المقدسة والتركيز الروحي.',
     source: 'المصدر',
-    emptyTitle: 'لا توجد بطاقات منشورة بعد',
-    emptyBody: 'انشر بطاقات الهداية من لوحة الإدارة حتى تظهر هنا.',
-    categories: {
-      reflection: 'تأمل',
-      story: 'قصة',
-      gallery: 'معرض',
-      'daily-wisdom': 'حكمة يومية',
+    authenticity: 'التوثيق',
+    emptyTitle: 'لا توجد عناصر منشورة بعد',
+    emptyBody: 'انشر محتوى من لوحة الإدارة ليظهر هنا.',
+    dhikr: {
+      title: 'ركن الذكر',
+      subtitle: 'مساحة هادئة للذكر المستمر.',
+      phrases: ['سبحان الله', 'الحمد لله', 'الله أكبر', 'لا إله إلا الله', 'أستغفر الله'],
+      count: 'العدد',
+      reset: 'إعادة ضبط',
+      change: 'تغيير الذكر'
     },
+    tabs: {
+      inspiration: 'إلهام',
+      hadith: 'حديث',
+      dua: 'دعاء',
+      dhikr: 'ذكر',
+      others: 'مقالات'
+    }
   },
-};
-
-const getIcon = (category: GuidanceItem['category']) => {
-  switch (category) {
-    case 'gallery':
-      return ImageIcon;
-    case 'story':
-      return BookOpen;
-    case 'daily-wisdom':
-      return Sparkles;
-    default:
-      return Quote;
-  }
 };
 
 export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const nativeApp = isNativeApp();
   const t = copy[lang];
-  const [items, setItems] = useState<GuidanceItem[]>([]);
+  
+  const currentTab = (searchParams.get('tab') || 'inspiration') as any;
+
+  const [guidanceItems, setGuidanceItems] = useState<GuidanceItem[]>([]);
+  const [dailyEntries, setDailyEntries] = useState<DailyCollectionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Dhikr State
+  const [dhikrCount, setDhikrCount] = useState(0);
+  const [dhikrIndex, setDhikrIndex] = useState(0);
+
+  // Admin States
   const [uploadCategory, setUploadCategory] = useState<ContentCategory | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -72,194 +99,236 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
     setLoading(true);
     setError('');
     try {
-      const data = await contentService.getGuidanceItems();
-      setItems(data);
+      if (currentTab === 'others') {
+        const data = await contentService.getGuidanceItems();
+        setGuidanceItems(data);
+      } else if (currentTab !== 'dhikr') {
+        const set = await contentService.getDailyCollection(currentTab as ContentCategory);
+        setDailyEntries(set.items);
+      }
     } catch (loadError: any) {
-      setError(loadError.message || 'Failed to load guidance.');
+      setError(loadError.message || 'Failed to load content.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteGuidance = async (item: GuidanceItem) => {
+  useEffect(() => {
+    void load();
+  }, [currentTab]);
+
+  const handleDeleteEntry = async (id: string, isGuidance: boolean) => {
     if (!profile || deletingId) return;
     const confirmed = window.confirm(lang === 'en' ? 'Delete this item?' : 'هل تريد حذف هذا العنصر؟');
     if (!confirmed) return;
 
     try {
-      setDeletingId(item.id);
-      await postService.deletePost(item.id);
+      setDeletingId(id);
+      if (isGuidance) {
+        await contentService.deleteGuidanceItem(id);
+      } else {
+        await contentService.deleteDailyContent(id);
+      }
       await load();
-    } catch (error) {
-      console.error('Error deleting guidance:', error);
+    } catch (err) {
+      console.error('Error deleting:', err);
       alert(lang === 'en' ? 'Failed to delete.' : 'فشل الحذف.');
     } finally {
       setDeletingId(null);
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const tabs = [
+    { id: 'inspiration', label: t.tabs.inspiration, icon: Sparkles },
+    { id: 'hadith', label: t.tabs.hadith, icon: BookOpen },
+    { id: 'dua', label: t.tabs.dua, icon: Heart },
+    { id: 'dhikr', label: t.tabs.dhikr, icon: Quote },
+  ];
 
   return (
-    <>
-      <div className={cn('min-h-screen bg-app-bg', nativeApp ? 'pt-24 pb-28 md:pb-20' : 'pt-32 pb-20')}>
-        <div className="container mx-auto px-6">
-          <div className={cn(nativeApp ? 'mb-8 max-w-4xl' : 'mb-14 max-w-4xl', lang === 'ar' && 'text-right mr-auto')}>
-            {!nativeApp && (
-              <Link
-                to="/"
-                className={cn(
-                  'group mb-6 inline-flex items-center gap-2 text-app-accent hover:underline',
-                  lang === 'ar' && 'flex-row-reverse'
-                )}
-              >
-                <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-                {t.back}
-              </Link>
-            )}
-            <h1 className={cn('font-serif leading-tight text-app-text', nativeApp ? 'mb-3 text-3xl md:text-4xl' : 'mb-5 text-6xl md:text-7xl')}>{t.title}</h1>
-            {!nativeApp && <p className="max-w-3xl text-xl leading-relaxed text-app-muted">{t.subtitle}</p>}
-
-            {profile?.role === 'admin' && (
-              <div className={cn('flex flex-wrap gap-3', nativeApp ? 'mt-4' : 'mt-6')}>
-                <button
-                  onClick={() => setUploadCategory('inspiration')}
-                  className={cn('inline-flex items-center gap-2 rounded-2xl border border-app-accent/30 bg-app-accent/10 font-bold uppercase tracking-widest text-app-accent hover:bg-app-accent/20', nativeApp ? 'px-3 py-2 text-[11px]' : 'px-4 py-2 text-xs')}
-                >
-                  <Plus className="h-4 w-4" />
-                  {lang === 'en' ? 'Upload Inspiration' : 'رفع إلهام'}
-                </button>
-                <button
-                  onClick={() => setUploadCategory('hadith')}
-                  className={cn('inline-flex items-center gap-2 rounded-2xl border border-indigo-400/30 bg-indigo-400/10 font-bold uppercase tracking-widest text-indigo-300 hover:bg-indigo-400/20', nativeApp ? 'px-3 py-2 text-[11px]' : 'px-4 py-2 text-xs')}
-                >
-                  <Plus className="h-4 w-4" />
-                  {lang === 'en' ? 'Upload Hadith' : 'رفع حديث'}
-                </button>
-                <button
-                  onClick={() => setUploadCategory('dua')}
-                  className={cn('inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 font-bold uppercase tracking-widest text-emerald-300 hover:bg-emerald-400/20', nativeApp ? 'px-3 py-2 text-[11px]' : 'px-4 py-2 text-xs')}
-                >
-                  <Plus className="h-4 w-4" />
-                  {lang === 'en' ? 'Upload Dua' : 'رفع دعاء'}
-                </button>
-              </div>
-            )}
+    <div className={cn('min-h-screen bg-app-bg transition-all', nativeApp ? 'pt-16 pb-28' : 'pt-40 pb-20')}>
+      <div className="container mx-auto px-6">
+        
+        {/* Header */}
+        <header className={cn('mb-10', lang === 'ar' && 'text-right')}>
+          <div className={cn('flex items-center gap-4 mb-6', lang === 'ar' && 'flex-row-reverse')}>
+             {!nativeApp && (
+               <Link to="/" className="p-3 rounded-2xl bg-white/5 text-app-accent hover:bg-white/10 transition-all">
+                  <ArrowLeft className={cn("h-5 w-5", lang === 'ar' && "rotate-180")} />
+               </Link>
+             )}
+             <div>
+               <h1 className="text-4xl md:text-5xl font-bold text-app-text tracking-tight">{t.title}</h1>
+               <p className="text-app-muted mt-2 max-w-2xl">{t.subtitle}</p>
+             </div>
           </div>
 
-          {error && (
-            <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
-              {error}
-            </div>
-          )}
+          {/* Tab Switcher */}
+          <div className={cn("flex flex-wrap gap-2 p-1.5 rounded-[2rem] bg-app-card/30 border border-white/5 w-fit", lang === 'ar' && "ml-auto flex-row-reverse")}>
+             {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSearchParams({ tab: tab.id })}
+                  className={cn(
+                    "flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all",
+                    currentTab === tab.id 
+                      ? "bg-app-accent text-app-bg shadow-lg scale-105" 
+                      : "text-app-muted hover:text-app-text hover:bg-white/5"
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+             ))}
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main>
+          {error && <div className="mb-8 p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
 
           {loading ? (
-            <div className="flex justify-center py-24">
-              <Loader2 className="h-8 w-8 animate-spin text-app-accent" />
+            <div className="flex flex-col items-center justify-center py-32 gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-app-accent" />
+              <span className="text-xs font-bold uppercase tracking-widest text-app-muted animate-pulse">Loading Wisdom...</span>
             </div>
-          ) : items.length === 0 ? (
-            <div className="rounded-[3rem] border border-dashed border-white/10 bg-app-card p-12 text-center">
-              <h2 className="mb-3 text-2xl font-bold text-app-text">{t.emptyTitle}</h2>
-              <p className="text-app-muted">{t.emptyBody}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {items.map((item, index) => {
-                const Icon = getIcon(item.category);
-                const title = lang === 'ar' ? item.title_ar : item.title_en;
-                const summary = lang === 'ar' ? item.summary_ar : item.summary_en;
-                const body = lang === 'ar' ? item.body_ar : item.body_en;
-                const accentLabel =
-                  lang === 'ar'
-                    ? item.accent_label_ar || t.categories[item.category]
-                    : item.accent_label_en || t.categories[item.category];
+          ) : currentTab === 'dhikr' ? (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl mx-auto py-12 text-center">
+                <div className="mb-12 p-10 rounded-[4rem] bg-app-card border border-white/10 shadow-3xl">
+                  <h3 className="text-xs font-black uppercase tracking-[0.3em] text-app-accent mb-4">{t.dhikr.title}</h3>
+                  <div className="mb-10">
+                    <motion.p key={dhikrIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-bold text-app-text mb-4">{t.dhikr.phrases[dhikrIndex]}</motion.p>
+                    <button onClick={() => { setDhikrIndex((c) => (c + 1) % t.dhikr.phrases.length); setDhikrCount(0); }} className="mx-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors">
+                      <RefreshCw className="h-3 w-3" /> {t.dhikr.change}
+                    </button>
+                  </div>
 
-                return (
-                  <motion.article
-                    key={item.id}
-                    initial={{ opacity: 0, y: 18 }}
+                  <div 
+                    onClick={() => setDhikrCount(c => c + 1)}
+                    className="mx-auto w-48 h-48 rounded-full border-8 border-app-accent/10 flex flex-col items-center justify-center cursor-pointer hover:bg-app-accent/5 active:scale-90 transition-all select-none"
+                  >
+                    <span className="text-6xl font-serif text-app-accent">{dhikrCount}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/40">{t.dhikr.count}</span>
+                  </div>
+
+                  <button onClick={() => setDhikrCount(0)} className="mt-10 px-8 py-3 rounded-xl bg-white/5 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-red-400 transition-all border border-white/5">
+                    {t.dhikr.reset}
+                  </button>
+                </div>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <AnimatePresence mode="popLayout">
+                {/* Daily Entries (Inspiration, Hadith, Dua) */}
+                {currentTab !== 'others' && dailyEntries.map((entry, idx) => (
+                  <motion.div 
+                    key={entry.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.04 }}
-                    className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-app-card shadow-xl"
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="p-8 rounded-[3rem] bg-app-card border border-white/5 shadow-xl group hover:border-app-accent/20 transition-all"
+                  >
+                     <div className={cn("flex items-center justify-between mb-6", lang === 'ar' && "flex-row-reverse")}>
+                        <span className="px-4 py-1.5 rounded-full bg-app-accent/10 border border-app-accent/20 text-app-accent text-[10px] font-black uppercase tracking-widest">
+                          {entry.source_type}
+                        </span>
+                        {profile?.role === 'admin' && (
+                          <button onClick={() => handleDeleteEntry(entry.id, false)} className="p-2 rounded-xl bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                     </div>
+                     <h3 className={cn("text-2xl font-bold text-app-text mb-4 leading-tight", lang === 'ar' && "text-right")}>
+                       {lang === 'ar' ? entry.title_ar || entry.title : entry.title}
+                     </h3>
+                     <p className={cn("text-lg font-serif italic text-app-text/90 mb-8 leading-relaxed", lang === 'ar' && "text-right font-normal")}>
+                        {lang === 'ar' ? entry.arabic_text : entry.english_text}
+                     </p>
+                     
+                     <div className={cn("pt-6 border-t border-white/5 space-y-2", lang === 'ar' && "text-right")}>
+                        <p className="text-xs text-app-muted leading-relaxed">
+                          <span className="font-bold text-app-text opacity-50 uppercase tracking-tighter mr-2">{t.source}:</span>
+                          {entry.source_reference}
+                        </p>
+                        {entry.authenticity_notes && (
+                          <p className="text-xs text-app-muted leading-relaxed italic">
+                            <span className="font-bold text-app-text opacity-50 uppercase tracking-tighter mr-2">{t.authenticity}:</span>
+                            {entry.authenticity_notes}
+                          </p>
+                        )}
+                     </div>
+                  </motion.div>
+                ))}
+
+                {/* Legacy Guidance Items (Articles) */}
+                {currentTab === 'others' && guidanceItems.map((item, idx) => (
+                  <motion.div 
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="overflow-hidden rounded-[3rem] bg-app-card border border-white/5 shadow-xl group"
                   >
                     {item.image_url && (
-                      <div className="aspect-[4/3] overflow-hidden">
-                        <img src={item.image_url} alt={title} className="h-full w-full object-cover" />
-                      </div>
-                    )}
-
-                    <div className="p-8">
-                      <div
-                        className={cn(
-                          'mb-5 flex items-center justify-between gap-3',
-                          lang === 'ar' && 'flex-row-reverse'
-                        )}
-                      >
-                        <span className="rounded-full bg-app-accent/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-app-accent">
-                          {accentLabel}
-                        </span>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-app-text">
-                          <Icon className="h-5 w-5" />
+                        <div className="aspect-video overflow-hidden">
+                          <img src={item.image_url} alt={item.title_en} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                         </div>
-                      </div>
-
-                      <h2 className="mb-4 text-2xl font-bold text-app-text">{title}</h2>
-                      <p className="mb-3 text-sm leading-relaxed text-app-muted">{summary}</p>
-                      <div className="mb-6 whitespace-pre-line text-sm leading-7 text-app-text/90">{body}</div>
-
-                      <div className={cn("flex items-center justify-between border-t border-white/5 pt-6", lang === 'ar' && "flex-row-reverse")}>
-                        {item.source_reference ? (
-                          <div className="text-xs text-app-muted font-bold">
-                            <span className="text-app-text opacity-50">{t.source}: </span>
-                            {item.source_reference}
-                          </div>
-                        ) : <div />}
-
-                        {profile?.role === 'admin' && (
-                          <div className="flex gap-2">
-                            <button onClick={() => handleDeleteGuidance(item)} disabled={deletingId === item.id} className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50">
-                              {deletingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    )}
+                    <div className="p-8">
+                       <div className={cn("flex items-center justify-between mb-4", lang === 'ar' && "flex-row-reverse")}>
+                          <span className="px-3 py-1 rounded-full bg-white/5 text-[10px] font-black uppercase tracking-widest text-app-muted">
+                            {item.category}
+                          </span>
+                          {profile?.role === 'admin' && (
+                            <button onClick={() => handleDeleteEntry(item.id, true)} className="p-2 rounded-xl bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                       </div>
+                       <h3 className={cn("text-2xl font-bold text-app-text mb-3", lang === 'ar' && "text-right")}>
+                         {lang === 'ar' ? item.title_ar : item.title_en}
+                       </h3>
+                       <p className={cn("text-app-text/80 text-sm leading-relaxed mb-6", lang === 'ar' && "text-right")}>
+                         {lang === 'ar' ? item.summary_ar : item.summary_en}
+                       </p>
+                       <div className={cn("flex items-center gap-2 pt-6 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>
+                         <div className="h-8 w-8 rounded-full bg-app-accent/10 flex items-center justify-center text-app-accent">
+                            <Sparkles className="h-4 w-4" />
+                         </div>
+                         <span className="text-xs font-bold text-app-muted">{t.source}: {item.source_reference}</span>
+                       </div>
                     </div>
-                  </motion.article>
-                );
-              })}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
-        </div>
-      </div>
 
+          {!loading && currentTab !== 'dhikr' && (currentTab === 'others' ? guidanceItems.length === 0 : dailyEntries.length === 0) && (
+            <div className="py-24 text-center">
+              <div className="inline-flex h-20 w-20 items-center justify-center rounded-[2rem] bg-white/5 text-app-muted mb-6">
+                <Sparkles className="h-10 w-10 opacity-20" />
+              </div>
+              <h2 className="text-2xl font-bold text-app-text mb-2">{t.emptyTitle}</h2>
+              <p className="text-app-muted">{t.emptyBody}</p>
+            </div>
+          )}
+        </main>
+      </div>
+      
+      {/* Modals for Admin Creation */}
       <CreatePostModal
         isOpen={!!uploadCategory}
         onClose={() => setUploadCategory(null)}
         lang={lang}
         initialCategorySlug={uploadCategory}
         initialType="article"
-        onSuccess={() => {
-          setUploadCategory(null);
-          void load();
-          window.dispatchEvent(new Event('posts-updated'));
-        }}
+        onSuccess={() => { setUploadCategory(null); void load(); }}
       />
-
-      {editingPost && (
-        <CreatePostModal
-          isOpen={!!editingPost}
-          onClose={() => setEditingPost(null)}
-          lang={lang}
-          postToEdit={editingPost}
-          categoryFilter="all"
-          onSuccess={() => {
-            setEditingPost(null);
-            void load();
-          }}
-        />
-      )}
-    </>
+    </div>
   );
 };

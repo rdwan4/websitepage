@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FileText, ArrowLeft, Search, Clock, User, Heart, MessageSquare, Plus, Trash2, Pencil, Share2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
-import { PostViewerModal } from '../components/PostViewerModal';
 import { buildPostPath } from '../lib/postRoutes';
 import { isNativeApp } from '../lib/runtime';
 import { getPostPreviewImage } from '../lib/media';
@@ -30,6 +29,7 @@ const isArticlesCategory = (post: Post) => {
 };
 
 export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const nativeApp = isNativeApp();
   const [articles, setArticles] = useState<Post[]>([]);
@@ -38,8 +38,6 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
-  const [activePost, setActivePost] = useState<Post | null>(null);
-  const [activeCoursePosts, setActiveCoursePosts] = useState<Post[] | null>(null);
   const [activeParentForCreate, setActiveParentForCreate] = useState<Post | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -130,10 +128,6 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
       setDeletingId(postId);
       await postService.deletePost(postId);
       if (editingPost?.id === postId) setEditingPost(null);
-      if (activePost?.id === postId) {
-        setActivePost(null);
-        setActiveCoursePosts(null);
-      }
       await fetchArticles();
     } catch (error) {
       console.error('Error deleting article:', error);
@@ -172,29 +166,8 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
 
   return (
     <>
-      <PostViewerModal
-        isOpen={!!activePost}
-        onClose={() => {
-          setActivePost(null);
-          setActiveCoursePosts(null);
-        }}
-        post={activePost}
-        coursePosts={activeCoursePosts}
-        lang={lang}
-        onUpdated={() => void fetchArticles()}
-        onRequestEdit={(p) => {
-          setActivePost(null);
-          setEditingPost(p);
-        }}
-        onRequestAddChild={(p) => {
-          setActivePost(null);
-          setActiveCoursePosts(null);
-          setActiveParentForCreate(p);
-          setIsCreateOpen(true);
-        }}
-      />
 
-      <div className={cn('min-h-screen bg-app-bg pt-20 md:pt-32', nativeApp ? 'pb-28 md:pb-20' : 'pb-24 md:pb-20')}>
+      <div className={cn('min-h-screen bg-app-bg pt-20 md:pt-44', nativeApp ? 'pb-28 md:pb-20' : 'pb-24 md:pb-20')}>
         <div className="container mx-auto px-4 sm:px-6">
           <div className={cn('flex flex-col gap-4 md:flex-row md:items-center md:justify-between', nativeApp ? 'mb-6 md:mb-12' : 'mb-8 md:mb-16', lang === 'ar' && 'md:flex-row-reverse text-right')}>
             <div className="max-w-3xl">
@@ -270,9 +243,10 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                   className={cn(
-                    'group flex flex-col overflow-hidden border border-white/5 bg-app-card transition-all hover:border-app-accent/30 md:flex-row',
+                    'group flex flex-col overflow-hidden border border-white/5 bg-app-card transition-all hover:border-app-accent/30 md:flex-row cursor-pointer',
                     nativeApp ? 'rounded-[1.2rem] shadow-lg md:rounded-[2rem]' : 'rounded-[1.55rem] shadow-xl md:rounded-[3rem]'
                   )}
+                  onClick={() => navigate(buildPostPath(course.startPost))}
                 >
                   {previewImage && (
                     <div className={cn('relative w-full overflow-hidden md:h-auto md:w-2/5', nativeApp ? 'h-44' : 'h-52')}>
@@ -306,10 +280,9 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                     <p className={cn('flex-1 text-sm text-app-muted', nativeApp ? 'mb-3 line-clamp-2 leading-5.5 md:mb-5' : 'mb-4 line-clamp-2 leading-6 md:mb-8 md:line-clamp-3 md:leading-7')}>{course.previewPost.content}</p>
                     <div className={cn(nativeApp ? 'flex flex-col gap-2.5 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:justify-between md:pt-5' : 'flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between md:gap-4 md:pt-6', lang === 'ar' && 'sm:flex-row-reverse')}>
                       <button
-                        onClick={async () => {
-                          setActivePost(course.startPost);
-                          const fullCourse = await postService.getCoursePosts(course.key);
-                          setActiveCoursePosts(fullCourse && fullCourse.length > 0 ? fullCourse : course.posts);
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(buildPostPath(course.startPost));
                         }}
                         className="text-app-accent text-sm font-bold hover:underline flex items-center gap-2"
                       >
@@ -318,7 +291,10 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                       <div className="flex flex-wrap items-center gap-3 md:gap-4">
                         {canManagePost(course.startPost) && (
                           <button
-                            onClick={() => setEditingPost(course.startPost)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPost(course.startPost);
+                            }}
                             className="text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 text-xs"
                           >
                             <Pencil className="w-4 h-4" />
@@ -327,7 +303,10 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                         )}
                         {canManagePost(course.startPost) && (
                           <button
-                            onClick={() => void handleDeleteArticle(course.startPost.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeleteArticle(course.startPost.id);
+                            }}
                             disabled={deletingId === course.startPost.id}
                             className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
                           >
@@ -337,7 +316,10 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                         )}
                         {canManagePost(course.startPost) && (
                           <button
-                            onClick={() => void handleShareArticle(course.startPost)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleShareArticle(course.startPost);
+                            }}
                             className="text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 text-xs"
                           >
                             <Share2 className="w-4 h-4" />
