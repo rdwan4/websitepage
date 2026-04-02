@@ -44,6 +44,8 @@ export const RichTextEditor = ({
   dir?: 'ltr' | 'rtl';
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+  const rememberSelectionTimeoutRef = useRef<number | null>(null);
   const [customFontSize, setCustomFontSize] = useState('16');
   const [isFocused, setIsFocused] = useState(false);
   const [isEmpty, setIsEmpty] = useState(!value.trim());
@@ -67,15 +69,55 @@ export const RichTextEditor = ({
     onChange(html);
   };
 
+  const rememberSelection = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+
+    if (!editor || !selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+
+    savedRangeRef.current = range.cloneRange();
+  };
+
+  const queueRememberSelection = () => {
+    if (typeof window === 'undefined') return;
+
+    if (rememberSelectionTimeoutRef.current) {
+      window.clearTimeout(rememberSelectionTimeoutRef.current);
+    }
+
+    rememberSelectionTimeoutRef.current = window.setTimeout(() => {
+      rememberSelection();
+      rememberSelectionTimeoutRef.current = null;
+    }, 0);
+  };
+
+  const restoreSelection = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    const savedRange = savedRangeRef.current;
+
+    if (!editor || !selection || !savedRange) return;
+
+    editor.focus();
+    selection.removeAllRanges();
+    selection.addRange(savedRange.cloneRange());
+  };
+
   const focusEditor = () => {
     editorRef.current?.focus();
+    restoreSelection();
   };
 
   const runCommand = (command: string, commandValue?: string) => {
     focusEditor();
+    rememberSelection();
     document.execCommand('styleWithCSS', false, 'true');
     document.execCommand(command, false, commandValue);
     emitChange();
+    rememberSelection();
   };
 
   const applyInlineStyle = (styles: Record<string, string>) => {
@@ -97,12 +139,14 @@ export const RichTextEditor = ({
       const marker = buildStyledSpan('\u200b', styles);
       document.execCommand('insertHTML', false, marker);
       emitChange();
+      rememberSelection();
       return;
     }
 
     const finalHtml = buildStyledSpan(html || escapeHtml(selectedText), styles);
     document.execCommand('insertHTML', false, finalHtml);
     emitChange();
+    rememberSelection();
   };
 
   const applyFontFamily = (fontFamily: string) => {
@@ -115,6 +159,35 @@ export const RichTextEditor = ({
 
   const toolbarButtonClass =
     'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all';
+
+  const preserveEditorSelection = (event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    focusEditor();
+  };
+
+  const preserveEditorSelectionOnTouch = (event: React.TouchEvent<HTMLElement>) => {
+    event.preventDefault();
+    focusEditor();
+  };
+
+  const captureSelectionBeforeControlFocus = () => {
+    queueRememberSelection();
+  };
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      queueRememberSelection();
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      if (rememberSelectionTimeoutRef.current && typeof window !== 'undefined') {
+        window.clearTimeout(rememberSelectionTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
@@ -131,6 +204,8 @@ export const RichTextEditor = ({
           <div className="flex min-w-max flex-wrap items-center gap-2">
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('bold')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -138,6 +213,8 @@ export const RichTextEditor = ({
             </button>
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('italic')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -145,6 +222,8 @@ export const RichTextEditor = ({
             </button>
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('insertUnorderedList')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -152,6 +231,8 @@ export const RichTextEditor = ({
             </button>
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('formatBlock', 'blockquote')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -159,6 +240,8 @@ export const RichTextEditor = ({
             </button>
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('formatBlock', 'h2')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -166,6 +249,8 @@ export const RichTextEditor = ({
             </button>
             <button
               type="button"
+              onMouseDown={preserveEditorSelection}
+              onTouchStart={preserveEditorSelectionOnTouch}
               onClick={() => runCommand('formatBlock', 'h3')}
               className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
@@ -173,6 +258,8 @@ export const RichTextEditor = ({
             </button>
             <select
               defaultValue=""
+              onPointerDown={captureSelectionBeforeControlFocus}
+              onTouchStart={captureSelectionBeforeControlFocus}
               onChange={(e) => {
                 if (!e.target.value) return;
                 applyFontFamily(e.target.value);
@@ -189,6 +276,8 @@ export const RichTextEditor = ({
             </select>
             <select
               defaultValue=""
+              onPointerDown={captureSelectionBeforeControlFocus}
+              onTouchStart={captureSelectionBeforeControlFocus}
               onChange={(e) => {
                 if (!e.target.value) return;
                 applyFontSize(e.target.value);
@@ -209,11 +298,15 @@ export const RichTextEditor = ({
                 min={8}
                 max={96}
                 value={customFontSize}
+                onPointerDown={captureSelectionBeforeControlFocus}
+                onTouchStart={captureSelectionBeforeControlFocus}
                 onChange={(e) => setCustomFontSize(e.target.value)}
                 className="w-12 bg-transparent text-xs text-app-text outline-none"
               />
               <button
                 type="button"
+                onMouseDown={preserveEditorSelection}
+                onTouchStart={preserveEditorSelectionOnTouch}
                 onClick={() => {
                   const size = Math.max(8, Math.min(96, Number(customFontSize) || 16));
                   applyFontSize(`${size}px`);
@@ -229,6 +322,8 @@ export const RichTextEditor = ({
                   key={color}
                   type="button"
                   aria-label={`Set color ${color}`}
+                  onMouseDown={preserveEditorSelection}
+                  onTouchStart={preserveEditorSelectionOnTouch}
                   onClick={() => applyInlineStyle({ color })}
                   className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                   style={{ backgroundColor: color }}
@@ -245,9 +340,13 @@ export const RichTextEditor = ({
           contentEditable
           suppressContentEditableWarning
           dir={dir}
+          onMouseUp={queueRememberSelection}
+          onTouchEnd={queueRememberSelection}
+          onKeyUp={queueRememberSelection}
           onInput={emitChange}
           onBlur={() => {
             setIsFocused(false);
+            queueRememberSelection();
             emitChange();
           }}
           onFocus={() => setIsFocused(true)}
