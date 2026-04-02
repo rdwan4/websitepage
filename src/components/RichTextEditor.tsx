@@ -1,10 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { TextStyle } from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import { Extension } from '@tiptap/core';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
+import { normalizeEditorHtml } from '../lib/postContent';
 
 const FONT_OPTIONS = [
   { label: 'Sans', value: 'var(--app-font-sans)' },
@@ -17,71 +13,24 @@ const FONT_OPTIONS = [
 const COLOR_OPTIONS = ['#f8fafc', '#10b981', '#f59e0b', '#ef4444', '#38bdf8', '#a78bfa', '#f472b6'];
 const FONT_SIZE_OPTIONS = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px'];
 
-const FontFamily = Extension.create({
-  name: 'fontFamily',
-  addGlobalAttributes() {
-    return [
-      {
-        types: ['textStyle'],
-        attributes: {
-          fontFamily: {
-            default: null,
-            parseHTML: (element) => element.style.fontFamily || null,
-            renderHTML: (attributes) => {
-              if (!attributes.fontFamily) return {};
-              return { style: `font-family: ${attributes.fontFamily}` };
-            },
-          },
-        },
-      },
-    ];
-  },
-  addCommands() {
-    return {
-      setFontFamily:
-        (fontFamily: string) =>
-        ({ chain }) =>
-          chain().setMark('textStyle', { fontFamily }).run(),
-      unsetFontFamily:
-        () =>
-        ({ chain }) =>
-          chain().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run(),
-    } as any;
-  },
-});
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-const FontSize = Extension.create({
-  name: 'fontSize',
-  addGlobalAttributes() {
-    return [
-      {
-        types: ['textStyle'],
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element) => element.style.fontSize || null,
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
-          },
-        },
-      },
-    ];
-  },
-  addCommands() {
-    return {
-      setFontSize:
-        (fontSize: string) =>
-        ({ chain }) =>
-          chain().setMark('textStyle', { fontSize }).run(),
-      unsetFontSize:
-        () =>
-        ({ chain }) =>
-          chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
-    } as any;
-  },
-});
+const normalizeInitialHtml = (value: string) => normalizeEditorHtml(value) || '<p></p>';
+
+const buildStyledSpan = (html: string, styles: Record<string, string>) => {
+  const styleText = Object.entries(styles)
+    .filter(([, styleValue]) => styleValue)
+    .map(([key, styleValue]) => `${key}: ${styleValue}`)
+    .join('; ');
+
+  return `<span style="${styleText}">${html}</span>`;
+};
 
 export const RichTextEditor = ({
   value,
@@ -94,45 +43,78 @@ export const RichTextEditor = ({
   placeholder?: string;
   dir?: 'ltr' | 'rtl';
 }) => {
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const [customFontSize, setCustomFontSize] = useState('16');
-  const editor = useEditor({
-    extensions: [StarterKit, TextStyle, Color, FontFamily, FontSize],
-    content: value || '<p></p>',
-    immediatelyRender: false,
-    onUpdate: ({ editor: currentEditor }) => {
-      onChange(currentEditor.getHTML());
-    },
-    editorProps: {
-      attributes: {
-        class: cn(
-          'min-h-[180px] rounded-b-xl bg-app-bg px-4 py-3 text-app-text focus:outline-none',
-          dir === 'rtl' && 'text-right'
-        ),
-        'data-placeholder': placeholder || '',
-        dir,
-      },
-    },
-  });
+  const [isFocused, setIsFocused] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(!value.trim());
 
   useEffect(() => {
+    const editor = editorRef.current;
     if (!editor) return;
-    if (editor.getHTML() === value) return;
-    editor.commands.setContent(value || '<p></p>', { emitUpdate: false });
-  }, [editor, value]);
+    if (editor.innerHTML === value) return;
+    if (document.activeElement === editor) return;
 
-  if (!editor) return null;
+    editor.innerHTML = normalizeInitialHtml(value);
+    setIsEmpty(!editor.textContent?.trim());
+  }, [value]);
 
-  const currentColor = editor.getAttributes('textStyle').color || '#f8fafc';
-  const currentFont = editor.getAttributes('textStyle').fontFamily || FONT_OPTIONS[0].value;
-  const currentFontSize = editor.getAttributes('textStyle').fontSize || '16px';
+  const emitChange = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
 
-  const chain = () => editor.chain().focus() as any;
+    const html = editor.innerHTML === '<br>' ? '' : editor.innerHTML;
+    setIsEmpty(!editor.textContent?.trim());
+    onChange(html);
+  };
+
+  const focusEditor = () => {
+    editorRef.current?.focus();
+  };
+
+  const runCommand = (command: string, commandValue?: string) => {
+    focusEditor();
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand(command, false, commandValue);
+    emitChange();
+  };
+
+  const applyInlineStyle = (styles: Record<string, string>) => {
+    focusEditor();
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current?.contains(range.commonAncestorContainer)) return;
+
+    const selectedText = range.toString();
+    const selectedHtml = range.cloneContents();
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(selectedHtml);
+    const html = wrapper.innerHTML;
+
+    if (!selectedText && !html) {
+      const marker = buildStyledSpan('\u200b', styles);
+      document.execCommand('insertHTML', false, marker);
+      emitChange();
+      return;
+    }
+
+    const finalHtml = buildStyledSpan(html || escapeHtml(selectedText), styles);
+    document.execCommand('insertHTML', false, finalHtml);
+    emitChange();
+  };
+
+  const applyFontFamily = (fontFamily: string) => {
+    applyInlineStyle({ 'font-family': fontFamily });
+  };
+
+  const applyFontSize = (fontSize: string) => {
+    applyInlineStyle({ 'font-size': fontSize });
+  };
+
   const toolbarButtonClass =
     'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all';
-
-  useEffect(() => {
-    setCustomFontSize(String(parseInt(currentFontSize, 10) || 16));
-  }, [currentFontSize]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
@@ -149,69 +131,56 @@ export const RichTextEditor = ({
           <div className="flex min-w-max flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => chain().toggleBold().run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('bold') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('bold')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               Bold
             </button>
             <button
               type="button"
-              onClick={() => chain().toggleItalic().run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('italic') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('italic')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               Italic
             </button>
             <button
               type="button"
-              onClick={() => chain().toggleBulletList().run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('bulletList') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('insertUnorderedList')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               List
             </button>
             <button
               type="button"
-              onClick={() => chain().toggleBlockquote().run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('blockquote') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('formatBlock', 'blockquote')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               Quote
             </button>
             <button
               type="button"
-              onClick={() => chain().toggleHeading({ level: 2 }).run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('heading', { level: 2 }) ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('formatBlock', 'h2')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               H2
             </button>
             <button
               type="button"
-              onClick={() => chain().toggleHeading({ level: 3 }).run()}
-              className={cn(
-                toolbarButtonClass,
-                editor.isActive('heading', { level: 3 }) ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
-              )}
+              onClick={() => runCommand('formatBlock', 'h3')}
+              className={cn(toolbarButtonClass, 'bg-white/5 text-app-text')}
             >
               H3
             </button>
             <select
-              value={currentFont}
-              onChange={(e) => chain().setFontFamily(e.target.value).run()}
+              defaultValue=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                applyFontFamily(e.target.value);
+                e.target.value = '';
+              }}
               className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
             >
+              <option value="">Font</option>
               {FONT_OPTIONS.map((font) => (
                 <option key={font.value} value={font.value}>
                   {font.label}
@@ -219,10 +188,15 @@ export const RichTextEditor = ({
               ))}
             </select>
             <select
-              value={currentFontSize}
-              onChange={(e) => chain().setFontSize(e.target.value).run()}
+              defaultValue=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                applyFontSize(e.target.value);
+                e.target.value = '';
+              }}
               className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
             >
+              <option value="">Size</option>
               {FONT_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
                   {size}
@@ -242,7 +216,7 @@ export const RichTextEditor = ({
                 type="button"
                 onClick={() => {
                   const size = Math.max(8, Math.min(96, Number(customFontSize) || 16));
-                  chain().setFontSize(`${size}px`).run();
+                  applyFontSize(`${size}px`);
                 }}
                 className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-app-text"
               >
@@ -255,11 +229,8 @@ export const RichTextEditor = ({
                   key={color}
                   type="button"
                   aria-label={`Set color ${color}`}
-                  onClick={() => chain().setColor(color).run()}
-                  className={cn(
-                    'h-6 w-6 rounded-full border-2 transition-all',
-                    currentColor === color ? 'border-white' : 'border-transparent'
-                  )}
+                  onClick={() => applyInlineStyle({ color })}
+                  className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                   style={{ backgroundColor: color }}
                 />
               ))}
@@ -267,10 +238,28 @@ export const RichTextEditor = ({
           </div>
         </div>
       </div>
+
       <div className="max-h-[260px] overflow-y-auto">
-        <EditorContent editor={editor} />
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          dir={dir}
+          onInput={emitChange}
+          onBlur={() => {
+            setIsFocused(false);
+            emitChange();
+          }}
+          onFocus={() => setIsFocused(true)}
+          className={cn(
+            'min-h-[180px] rounded-b-xl bg-app-bg px-4 py-3 text-app-text focus:outline-none',
+            dir === 'rtl' && 'text-right'
+          )}
+          dangerouslySetInnerHTML={{ __html: normalizeInitialHtml(value) }}
+        />
       </div>
-      {!editor.getText().trim() && placeholder ? (
+
+      {!isFocused && isEmpty && placeholder ? (
         <div
           className={cn(
             'pointer-events-none -mt-[172px] px-4 py-3 text-sm text-app-muted/70',

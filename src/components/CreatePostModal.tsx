@@ -17,7 +17,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
 import { getVideoThumbnailUrl } from '../lib/media';
-import { EditorErrorBoundary } from './EditorErrorBoundary';
+import { normalizeEditorHtml, splitCombinedPostValue, splitCombinedTextValue } from '../lib/postContent';
 import { RichTextEditor } from './RichTextEditor';
 import { Category, ContentCategory, Post, PostType } from '../types';
 
@@ -208,13 +208,20 @@ export const CreatePostModal = ({
 
   useEffect(() => {
     if (postToEdit) {
-      setPostLanguage('both');
-      setTitle(postToEdit.title);
-      setContent(postToEdit.content);
-      setExcerpt(postToEdit.excerpt || '');
-      setSecondaryTitle('');
-      setSecondaryContent('');
-      setSecondaryExcerpt('');
+      const titleParts = splitCombinedTextValue(postToEdit.title);
+      const excerptParts = splitCombinedTextValue(postToEdit.excerpt || '');
+      const contentParts = splitCombinedPostValue(postToEdit.content);
+      const hasSecondaryContent = Boolean(
+        titleParts.secondary || excerptParts.secondary || contentParts.secondary
+      );
+
+      setPostLanguage(hasSecondaryContent ? 'both' : 'en');
+      setTitle(titleParts.primary);
+      setContent(normalizeEditorHtml(contentParts.primary));
+      setExcerpt(excerptParts.primary);
+      setSecondaryTitle(titleParts.secondary);
+      setSecondaryContent(normalizeEditorHtml(contentParts.secondary));
+      setSecondaryExcerpt(excerptParts.secondary);
       setCategoryId(postToEdit.category_id || '');
       setImageUrl(postToEdit.image_url || '');
       setMediaUrl(postToEdit.media_url || '');
@@ -264,10 +271,10 @@ export const CreatePostModal = ({
       setType(parsed.type || initialType || 'article');
       setPostLanguage(parsed.postLanguage || (lang === 'ar' ? 'ar' : 'en'));
       setTitle(parsed.title || '');
-      setContent(parsed.content || '');
+      setContent(normalizeEditorHtml(parsed.content || ''));
       setExcerpt(parsed.excerpt || '');
       setSecondaryTitle(parsed.secondaryTitle || '');
-      setSecondaryContent(parsed.secondaryContent || '');
+      setSecondaryContent(normalizeEditorHtml(parsed.secondaryContent || ''));
       setSecondaryExcerpt(parsed.secondaryExcerpt || '');
       setCategoryId(lockedCategory?.id || parsed.categoryId || categoryId || '');
       setImageUrl(parsed.imageUrl || '');
@@ -408,10 +415,10 @@ export const CreatePostModal = ({
     setError(null);
 
     const normalizedPrimaryTitle = title.trim();
-    const normalizedPrimaryContent = content.trim();
+    const normalizedPrimaryContent = normalizeEditorHtml(content).trim();
     const normalizedPrimaryExcerpt = excerpt.trim();
     const normalizedSecondaryTitle = secondaryTitle.trim();
-    const normalizedSecondaryContent = secondaryContent.trim();
+    const normalizedSecondaryContent = normalizeEditorHtml(secondaryContent).trim();
     const normalizedSecondaryExcerpt = secondaryExcerpt.trim();
 
     const finalTitle = postLanguage === 'both' && normalizedSecondaryTitle
@@ -598,35 +605,10 @@ export const CreatePostModal = ({
                         {lang === 'en' ? 'Article Content' : 'محتوى المقال'}
                       </label>
                       {(postLanguage === 'en' || postLanguage === 'both') && (
-                        <EditorErrorBoundary
-                          fallback={
-                            <textarea
-                              rows={4}
-                              value={content}
-                              onChange={(e) => setContent(e.target.value)}
-                              className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
-                              placeholder="English content..."
-                            />
-                          }
-                        >
-                          <RichTextEditor value={content} onChange={setContent} placeholder="English content..." dir="ltr" />
-                        </EditorErrorBoundary>
+                        <RichTextEditor value={content} onChange={setContent} placeholder="English content..." dir="ltr" />
                       )}
                       {(postLanguage === 'ar' || postLanguage === 'both') && (
-                        <EditorErrorBoundary
-                          fallback={
-                            <textarea
-                              rows={4}
-                              value={secondaryContent}
-                              onChange={(e) => setSecondaryContent(e.target.value)}
-                              dir="rtl"
-                              className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
-                              placeholder="المحتوى بالعربي..."
-                            />
-                          }
-                        >
-                          <RichTextEditor value={secondaryContent} onChange={setSecondaryContent} placeholder="Arabic content..." dir="rtl" />
-                        </EditorErrorBoundary>
+                        <RichTextEditor value={secondaryContent} onChange={setSecondaryContent} placeholder="Arabic content..." dir="rtl" />
                       )}
                     </div>
 
@@ -723,3 +705,4 @@ export const CreatePostModal = ({
     </AnimatePresence>
   );
 };
+

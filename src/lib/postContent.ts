@@ -33,6 +33,14 @@ const ALLOWED_FONT_FAMILIES = [
 
 const isAllowedFontSize = (value: string) => /^([89]|[1-8]\d|9[0-6])px$/.test(value);
 
+const escapePlainTextToHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export const isLikelyRichTextHtml = (value?: string | null) =>
   Boolean(value && /<\/?[a-z][\s\S]*>/i.test(value));
 
@@ -131,4 +139,58 @@ export const sanitizePostHtml = (value?: string | null) => {
 
   Array.from(doc.body.childNodes).forEach(sanitizeNode);
   return doc.body.innerHTML;
+};
+
+const decodeHtmlEntities = (value: string) => {
+  if (typeof window === 'undefined') return value;
+
+  const textarea = window.document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+};
+
+export const normalizeEditorHtml = (value?: string | null) => {
+  const rawValue = (value || '').trim();
+  if (!rawValue) return '';
+
+  const decodedValue = decodeHtmlEntities(rawValue);
+  const candidate = decodedValue.includes('<') || decodedValue.includes('>') ? decodedValue : rawValue;
+
+  if (isLikelyRichTextHtml(candidate)) {
+    return sanitizePostHtml(candidate);
+  }
+
+  return candidate
+    .split(/\n{2,}/)
+    .map((block) => `<p>${escapePlainTextToHtml(block).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+};
+
+export const splitCombinedPostValue = (value?: string | null) => {
+  const source = value || '';
+  const parts = source.split(/\n\s*-----\s*\n/);
+
+  if (parts.length <= 1) {
+    return { primary: source, secondary: '' };
+  }
+
+  return {
+    primary: parts[0].trim(),
+    secondary: parts.slice(1).join('\n\n-----\n\n').trim(),
+  };
+};
+
+export const splitCombinedTextValue = (value?: string | null) => {
+  const source = (value || '').trim();
+  const separator = ' / ';
+  const separatorIndex = source.indexOf(separator);
+
+  if (separatorIndex === -1) {
+    return { primary: source, secondary: '' };
+  }
+
+  return {
+    primary: source.slice(0, separatorIndex).trim(),
+    secondary: source.slice(separatorIndex + separator.length).trim(),
+  };
 };
