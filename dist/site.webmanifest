@@ -1,0 +1,19 @@
+{
+  "name": "Islamic Light",
+  "short_name": "Islamic Light",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06122e",
+  "theme_color": "#06122e",
+  "lang": "ar",
+  "dir": "rtl",
+  "description": "Bilingual Islamic platform for Quran, prayer times, articles, and trusted community knowledge.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
