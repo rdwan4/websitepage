@@ -31,6 +31,8 @@ const ALLOWED_FONT_FAMILIES = [
   '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
 ];
 
+const isAllowedFontSize = (value: string) => /^([89]|[1-8]\d|9[0-6])px$/.test(value);
+
 export const isLikelyRichTextHtml = (value?: string | null) =>
   Boolean(value && /<\/?[a-z][\s\S]*>/i.test(value));
 
@@ -69,6 +71,12 @@ const sanitizeInlineStyle = (styleValue: string) => {
     if (name === 'font-family') {
       if (ALLOWED_FONT_FAMILIES.includes(value)) {
         safeRules.push(`font-family: ${value}`);
+      }
+    }
+
+    if (name === 'font-size') {
+      if (isAllowedFontSize(value)) {
+        safeRules.push(`font-size: ${value}`);
       }
     }
   });

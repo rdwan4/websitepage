@@ -10,6 +10,7 @@ import { CreatePostModal } from '../components/CreatePostModal';
 import { buildPostPath } from '../lib/postRoutes';
 import { isNativeApp } from '../lib/runtime';
 import { getPostPreviewImage } from '../lib/media';
+import { stripHtmlToPlainText } from '../lib/postContent';
 
 interface ArticlesPageProps {
   lang: 'en' | 'ar';
@@ -147,7 +148,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
       try {
         await navigator.share({
           title: post.title,
-          text: post.excerpt || post.content.slice(0, 140),
+          text: post.excerpt || stripHtmlToPlainText(post.content).slice(0, 140),
           url: shareUrl,
         });
       } catch (error) {
@@ -277,7 +278,7 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({ lang }) => {
                         {lang === 'en' ? 'Pending Approval' : 'بانتظار الموافقة'}
                       </span>
                     )}
-                    <p className={cn('flex-1 text-sm text-app-muted', nativeApp ? 'mb-3 line-clamp-2 leading-5.5 md:mb-5' : 'mb-4 line-clamp-2 leading-6 md:mb-8 md:line-clamp-3 md:leading-7')}>{course.previewPost.content}</p>
+                    <p className={cn('flex-1 text-sm text-app-muted', nativeApp ? 'mb-3 line-clamp-2 leading-5.5 md:mb-5' : 'mb-4 line-clamp-2 leading-6 md:mb-8 md:line-clamp-3 md:leading-7')}>{course.previewPost.excerpt || stripHtmlToPlainText(course.previewPost.content)}</p>
                     <div className={cn(nativeApp ? 'flex flex-col gap-2.5 border-t border-white/5 pt-3 sm:flex-row sm:items-center sm:justify-between md:pt-5' : 'flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between md:gap-4 md:pt-6', lang === 'ar' && 'sm:flex-row-reverse')}>
                       <button
                         onClick={(e) => {

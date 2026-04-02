@@ -17,6 +17,7 @@ import { cn } from '../lib/utils';
 import { isNativeApp } from '../lib/runtime';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
+import { stripHtmlToPlainText } from '../lib/postContent';
 import { broadcastNotificationService } from '../services/broadcastNotificationService';
 import { Preferences } from '@capacitor/preferences';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -323,7 +324,7 @@ export const AccountPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                                 </span>
                               )}
                             </div>
-                            <p className="mt-1 text-sm text-app-muted line-clamp-2">{post.excerpt || post.content}</p>
+                            <p className="mt-1 text-sm text-app-muted line-clamp-2">{post.excerpt || stripHtmlToPlainText(post.content)}</p>
                           </div>
                         ))}
                       </div>

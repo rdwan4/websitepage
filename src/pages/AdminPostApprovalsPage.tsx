@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Loader2, Trash2, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
+import { stripHtmlToPlainText } from '../lib/postContent';
 import { Post } from '../types';
 import { cn } from '../lib/utils';
 
@@ -94,7 +95,7 @@ export const AdminPostApprovalsPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                     <p className="text-xs text-app-muted">
                       {post.category?.name || 'General'} · {post.author_name || post.author_id}
                     </p>
-                    <p className="mt-3 line-clamp-3 text-sm text-app-muted">{post.content}</p>
+                    <p className="mt-3 line-clamp-3 text-sm text-app-muted">{stripHtmlToPlainText(post.content)}</p>
                   </div>
                   <div className={cn('flex items-center gap-2', lang === 'ar' && 'flex-row-reverse')}>
                     <button
@@ -128,4 +129,3 @@ export const AdminPostApprovalsPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     </div>
   );
 };
-

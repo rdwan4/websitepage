@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { getPostPreviewImage } from '../lib/media';
 import { buildPostPath } from '../lib/postRoutes';
+import { stripHtmlToPlainText } from '../lib/postContent';
 
 interface VoicesPageProps {
   lang: 'en' | 'ar';
@@ -188,7 +189,7 @@ export const VoicesPage: React.FC<VoicesPageProps> = ({ lang }) => {
                     <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {course.posts.length} {lang === 'en' ? 'Lessons' : 'دروس'}</span>
                   </div>
                   <h3 className="text-2xl font-bold text-app-text mb-4 group-hover:text-app-accent transition-colors">{course.title}</h3>
-                  <p className="text-app-muted text-sm line-clamp-3 mb-8 flex-1 leading-relaxed">{course.previewPost.content}</p>
+                  <p className="text-app-muted text-sm line-clamp-3 mb-8 flex-1 leading-relaxed">{course.previewPost.excerpt || stripHtmlToPlainText(course.previewPost.content)}</p>
                   <div className={cn('flex items-center justify-between mt-auto pt-6 border-t border-white/5', lang === 'ar' && 'flex-row-reverse')}>
                     <button
                       onClick={(e) => {

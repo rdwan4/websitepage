@@ -597,31 +597,10 @@ export const CreatePostModal = ({
                         {lang === 'en' ? 'Article Content' : 'محتوى المقال'}
                       </label>
                       {(postLanguage === 'en' || postLanguage === 'both') && (
-                        <>
-                          <RichTextEditor value={content} onChange={setContent} placeholder="English content..." dir="ltr" />
-                          <div className="hidden">
-                            <textarea
-                              rows={4}
-                              value={content}
-                              onChange={(e) => setContent(e.target.value)}
-                              className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
-                              placeholder="English content..."
-                            />
-                          </div>
-                        </>
+                        <RichTextEditor value={content} onChange={setContent} placeholder="English content..." dir="ltr" />
                       )}
                       {(postLanguage === 'ar' || postLanguage === 'both') && (
-                        <>
                         <RichTextEditor value={secondaryContent} onChange={setSecondaryContent} placeholder="Arabic content..." dir="rtl" />
-                        <textarea
-                          rows={4}
-                          value={secondaryContent}
-                          onChange={(e) => setSecondaryContent(e.target.value)}
-                          dir="rtl"
-                          className="hidden w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
-                          placeholder="المحتوى بالعربي..."
-                        />
-                        </>
                       )}
                     </div>
 

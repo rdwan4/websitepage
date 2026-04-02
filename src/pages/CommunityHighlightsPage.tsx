@@ -10,6 +10,7 @@ import { CreatePostModal } from '../components/CreatePostModal';
 import { isNativeApp } from '../lib/runtime';
 import { getPostPreviewImage } from '../lib/media';
 import { buildPostPath } from '../lib/postRoutes';
+import { stripHtmlToPlainText } from '../lib/postContent';
 
 interface CommunityGroup {
   key: string;
@@ -171,7 +172,7 @@ export const CommunityHighlightsPage = ({ lang, initialCategory }: { lang: 'en' 
                     <span className="flex items-center gap-1.5 text-[10px] text-app-muted font-bold ml-auto"><Clock className="h-3 w-3" /> {new Date(group.startPost.created_at).toLocaleDateString()}</span>
                   </div>
                   <h3 className={cn("font-bold text-app-text mb-2 leading-tight group-hover:text-app-accent transition-colors line-clamp-2", nativeApp ? "text-lg" : "text-xl")}>{group.title}</h3>
-                  <p className="text-app-muted text-sm leading-relaxed mb-4 flex-1 line-clamp-2 md:line-clamp-3">{group.startPost.content}</p>
+                  <p className="text-app-muted text-sm leading-relaxed mb-4 flex-1 line-clamp-2 md:line-clamp-3">{group.startPost.excerpt || stripHtmlToPlainText(group.startPost.content)}</p>
                   <div className={cn("flex items-center justify-between border-t border-white/5 pt-4 md:pt-5", lang === 'ar' && "flex-row-reverse")}>
                     <button onClick={(e) => { 
                       e.stopPropagation();

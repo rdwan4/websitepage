@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -15,6 +15,7 @@ const FONT_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = ['#f8fafc', '#10b981', '#f59e0b', '#ef4444', '#38bdf8', '#a78bfa', '#f472b6'];
+const FONT_SIZE_OPTIONS = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px'];
 
 const FontFamily = Extension.create({
   name: 'fontFamily',
@@ -49,6 +50,39 @@ const FontFamily = Extension.create({
   },
 });
 
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize:
+        () =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
+    } as any;
+  },
+});
+
 export const RichTextEditor = ({
   value,
   onChange,
@@ -60,8 +94,9 @@ export const RichTextEditor = ({
   placeholder?: string;
   dir?: 'ltr' | 'rtl';
 }) => {
+  const [customFontSize, setCustomFontSize] = useState('16');
   const editor = useEditor({
-    extensions: [StarterKit, TextStyle, Color, FontFamily],
+    extensions: [StarterKit, TextStyle, Color, FontFamily, FontSize],
     content: value || '<p></p>',
     immediatelyRender: false,
     onUpdate: ({ editor: currentEditor }) => {
@@ -89,8 +124,13 @@ export const RichTextEditor = ({
 
   const currentColor = editor.getAttributes('textStyle').color || '#f8fafc';
   const currentFont = editor.getAttributes('textStyle').fontFamily || FONT_OPTIONS[0].value;
+  const currentFontSize = editor.getAttributes('textStyle').fontSize || '16px';
 
   const chain = () => editor.chain().focus() as any;
+
+  useEffect(() => {
+    setCustomFontSize(String(parseInt(currentFontSize, 10) || 16));
+  }, [currentFontSize]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
@@ -135,6 +175,26 @@ export const RichTextEditor = ({
         >
           Quote
         </button>
+        <button
+          type="button"
+          onClick={() => chain().toggleHeading({ level: 2 }).run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('heading', { level: 2 }) ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
+        >
+          H2
+        </button>
+        <button
+          type="button"
+          onClick={() => chain().toggleHeading({ level: 3 }).run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('heading', { level: 3 }) ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
+        >
+          H3
+        </button>
         <select
           value={currentFont}
           onChange={(e) => chain().setFontFamily(e.target.value).run()}
@@ -146,6 +206,37 @@ export const RichTextEditor = ({
             </option>
           ))}
         </select>
+        <select
+          value={currentFontSize}
+          onChange={(e) => chain().setFontSize(e.target.value).run()}
+          className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
+        >
+          {FONT_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-app-bg px-2 py-1">
+          <input
+            type="number"
+            min={8}
+            max={96}
+            value={customFontSize}
+            onChange={(e) => setCustomFontSize(e.target.value)}
+            className="w-12 bg-transparent text-xs text-app-text outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const size = Math.max(8, Math.min(96, Number(customFontSize) || 16));
+              chain().setFontSize(`${size}px`).run();
+            }}
+            className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-app-text"
+          >
+            Px
+          </button>
+        </div>
         <div className="flex items-center gap-1">
           {COLOR_OPTIONS.map((color) => (
             <button
