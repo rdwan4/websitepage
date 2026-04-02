@@ -102,6 +102,20 @@ html[lang='ar'] {
   white-space: pre-wrap;
 }
 
+.rich-editor-toolbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.rich-editor-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+.rich-editor-toolbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
 .ProseMirror p.is-editor-empty:first-child::before {
   color: color-mix(in srgb, var(--text) 55%, transparent);
   content: attr(data-placeholder);
