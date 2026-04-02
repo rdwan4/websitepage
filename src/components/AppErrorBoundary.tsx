@@ -37,6 +37,21 @@ export class AppErrorBoundary extends React.Component<Props, State> {
     }
   }
 
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error('AppErrorBoundary caught an error:', error, info);
+    try {
+      window.sessionStorage.setItem(
+        'app_last_error',
+        JSON.stringify({
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : '',
+          componentStack: info.componentStack,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    } catch {}
+  }
+
   render() {
     if (!this.state.hasError) {
       return this.props.children;
