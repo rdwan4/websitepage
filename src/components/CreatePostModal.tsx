@@ -17,7 +17,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
 import { getVideoThumbnailUrl } from '../lib/media';
-import { normalizeEditorHtml, splitCombinedPostValue, splitCombinedTextValue } from '../lib/postContent';
+import { splitCombinedPostValue, splitCombinedTextValue } from '../lib/postContent';
 import { RichTextEditor } from './RichTextEditor';
 import { Category, ContentCategory, Post, PostType } from '../types';
 
@@ -217,10 +217,10 @@ export const CreatePostModal = ({
 
       setPostLanguage(hasSecondaryContent ? 'both' : 'en');
       setTitle(titleParts.primary);
-      setContent(normalizeEditorHtml(contentParts.primary));
+      setContent(contentParts.primary);
       setExcerpt(excerptParts.primary);
       setSecondaryTitle(titleParts.secondary);
-      setSecondaryContent(normalizeEditorHtml(contentParts.secondary));
+      setSecondaryContent(contentParts.secondary);
       setSecondaryExcerpt(excerptParts.secondary);
       setCategoryId(postToEdit.category_id || '');
       setImageUrl(postToEdit.image_url || '');
@@ -271,10 +271,10 @@ export const CreatePostModal = ({
       setType(parsed.type || initialType || 'article');
       setPostLanguage(parsed.postLanguage || (lang === 'ar' ? 'ar' : 'en'));
       setTitle(parsed.title || '');
-      setContent(normalizeEditorHtml(parsed.content || ''));
+      setContent(parsed.content || '');
       setExcerpt(parsed.excerpt || '');
       setSecondaryTitle(parsed.secondaryTitle || '');
-      setSecondaryContent(normalizeEditorHtml(parsed.secondaryContent || ''));
+      setSecondaryContent(parsed.secondaryContent || '');
       setSecondaryExcerpt(parsed.secondaryExcerpt || '');
       setCategoryId(lockedCategory?.id || parsed.categoryId || categoryId || '');
       setImageUrl(parsed.imageUrl || '');
@@ -415,10 +415,10 @@ export const CreatePostModal = ({
     setError(null);
 
     const normalizedPrimaryTitle = title.trim();
-    const normalizedPrimaryContent = normalizeEditorHtml(content).trim();
+    const normalizedPrimaryContent = content.trim();
     const normalizedPrimaryExcerpt = excerpt.trim();
     const normalizedSecondaryTitle = secondaryTitle.trim();
-    const normalizedSecondaryContent = normalizeEditorHtml(secondaryContent).trim();
+    const normalizedSecondaryContent = secondaryContent.trim();
     const normalizedSecondaryExcerpt = secondaryExcerpt.trim();
 
     const finalTitle = postLanguage === 'both' && normalizedSecondaryTitle
