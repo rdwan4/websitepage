@@ -96,6 +96,40 @@ html[lang='ar'] {
   }
 }
 
+.ProseMirror {
+  min-height: 180px;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.post-content p,
+.post-content ul,
+.post-content ol,
+.post-content blockquote,
+.post-content h2,
+.post-content h3 {
+  margin-bottom: 1rem;
+}
+
+.post-content ul,
+.post-content ol {
+  padding-inline-start: 1.5rem;
+}
+
+.post-content blockquote {
+  border-inline-start: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+  padding-inline-start: 1rem;
+}
+
 [data-theme='light'] .glass {
   background: rgba(255, 253, 247, 0.82);
   border-color: rgba(17, 24, 39, 0.08);

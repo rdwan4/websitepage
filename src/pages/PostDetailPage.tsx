@@ -11,6 +11,7 @@ import { buildPostPath, getPostSection, PublicPostSection } from '../lib/postRou
 import { CreatePostModal } from '../components/CreatePostModal';
 import { siteLinks } from '../config/siteLinks';
 import { getEmbeddableVideoUrl, getPostPreviewImage } from '../lib/media';
+import { isLikelyRichTextHtml, sanitizePostHtml } from '../lib/postContent';
 
 const VIEWER_SESSION_KEY = 'viewer_session_id';
 
@@ -92,6 +93,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   const nativeApp = isNativeApp();
   const embeddedVideoUrl = useMemo(() => (post?.media_url ? getEmbeddableVideoUrl(post.media_url) : ''), [post?.media_url]);
   const previewImage = useMemo(() => getPostPreviewImage(post || {}), [post]);
+  const sanitizedContentHtml = useMemo(() => sanitizePostHtml(post?.content), [post?.content]);
 
   useEffect(() => {
     const load = async () => {
@@ -342,9 +344,16 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             </div>
 
             {/* Article Content */}
-            <div className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed whitespace-pre-wrap mb-16', lang === 'ar' && 'text-right')}>
-              {post.content}
-            </div>
+            {isLikelyRichTextHtml(post.content) ? (
+              <div
+                className={cn('post-content prose prose-invert prose-lg max-w-none text-app-text leading-relaxed mb-16', lang === 'ar' && 'text-right')}
+                dangerouslySetInnerHTML={{ __html: sanitizedContentHtml }}
+              />
+            ) : (
+              <div className={cn('post-content prose prose-invert prose-lg max-w-none text-app-text leading-relaxed whitespace-pre-wrap mb-16', lang === 'ar' && 'text-right')}>
+                {post.content}
+              </div>
+            )}
 
             {/* Post Interaction (Likes/Share) */}
             <div className={cn("flex items-center gap-6 py-8 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>
@@ -511,4 +520,3 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
     </div>
   );
 };
-

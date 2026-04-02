@@ -1,192 +1,178 @@
-import React from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useEffect } from 'react';
+import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
-
-import { 
-  Bold, 
-  Italic, 
-  List, 
-  ListOrdered, 
-  Heading1, 
-  Heading2, 
-  Quote, 
-  Undo, 
-  Redo, 
-  Type,
-  Palette
-} from 'lucide-react';
+import Color from '@tiptap/extension-color';
+import { Extension } from '@tiptap/core';
 import { cn } from '../lib/utils';
 
-interface RichTextEditorProps {
-  content: string;
-  onChange: (html: string) => void;
+const FONT_OPTIONS = [
+  { label: 'Sans', value: 'var(--app-font-sans)' },
+  { label: 'Serif', value: 'var(--app-font-serif)' },
+  { label: 'Arabic', value: '"Noto Naskh Arabic", "Amiri", serif' },
+  { label: 'Amiri', value: '"Amiri", "Noto Naskh Arabic", serif' },
+  { label: 'Mono', value: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace' },
+];
+
+const COLOR_OPTIONS = ['#f8fafc', '#10b981', '#f59e0b', '#ef4444', '#38bdf8', '#a78bfa', '#f472b6'];
+
+const FontFamily = Extension.create({
+  name: 'fontFamily',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontFamily: {
+            default: null,
+            parseHTML: (element) => element.style.fontFamily || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontFamily) return {};
+              return { style: `font-family: ${attributes.fontFamily}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontFamily:
+        (fontFamily: string) =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { fontFamily }).run(),
+      unsetFontFamily:
+        () =>
+        ({ chain }) =>
+          chain().setMark('textStyle', { fontFamily: null }).removeEmptyTextStyle().run(),
+    } as any;
+  },
+});
+
+export const RichTextEditor = ({
+  value,
+  onChange,
+  placeholder,
+  dir = 'ltr',
+}: {
+  value: string;
+  onChange: (value: string) => void;
   placeholder?: string;
-  lang?: 'en' | 'ar';
-}
-
-const MenuButton = ({ 
-  onClick, 
-  isActive = false, 
-  disabled = false, 
-  children, 
-  title 
-}: { 
-  onClick: () => void; 
-  isActive?: boolean; 
-  disabled?: boolean; 
-  children: React.ReactNode;
-  title?: string;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    title={title}
-    className={cn(
-      "h-9 w-9 flex items-center justify-center rounded-lg transition-all",
-      isActive 
-        ? "bg-app-accent text-app-bg shadow-lg shadow-app-accent/20" 
-        : "text-app-muted hover:bg-white/5 hover:text-white disabled:opacity-30"
-    )}
-  >
-    {children}
-  </button>
-);
-
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange, placeholder, lang = 'en' }) => {
+  dir?: 'ltr' | 'rtl';
+}) => {
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TextStyle,
-      Color,
-    ],
-    content,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+    extensions: [StarterKit, TextStyle, Color, FontFamily],
+    content: value || '<p></p>',
+    immediatelyRender: false,
+    onUpdate: ({ editor: currentEditor }) => {
+      onChange(currentEditor.getHTML());
     },
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-invert max-w-none min-h-[200px] outline-none px-4 py-3 focus:ring-0',
-          lang === 'ar' ? 'text-right' : 'text-left'
+          'min-h-[180px] rounded-b-xl bg-app-bg px-4 py-3 text-app-text focus:outline-none',
+          dir === 'rtl' && 'text-right'
         ),
+        'data-placeholder': placeholder || '',
+        dir,
       },
     },
   });
 
+  useEffect(() => {
+    if (!editor) return;
+    if (editor.getHTML() === value) return;
+    editor.commands.setContent(value || '<p></p>', { emitUpdate: false });
+  }, [editor, value]);
+
   if (!editor) return null;
 
-  const colors = [
-    { name: 'Default', value: '#f8fafc' }, // app-text
-    { name: 'Accent', value: '#10b981' }, // app-accent
-    { name: 'Gold', value: '#fbbf24' },   // gold
-    { name: 'Red', value: '#f87171' },    // red-400
-    { name: 'Muted', value: '#94a3b8' },  // app-muted
-  ];
+  const currentColor = editor.getAttributes('textStyle').color || '#f8fafc';
+  const currentFont = editor.getAttributes('textStyle').fontFamily || FONT_OPTIONS[0].value;
+
+  const chain = () => editor.chain().focus() as any;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-app-bg overflow-hidden flex flex-col focus-within:border-app-accent/40 transition-colors">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 bg-white/[0.02] border-b border-white/5">
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={editor.isActive('bold')}
-          title="Bold"
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-2">
+        <button
+          type="button"
+          onClick={() => chain().toggleBold().run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('bold') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
         >
-          <Bold className="h-4 w-4" />
-        </MenuButton>
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={editor.isActive('italic')}
-          title="Italic"
+          Bold
+        </button>
+        <button
+          type="button"
+          onClick={() => chain().toggleItalic().run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('italic') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
         >
-          <Italic className="h-4 w-4" />
-        </MenuButton>
-
-        <div className="w-px h-6 bg-white/5 mx-1" />
-
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          isActive={editor.isActive('heading', { level: 1 })}
-          title="Heading 1"
+          Italic
+        </button>
+        <button
+          type="button"
+          onClick={() => chain().toggleBulletList().run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('bulletList') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
         >
-          <Heading1 className="h-4 w-4" />
-        </MenuButton>
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          isActive={editor.isActive('heading', { level: 2 })}
-          title="Heading 2"
+          List
+        </button>
+        <button
+          type="button"
+          onClick={() => chain().toggleBlockquote().run()}
+          className={cn(
+            'rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all',
+            editor.isActive('blockquote') ? 'bg-app-accent text-app-bg' : 'bg-white/5 text-app-text'
+          )}
         >
-          <Heading2 className="h-4 w-4" />
-        </MenuButton>
-
-        <div className="w-px h-6 bg-white/5 mx-1" />
-
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          isActive={editor.isActive('bulletList')}
-          title="Bullet List"
+          Quote
+        </button>
+        <select
+          value={currentFont}
+          onChange={(e) => chain().setFontFamily(e.target.value).run()}
+          className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
         >
-          <List className="h-4 w-4" />
-        </MenuButton>
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          isActive={editor.isActive('orderedList')}
-          title="Numbered List"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </MenuButton>
-        <MenuButton 
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          isActive={editor.isActive('blockquote')}
-          title="Blockquote"
-        >
-          <Quote className="h-4 w-4" />
-        </MenuButton>
-
-        <div className="w-px h-6 bg-white/5 mx-1" />
-
-        {/* Color Palette */}
-        <div className="flex items-center gap-1 ml-1">
-          {colors.map((color) => (
+          {FONT_OPTIONS.map((font) => (
+            <option key={font.value} value={font.value}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center gap-1">
+          {COLOR_OPTIONS.map((color) => (
             <button
-              key={color.value}
+              key={color}
               type="button"
-              onClick={() => editor.chain().focus().setColor(color.value).run()}
+              aria-label={`Set color ${color}`}
+              onClick={() => chain().setColor(color).run()}
               className={cn(
-                "h-6 w-6 rounded-full border border-white/10 transition-transform active:scale-95",
-                editor.isActive('textStyle', { color: color.value }) && "scale-110 ring-2 ring-white/20 ring-offset-2 ring-offset-app-bg"
+                'h-6 w-6 rounded-full border-2 transition-all',
+                currentColor === color ? 'border-white' : 'border-transparent'
               )}
-              style={{ backgroundColor: color.value }}
-              title={color.name}
+              style={{ backgroundColor: color }}
             />
           ))}
         </div>
-
-        <div className="flex-1" />
-
-        <MenuButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo">
-          <Undo className="h-4 w-4" />
-        </MenuButton>
-        <MenuButton onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo">
-          <Redo className="h-4 w-4" />
-        </MenuButton>
       </div>
-
-      {/* Editor Content Area */}
-      <div className="relative">
-        {editor.isEmpty && placeholder && (
-          <div className={cn(
-            "absolute top-3 px-4 pointer-events-none text-app-muted/50 text-sm italic",
-            lang === 'ar' ? 'right-0' : 'left-0'
-          )}>
-            {placeholder}
-          </div>
-        )}
-        <EditorContent editor={editor} />
-      </div>
+      <EditorContent editor={editor} />
+      {!editor.getText().trim() && placeholder ? (
+        <div
+          className={cn(
+            'pointer-events-none -mt-[172px] px-4 py-3 text-sm text-app-muted/70',
+            dir === 'rtl' && 'text-right'
+          )}
+        >
+          {placeholder}
+        </div>
+      ) : null}
     </div>
   );
 };

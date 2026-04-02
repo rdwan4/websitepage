@@ -19,6 +19,7 @@ import {
 } from '../types';
 import { normalizeLeaderboardEntry, normalizeProfile, normalizeProfiles } from './profileUtils';
 import { isMissingTableError, toSetupMessage } from './dbErrorUtils';
+import { stripHtmlToPlainText } from '../lib/postContent';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const buildPostSelect = () => '*, category:categories(*), author:profiles(display_name, avatar_url)';
@@ -206,6 +207,7 @@ const DEFAULT_CATEGORIES: Array<Pick<Category, 'name' | 'name_ar' | 'slug'>> = [
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
 
 const buildApiUrl = (path: string) => (API_BASE_URL ? `${API_BASE_URL}${path}` : path);
+const buildExcerpt = (content?: string | null) => stripHtmlToPlainText(content).slice(0, 180);
 
 export const postService = {
   async ensureProfile(authUser: User): Promise<Profile> {
@@ -518,7 +520,7 @@ export const postService = {
   async createPost(post: Partial<Post>) {
     const payload: Partial<Post> = {
       ...post,
-      excerpt: post.excerpt || post.content?.slice(0, 180) || '',
+      excerpt: post.excerpt || buildExcerpt(post.content),
       category_id: post.category_id === '' ? null : post.category_id,
     };
 
