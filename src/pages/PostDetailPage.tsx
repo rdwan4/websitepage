@@ -342,11 +342,9 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             </div>
 
             {/* Article Content */}
-            <div 
-              className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed mb-16', lang === 'ar' && 'text-right')}
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
-
+            <div className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed whitespace-pre-wrap mb-16', lang === 'ar' && 'text-right')}>
+              {post.content}
+            </div>
 
             {/* Post Interaction (Likes/Share) */}
             <div className={cn("flex items-center gap-6 py-8 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>

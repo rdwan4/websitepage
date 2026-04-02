@@ -13,9 +13,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { RichTextEditor } from './RichTextEditor';
 import { cn } from '../lib/utils';
-
 import { useAuth } from '../context/AuthContext';
 import { postService } from '../services/postService';
 import { getVideoThumbnailUrl } from '../lib/media';
@@ -598,22 +596,24 @@ export const CreatePostModal = ({
                         {lang === 'en' ? 'Article Content' : 'محتوى المقال'}
                       </label>
                       {(postLanguage === 'en' || postLanguage === 'both') && (
-                        <RichTextEditor
-                          content={content}
-                          onChange={(html) => setContent(html)}
-                          placeholder="Write your article in English..."
-                          lang="en"
+                        <textarea
+                          rows={4}
+                          value={content}
+                          onChange={(e) => setContent(e.target.value)}
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none"
+                          placeholder="English content..."
                         />
                       )}
                       {(postLanguage === 'ar' || postLanguage === 'both') && (
-                        <RichTextEditor
-                          content={secondaryContent}
-                          onChange={(html) => setSecondaryContent(html)}
-                          placeholder="اكتب مقالك بالعربي هنا..."
-                          lang="ar"
+                        <textarea
+                          rows={4}
+                          value={secondaryContent}
+                          onChange={(e) => setSecondaryContent(e.target.value)}
+                          dir="rtl"
+                          className="w-full resize-none rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-app-text focus:border-app-accent/50 focus:outline-none text-right"
+                          placeholder="المحتوى بالعربي..."
                         />
                       )}
-
                     </div>
 
                     <div className="space-y-3 opacity-80">
