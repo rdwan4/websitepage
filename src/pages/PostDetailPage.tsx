@@ -230,10 +230,10 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-app-bg flex items-center justify-center">
-         <div className="flex items-center gap-3 text-app-muted">
-            <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
-            <span className="text-sm font-bold uppercase tracking-widest">{t.loading}</span>
-         </div>
+        <div className="flex items-center gap-3 text-app-muted">
+          <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
+          <span className="text-sm font-bold uppercase tracking-widest">{t.loading}</span>
+        </div>
       </div>
     );
   }
@@ -271,7 +271,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
       {/* 1. Header & Navigation (Full Width) */}
       <div className="border-b border-white/5 bg-app-card/30 backdrop-blur-xl mb-12">
         <div className="container mx-auto px-6 py-6 md:py-10">
-          <button 
+          <button
             onClick={() => {
               if (window.history.length > 1) {
                 navigate(-1);
@@ -292,7 +292,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold leading-tight mb-8">
               {post.title}
             </h1>
-            
+
             <div className={cn('flex flex-wrap items-center gap-6 text-sm text-app-muted', lang === 'ar' && 'flex-row-reverse')}>
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-app-accent/10 flex items-center justify-center border border-white/5">
@@ -316,7 +316,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
       {/* 2. Main Content Wrapper */}
       <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-          
+
           {/* Main Article Column */}
           <article className="lg:col-span-8">
             {/* Featured Media */}
@@ -327,14 +327,14 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 </div>
               ) : post.post_type === 'pdf' && post.media_url ? (
                 <div className="p-8 text-center space-y-4">
-                   <p className="text-app-muted text-sm">{lang === 'en' ? 'Review documentation below or open directly.' : 'راجع الوثائق أدناه أو افتح مباشرة.'}</p>
-                   <button onClick={() => void openExternalUrl(post.media_url!)} className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-app-accent text-app-bg font-black uppercase text-xs tracking-widest">
-                     <ExternalLink className="h-4 w-4" /> {t.openExternal}
-                   </button>
+                  <p className="text-app-muted text-sm">{lang === 'en' ? 'Review documentation below or open directly.' : 'راجع الوثائق أدناه أو افتح مباشرة.'}</p>
+                  <button onClick={() => void openExternalUrl(post.media_url!)} className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-app-accent text-app-bg font-black uppercase text-xs tracking-widest">
+                    <ExternalLink className="h-4 w-4" /> {t.openExternal}
+                  </button>
                 </div>
               ) : post.post_type === 'audio' && post.media_url ? (
                 <div className="p-8 bg-app-accent/5 backdrop-blur-md">
-                   <audio src={post.media_url} controls className="w-full" />
+                  <audio src={post.media_url} controls className="w-full" />
                 </div>
               ) : previewImage && (
                 <img src={previewImage} alt={post.title} className="w-full object-cover max-h-[500px]" referrerPolicy="no-referrer" />
@@ -342,13 +342,15 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             </div>
 
             {/* Article Content */}
-            <div className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed whitespace-pre-wrap mb-16', lang === 'ar' && 'text-right')}>
-               {post.content}
-            </div>
+            <div 
+              className={cn('prose prose-invert prose-lg max-w-none text-app-text leading-relaxed mb-16', lang === 'ar' && 'text-right')}
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
+
 
             {/* Post Interaction (Likes/Share) */}
             <div className={cn("flex items-center gap-6 py-8 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>
-              <button 
+              <button
                 onClick={handleLike}
                 disabled={liking || !profile}
                 className={cn("flex h-14 items-center gap-3 rounded-2xl border border-white/10 px-6 font-bold transition-all hover:bg-app-accent/10", liking ? "text-app-accent" : "text-app-text")}
@@ -356,7 +358,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 {liking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Heart className={cn("h-5 w-5", likesCount > 0 && "fill-app-accent text-app-accent")} />}
                 <span>{likesCount} Likes</span>
               </button>
-              <button 
+              <button
                 onClick={handleShare}
                 className="flex h-14 items-center gap-3 rounded-2xl border border-white/10 px-6 font-bold text-app-text transition-all hover:bg-white/5"
               >
@@ -365,8 +367,8 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
               </button>
               {canManagePost && (
                 <div className="flex gap-2">
-                   <button onClick={() => setEditingPost(post)} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-white/10 text-app-accent hover:bg-app-accent/10 transition-all"><Pencil className="h-5 w-5" /></button>
-                   <button onClick={handleDelete} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"><Trash2 className="h-5 w-5" /></button>
+                  <button onClick={() => setEditingPost(post)} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-white/10 text-app-accent hover:bg-app-accent/10 transition-all"><Pencil className="h-5 w-5" /></button>
+                  <button onClick={handleDelete} className="h-14 w-14 flex items-center justify-center rounded-2xl border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"><Trash2 className="h-5 w-5" /></button>
                 </div>
               )}
             </div>
@@ -374,36 +376,36 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
             {/* Comments Section */}
             <section className={cn("mt-16 pt-12 border-t border-white/5", lang === 'ar' && "text-right")}>
               <h2 className="text-2xl font-serif font-bold mb-8">{t.comments} ({comments.length})</h2>
-              
+
               <div className="space-y-6 mb-10">
                 {comments.map((comment) => (
                   <div key={comment.id} className="p-6 rounded-3xl bg-white/[0.03] border border-white/5 relative group">
                     <div className={cn("flex items-center justify-between mb-3", lang === 'ar' && "flex-row-reverse")}>
-                       <span className="font-bold text-app-accent">{comment.user?.name || comment.user?.display_name || 'User'}</span>
-                       <div className={cn("flex items-center gap-3", lang === 'ar' && "flex-row-reverse")}>
-                          {(profile?.id === comment.user_id || profile?.role === 'admin') && (
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                               <button 
-                                 onClick={() => {
-                                   setEditingCommentId(comment.id);
-                                   setEditingCommentText(comment.content);
-                                 }}
-                                 className="p-1.5 text-app-muted hover:text-app-accent transition-colors"
-                               >
-                                 <Pencil className="h-3.5 w-3.5" />
-                               </button>
-                               <button 
-                                 onClick={() => void handleDeleteComment(comment.id)}
-                                 className="p-1.5 text-app-muted hover:text-red-400 transition-colors"
-                               >
-                                 <Trash2 className="h-3.5 w-3.5" />
-                               </button>
-                            </div>
-                          )}
-                          <span className="text-[10px] uppercase font-black tracking-widest text-app-muted">{new Date(comment.created_at).toLocaleDateString()}</span>
-                       </div>
+                      <span className="font-bold text-app-accent">{comment.user?.name || comment.user?.display_name || 'User'}</span>
+                      <div className={cn("flex items-center gap-3", lang === 'ar' && "flex-row-reverse")}>
+                        {(profile?.id === comment.user_id || profile?.role === 'admin') && (
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingCommentId(comment.id);
+                                setEditingCommentText(comment.content);
+                              }}
+                              className="p-1.5 text-app-muted hover:text-app-accent transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => void handleDeleteComment(comment.id)}
+                              className="p-1.5 text-app-muted hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        <span className="text-[10px] uppercase font-black tracking-widest text-app-muted">{new Date(comment.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
-                    
+
                     {editingCommentId === comment.id ? (
                       <div className="space-y-3">
                         <textarea
@@ -445,7 +447,7 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 </div>
               ) : (
                 <div className="p-6 rounded-3xl bg-app-accent/5 border border-app-accent/20 text-center">
-                   <p className="text-sm font-bold text-app-text">{t.signIn}</p>
+                  <p className="text-sm font-bold text-app-text">{t.signIn}</p>
                 </div>
               )}
             </section>
@@ -454,35 +456,35 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
           {/* Sidebar (Full-Page Style) */}
           <aside className="lg:col-span-4 hidden lg:block">
             <div className="sticky top-32 space-y-8">
-               <div className="p-8 rounded-[2.5rem] border border-white/5 bg-app-card/30">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-app-accent mb-6">About the Section</h4>
-                  <p className="text-sm text-app-muted leading-relaxed">
-                    You are reading content in the <strong>{post.category?.name || 'Islamic Light Community'}</strong> module. Our platform ensures that all knowledge shared here is authentic and verified.
-                  </p>
-               </div>
-               
-               {/* Vertical Ads Slot or Quick Actions */}
-               <div className="p-8 rounded-[2.5rem] border border-white/5 bg-white/5">
-                  <div className="flex flex-col gap-4">
-                     {canManagePost && (
-                        <button onClick={() => setEditingPost(post)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all">
-                          <Pencil className="h-4 w-4" /> Manage this Post
-                        </button>
-                     )}
-                     <a 
-                       href={`mailto:${siteLinks.supportEmail}`} 
-                       className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all"
-                       onClick={(e) => {
-                         if (isNativeApp()) {
-                           e.preventDefault();
-                           window.location.href = `mailto:${siteLinks.supportEmail}`;
-                         }
-                       }}
-                      >
-                        <MessageCircle className="h-4 w-4" /> Report Issue
-                     </a>
-                  </div>
-               </div>
+              <div className="p-8 rounded-[2.5rem] border border-white/5 bg-app-card/30">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-app-accent mb-6">About the Section</h4>
+                <p className="text-sm text-app-muted leading-relaxed">
+                  You are reading content in the <strong>{post.category?.name || 'Islamic Light Community'}</strong> module. Our platform ensures that all knowledge shared here is authentic and verified.
+                </p>
+              </div>
+
+              {/* Vertical Ads Slot or Quick Actions */}
+              <div className="p-8 rounded-[2.5rem] border border-white/5 bg-white/5">
+                <div className="flex flex-col gap-4">
+                  {canManagePost && (
+                    <button onClick={() => setEditingPost(post)} className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all">
+                      <Pencil className="h-4 w-4" /> Manage this Post
+                    </button>
+                  )}
+                  <a
+                    href={`mailto:${siteLinks.supportEmail}`}
+                    className="flex items-center gap-3 w-full p-4 rounded-2xl bg-white/10 text-sm font-bold hover:bg-white/20 transition-all"
+                    onClick={(e) => {
+                      if (isNativeApp()) {
+                        e.preventDefault();
+                        window.location.href = `mailto:${siteLinks.supportEmail}`;
+                      }
+                    }}
+                  >
+                    <MessageCircle className="h-4 w-4" /> Report Issue
+                  </a>
+                </div>
+              </div>
             </div>
           </aside>
 
