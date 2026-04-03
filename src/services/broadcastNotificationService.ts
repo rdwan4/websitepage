@@ -144,7 +144,6 @@ export const broadcastNotificationService = {
       // Standard fallback channel for raw pushes
       await LocalNotifications.createChannel({
         id: 'fcm_fallback_notification_channel',
-.
         name: 'Standard Alerts',
         importance: 5,
       });

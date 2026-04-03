@@ -1,8 +1,9 @@
-import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Color } from '@tiptap/extension-color';
-import TextStyle, { FontSize } from '@tiptap/extension-text-style';
-import { useCallback } from 'react';
+import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { normalizeEditorHtml } from '../lib/postContent';
 
 const FONT_OPTIONS = [
   { label: 'Sans', value: 'var(--app-font-sans)' },
@@ -13,35 +14,46 @@ const FONT_OPTIONS = [
 ];
 
 const FONT_SIZE_OPTIONS = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px'];
-
 const COLOR_OPTIONS = ['#f8fafc', '#10b981', '#f59e0b', '#ef4444', '#38bdf8', '#a78bfa', '#f472b6'];
 
-const ToolbarButton = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
+type SavedSelection = { from: number; to: number };
+
+const ToolbarButton = ({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
   <button
     type="button"
+    onMouseDown={(event) => event.preventDefault()}
+    onPointerDown={(event) => event.preventDefault()}
     onClick={onClick}
-    className="rounded-lg px-3 py-1 text-xs font-black uppercase tracking-widest transition-all bg-white/5 text-app-text"
+    className="rounded-lg bg-white/5 px-3 py-1 text-xs font-black uppercase tracking-widest text-app-text transition-all"
   >
     {children}
   </button>
 );
 
-const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
+const EditorToolbar = ({
+  editor,
+  rememberSelection,
+  runWithSelection,
+}: {
+  editor: Editor | null;
+  rememberSelection: () => void;
+  runWithSelection: (command: (editor: Editor) => void) => void;
+}) => {
+  const [customFontSize, setCustomFontSize] = useState('16');
+
   if (!editor) {
     return null;
   }
 
-  const setFontFamily = useCallback((fontFamily: string) => {
-    editor.chain().focus().setFontFamily(fontFamily).run();
-  }, [editor]);
-
-  const setFontSize = useCallback((fontSize: string) => {
-    editor.chain().focus().setFontSize(fontSize).run();
-  }, [editor]);
-  
-  const setColor = useCallback((color: string) => {
-    editor.chain().focus().setColor(color).run();
-  }, [editor]);
+  const captureSelectionBeforeMenu = () => {
+    rememberSelection();
+  };
 
   return (
     <div className="border-b border-white/10 bg-white/[0.03]">
@@ -49,20 +61,42 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
         <span className="text-[10px] font-black uppercase tracking-[0.25em] text-app-accent">
           Text Tools
         </span>
-        <span className="text-[10px] text-app-muted">
-          Select a word or line, then style it
-        </span>
+        <span className="text-[10px] text-app-muted">Select a word or line, then style it</span>
       </div>
       <div className="rich-editor-toolbar overflow-x-auto px-3 pb-3">
         <div className="flex min-w-max flex-wrap items-center gap-2">
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()}>Bold</ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()}>Italic</ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()}>List</ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()}>Quote</ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</ToolbarButton>
+          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBold().run())}>
+            Bold
+          </ToolbarButton>
+          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleItalic().run())}>
+            Italic
+          </ToolbarButton>
+          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBulletList().run())}>
+            List
+          </ToolbarButton>
+          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBlockquote().run())}>
+            Quote
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => runWithSelection((instance) => instance.chain().toggleHeading({ level: 2 }).run())}
+          >
+            H2
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => runWithSelection((instance) => instance.chain().toggleHeading({ level: 3 }).run())}
+          >
+            H3
+          </ToolbarButton>
           <select
-            onChange={(e) => setFontFamily(e.target.value)}
+            defaultValue=""
+            onPointerDown={captureSelectionBeforeMenu}
+            onTouchStart={captureSelectionBeforeMenu}
+            onChange={(event) => {
+              const fontFamily = event.target.value;
+              if (!fontFamily) return;
+              runWithSelection((instance) => instance.chain().setFontFamily(fontFamily).run());
+              event.target.value = '';
+            }}
             className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
           >
             <option value="">Font</option>
@@ -73,7 +107,15 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
             ))}
           </select>
           <select
-            onChange={(e) => setFontSize(e.target.value)}
+            defaultValue=""
+            onPointerDown={captureSelectionBeforeMenu}
+            onTouchStart={captureSelectionBeforeMenu}
+            onChange={(event) => {
+              const fontSize = event.target.value;
+              if (!fontSize) return;
+              runWithSelection((instance) => instance.chain().setFontSize(fontSize).run());
+              event.target.value = '';
+            }}
             className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
           >
             <option value="">Size</option>
@@ -84,12 +126,34 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
             ))}
           </select>
           <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-app-bg px-2 py-1">
+            <input
+              type="number"
+              min={8}
+              max={96}
+              value={customFontSize}
+              onPointerDown={captureSelectionBeforeMenu}
+              onTouchStart={captureSelectionBeforeMenu}
+              onChange={(event) => setCustomFontSize(event.target.value)}
+              className="w-12 bg-transparent text-xs text-app-text outline-none"
+            />
+            <ToolbarButton
+              onClick={() => {
+                const nextSize = Math.max(8, Math.min(96, Number(customFontSize) || 16));
+                runWithSelection((instance) => instance.chain().setFontSize(`${nextSize}px`).run());
+              }}
+            >
+              Px
+            </ToolbarButton>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-app-bg px-2 py-1">
             {COLOR_OPTIONS.map((color) => (
               <button
                 key={color}
                 type="button"
                 aria-label={`Set color ${color}`}
-                onClick={() => setColor(color)}
+                onMouseDown={(event) => event.preventDefault()}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => runWithSelection((instance) => instance.chain().setColor(color).run())}
                 className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                 style={{ backgroundColor: color }}
               />
@@ -112,27 +176,80 @@ export const RichTextEditor = ({
   placeholder?: string;
   dir?: 'ltr' | 'rtl';
 }) => {
+  const savedSelectionRef = useRef<SavedSelection | null>(null);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      TextStyle,
-      Color,
-      FontSize,
-    ],
-    content: value,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+    extensions: [StarterKit, TextStyle, FontFamily, FontSize, Color],
+    content: normalizeEditorHtml(value) || '<p></p>',
+    onCreate: ({ editor: instance }) => {
+      const { from, to } = instance.state.selection;
+      savedSelectionRef.current = { from, to };
+    },
+    onSelectionUpdate: ({ editor: instance }) => {
+      const { from, to } = instance.state.selection;
+      savedSelectionRef.current = { from, to };
+    },
+    onUpdate: ({ editor: instance }) => {
+      onChange(instance.getHTML());
     },
     editorProps: {
-        attributes: {
-            class: 'min-h-[180px] rounded-b-xl bg-app-bg px-4 py-3 text-app-text focus:outline-none'
-        }
-    }
+      attributes: {
+        class:
+          'min-h-[180px] rounded-b-xl bg-app-bg px-4 py-3 text-app-text focus:outline-none ProseMirror',
+        dir,
+        'data-placeholder': placeholder || '',
+      },
+      handleDOMEvents: {
+        mouseup: () => false,
+        keyup: () => false,
+        touchend: () => false,
+      },
+    },
   });
+
+  const rememberSelection = useCallback(() => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    savedSelectionRef.current = { from, to };
+  }, [editor]);
+
+  const runWithSelection = useCallback(
+    (command: (editor: Editor) => void) => {
+      if (!editor) return;
+
+      const savedSelection = savedSelectionRef.current;
+      const chain = editor.chain().focus(undefined, { scrollIntoView: false });
+
+      if (savedSelection) {
+        chain.setTextSelection(savedSelection);
+      }
+
+      chain.run();
+      command(editor);
+      rememberSelection();
+    },
+    [editor, rememberSelection]
+  );
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const normalizedValue = normalizeEditorHtml(value) || '<p></p>';
+    if (normalizedValue === editor.getHTML()) return;
+
+    const { from, to } = editor.state.selection;
+    editor.commands.setContent(normalizedValue);
+
+    const docSize = editor.state.doc.content.size;
+    const nextFrom = Math.min(from, Math.max(1, docSize));
+    const nextTo = Math.min(to, Math.max(1, docSize));
+    editor.commands.setTextSelection({ from: nextFrom, to: nextTo });
+    savedSelectionRef.current = { from: nextFrom, to: nextTo };
+  }, [editor, value]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
-      <EditorToolbar editor={editor} />
+      <EditorToolbar editor={editor} rememberSelection={rememberSelection} runWithSelection={runWithSelection} />
       <div className="max-h-[260px] overflow-y-auto">
         <EditorContent editor={editor} />
       </div>
