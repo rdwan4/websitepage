@@ -19,17 +19,18 @@ const COLOR_OPTIONS = ['#f8fafc', '#10b981', '#f59e0b', '#ef4444', '#38bdf8', '#
 type SavedSelection = { from: number; to: number };
 
 const ToolbarButton = ({
-  onClick,
+  onPress,
   children,
 }: {
-  onClick: () => void;
+  onPress: () => void;
   children: React.ReactNode;
 }) => (
   <button
     type="button"
-    onMouseDown={(event) => event.preventDefault()}
-    onPointerDown={(event) => event.preventDefault()}
-    onClick={onClick}
+    onMouseDown={(event) => {
+      event.preventDefault();
+      onPress();
+    }}
     className="rounded-lg bg-white/5 px-3 py-1 text-xs font-black uppercase tracking-widest text-app-text transition-all"
   >
     {children}
@@ -52,7 +53,7 @@ const EditorToolbar = ({
   }
 
   const runDirectCommand = (command: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => {
-    command(editor.chain().focus()).run();
+    command(editor.chain()).run();
     rememberSelection();
   };
 
@@ -70,25 +71,25 @@ const EditorToolbar = ({
       </div>
       <div className="rich-editor-toolbar overflow-x-auto px-3 pb-3">
         <div className="flex min-w-max flex-wrap items-center gap-2">
-          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBold())}>
+          <ToolbarButton onPress={() => runDirectCommand((chain) => chain.toggleBold())}>
             Bold
           </ToolbarButton>
-          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleItalic())}>
+          <ToolbarButton onPress={() => runDirectCommand((chain) => chain.toggleItalic())}>
             Italic
           </ToolbarButton>
-          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBulletList())}>
+          <ToolbarButton onPress={() => runDirectCommand((chain) => chain.toggleBulletList())}>
             List
           </ToolbarButton>
-          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBlockquote())}>
+          <ToolbarButton onPress={() => runDirectCommand((chain) => chain.toggleBlockquote())}>
             Quote
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runDirectCommand((chain) => chain.toggleHeading({ level: 2 }))}
+            onPress={() => runDirectCommand((chain) => chain.toggleHeading({ level: 2 }))}
           >
             H2
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runDirectCommand((chain) => chain.toggleHeading({ level: 3 }))}
+            onPress={() => runDirectCommand((chain) => chain.toggleHeading({ level: 3 }))}
           >
             H3
           </ToolbarButton>
@@ -142,7 +143,7 @@ const EditorToolbar = ({
               className="w-12 bg-transparent text-xs text-app-text outline-none"
             />
             <ToolbarButton
-              onClick={() => {
+              onPress={() => {
                 const nextSize = Math.max(8, Math.min(96, Number(customFontSize) || 16));
                 runWithSelection((chain) => chain.setFontSize(`${nextSize}px`));
               }}
@@ -156,9 +157,10 @@ const EditorToolbar = ({
                 key={color}
                 type="button"
                 aria-label={`Set color ${color}`}
-                onMouseDown={(event) => event.preventDefault()}
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => runDirectCommand((chain) => chain.setColor(color))}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  runDirectCommand((chain) => chain.setColor(color));
+                }}
                 className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                 style={{ backgroundColor: color }}
               />
