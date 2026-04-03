@@ -21,6 +21,7 @@ import { contentService } from '../services/contentService';
 import { postService } from '../services/postService';
 import { useAuth } from '../context/AuthContext';
 import { CreatePostModal } from '../components/CreatePostModal';
+import { isLikelyRichTextHtml, sanitizePostHtml } from '../lib/postContent';
 
 const copy = {
   en: {
@@ -231,6 +232,11 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
                     transition={{ delay: idx * 0.05 }}
                     className="p-8 rounded-[3rem] bg-app-card border border-white/5 shadow-xl group hover:border-app-accent/20 transition-all"
                   >
+                     {entry.image_url && (
+                       <div className="mb-6 overflow-hidden rounded-[2rem] border border-white/5">
+                         <img src={entry.image_url} alt={lang === 'ar' ? entry.title_ar || entry.title : entry.title} className="h-56 w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                       </div>
+                     )}
                      <div className={cn("flex items-center justify-between mb-6", lang === 'ar' && "flex-row-reverse")}>
                         <span className="px-4 py-1.5 rounded-full bg-app-accent/10 border border-app-accent/20 text-app-accent text-[10px] font-black uppercase tracking-widest">
                           {entry.source_type}
@@ -244,9 +250,16 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
                      <h3 className={cn("text-2xl font-bold text-app-text mb-4 leading-tight", lang === 'ar' && "text-right")}>
                        {lang === 'ar' ? entry.title_ar || entry.title : entry.title}
                      </h3>
-                     <p className={cn("text-lg font-serif italic text-app-text/90 mb-8 leading-relaxed", lang === 'ar' && "text-right font-normal")}>
-                        {lang === 'ar' ? entry.arabic_text : entry.english_text}
-                     </p>
+                     {isLikelyRichTextHtml(lang === 'ar' ? entry.arabic_text || entry.english_text : entry.english_text) ? (
+                       <div
+                         className={cn("post-content prose prose-invert max-w-none text-app-text/90 mb-8 leading-relaxed", lang === 'ar' && "text-right")}
+                         dangerouslySetInnerHTML={{ __html: sanitizePostHtml(lang === 'ar' ? entry.arabic_text || entry.english_text : entry.english_text) }}
+                       />
+                     ) : (
+                       <p className={cn("text-lg font-serif italic text-app-text/90 mb-8 leading-relaxed", lang === 'ar' && "text-right font-normal")}>
+                          {lang === 'ar' ? entry.arabic_text || entry.english_text : entry.english_text}
+                       </p>
+                     )}
                      
                      <div className={cn("pt-6 border-t border-white/5 space-y-2", lang === 'ar' && "text-right")}>
                         <p className="text-xs text-app-muted leading-relaxed">

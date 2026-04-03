@@ -342,6 +342,9 @@ export const contentService = {
 
       prepared.category = null;
     }
+    if (typeof prepared.source_reference === 'string') {
+      prepared.source_reference = prepared.source_reference.trim();
+    }
     const { data, error } = await supabase
       .from('daily_content')
       .upsert(prepared, { onConflict: 'id' })

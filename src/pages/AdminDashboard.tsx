@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   Loader2,
   Pencil,
@@ -68,7 +68,7 @@ type BroadcastForm = {
 
 const text = {
   en: { title: 'Admin Console', subtitle: 'Global control center', users: 'Users', guidance: 'Guidance', daily: 'Daily', quiz: 'Quiz', community: 'Community', broadcast: 'Broadcasts', overview: 'Stats', search: 'Search entries...', save: 'Save Changes', create: 'Create New', edit: 'Edit', delete: 'Delete', setAdmin: 'Promote', setUser: 'Demote', published: 'Live', verified: 'Verified', uploadImage: 'Upload Media', approve: 'Approve', reject: 'Reject', cancelEditing: 'Cancel Editing' },
-  ar: { title: 'لوحة الإدارة', subtitle: 'مركز التحكم الشامل', users: 'المستخدمون', guidance: 'الهداية', daily: 'المحتوى', community: 'المجتمع', broadcast: 'البث', overview: 'إحصائيات', search: 'بحث...', save: 'حفظ التغييرات', create: 'إنشاء جديد', edit: 'تعديل', delete: 'حذف', setAdmin: 'ترقية', setUser: 'تخفيض', published: 'منشور', verified: 'موثق', uploadImage: 'رفع وسائط', approve: 'قبول', reject: 'رفض', cancelEditing: 'إلغاء التعديل' },
+  ar: { title: 'Ù„ÙˆØ­Ø© Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©', subtitle: 'Ù…Ø±ÙƒØ² Ø§Ù„ØªØ­ÙƒÙ… Ø§Ù„Ø´Ø§Ù…Ù„', users: 'Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ†', guidance: 'Ø§Ù„Ù‡Ø¯Ø§ÙŠØ©', daily: 'Ø§Ù„Ù…Ø­ØªÙˆÙ‰', community: 'Ø§Ù„Ù…Ø¬ØªÙ…Ø¹', broadcast: 'Ø§Ù„Ø¨Ø«', overview: 'Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª', search: 'Ø¨Ø­Ø«...', save: 'Ø­ÙØ¸ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª', create: 'Ø¥Ù†Ø´Ø§Ø¡ Ø¬Ø¯ÙŠØ¯', edit: 'ØªØ¹Ø¯ÙŠÙ„', delete: 'Ø­Ø°Ù', setAdmin: 'ØªØ±Ù‚ÙŠØ©', setUser: 'ØªØ®ÙÙŠØ¶', published: 'Ù…Ù†Ø´ÙˆØ±', verified: 'Ù…ÙˆØ«Ù‚', uploadImage: 'Ø±ÙØ¹ ÙˆØ³Ø§Ø¦Ø·', approve: 'Ù‚Ø¨ÙˆÙ„', reject: 'Ø±ÙØ¶', cancelEditing: 'Ø¥Ù„ØºØ§Ø¡ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„' },
 };
 
 const toCategoryKey = (value?: string | null) => (value || '').trim().toLowerCase();
@@ -78,6 +78,12 @@ const getPostDefaultSourceType = (category?: Category | null): SourceType => {
 
   if (key === 'hadith') return 'hadith';
   if (key === 'dua') return 'quran';
+  return 'scholar';
+};
+
+const getDailyDefaultSourceType = (category: ContentCategory): SourceType => {
+  if (category === 'hadith') return 'hadith';
+  if (category === 'dua') return 'quran';
   return 'scholar';
 };
 
@@ -286,7 +292,17 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   });
 
   const saveDaily = () => runSave(async () => {
-    const payload = { ...dailyForm, tags: dailyForm.tags ? dailyForm.tags.split(',').map(s => s.trim()) : [] };
+    const normalizedSourceReference = dailyForm.source_reference.trim();
+    if (!normalizedSourceReference) {
+      throw new Error(lang === 'en' ? 'Source reference is required for daily content.' : 'Ø§Ù„Ù…ØµØ¯Ø± Ù…Ø·Ù„ÙˆØ¨ Ù„Ù„Ù…Ø­ØªÙˆÙ‰ Ø§Ù„ÙŠÙˆÙ…ÙŠ.');
+    }
+
+    const payload = {
+      ...dailyForm,
+      source_type: dailyForm.source_type || getDailyDefaultSourceType(dailyForm.category),
+      source_reference: normalizedSourceReference,
+      tags: dailyForm.tags ? dailyForm.tags.split(',').map(s => s.trim()) : []
+    };
     const saved = await contentService.saveDailyContent(payload);
     setDaily(prev => [saved, ...prev.filter(d => d.id !== saved.id)]);
     setDailyForm(emptyDaily);
@@ -343,7 +359,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   });
 
   const deleteQuizQuestion = (id: string) => runSave(async () => {
-    if (!confirm(lang === 'en' ? 'Delete this question?' : 'حذف هذا السؤال؟')) return;
+    if (!confirm(lang === 'en' ? 'Delete this question?' : 'Ø­Ø°Ù Ù‡Ø°Ø§ Ø§Ù„Ø³Ø¤Ø§Ù„ØŸ')) return;
     await contentService.deleteQuestion(id);
     setQuestions(prev => prev.filter(question => question.id !== id));
     if (editingQuestion?.id === id) {
@@ -406,7 +422,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
         await postService.sendBroadcastNow(saved.id);
       } catch (sendError: any) {
         hasPushError = new Error(
-          `${lang === 'en' ? 'Broadcast saved, but push delivery failed' : 'تم حفظ الإشعار لكن فشل الإرسال'}: ${sendError.message}`
+          `${lang === 'en' ? 'Broadcast saved, but push delivery failed' : 'ØªÙ… Ø­ÙØ¸ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø± Ù„ÙƒÙ† ÙØ´Ù„ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„'}: ${sendError.message}`
         );
       }
     }
@@ -457,7 +473,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
           <div className={cn("flex min-w-max gap-3", lang === 'ar' && "flex-row-reverse")}>
             {(['overview', 'users', 'guidance', 'daily', 'quiz', 'community', 'broadcast'] as Tab[]).map((id) => (
               <button key={id} onClick={() => setTab(id)} className={cn("rounded-2xl px-6 py-3 text-xs font-black uppercase tracking-widest transition-all", tab === id ? "bg-app-accent text-app-bg shadow-lg shadow-app-accent/20" : "bg-white/5 text-app-muted hover:bg-white/10")}>
-                {id === 'quiz' ? (lang === 'en' ? 'Quiz' : 'الاختبار') : t[id]}
+                {id === 'quiz' ? (lang === 'en' ? 'Quiz' : 'Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±') : t[id]}
               </button>
             ))}
           </div>
@@ -606,7 +622,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                               <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest", p.is_approved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400 border border-amber-500/20")}>
                                 {p.is_approved ? t.published : 'Pending Review'}
                               </span>
-                              <span className="text-[10px] text-app-muted font-bold uppercase tracking-widest">• {p.category?.name || 'Uncategorized'}</span>
+                              <span className="text-[10px] text-app-muted font-bold uppercase tracking-widest">â€¢ {p.category?.name || 'Uncategorized'}</span>
                             </div>
                           </div>
                         </div>
@@ -667,9 +683,9 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           <textarea value={guidanceForm.body_en} onChange={e => setGuidanceForm({ ...guidanceForm, body_en: e.target.value })} placeholder="English Body..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
                         </div>
                         <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
-                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">معلومات بالعربي</p>
-                          <input value={guidanceForm.title_ar} onChange={e => setGuidanceForm({ ...guidanceForm, title_ar: e.target.value })} placeholder="العنوان بالعربي" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
-                          <textarea value={guidanceForm.body_ar} onChange={e => setGuidanceForm({ ...guidanceForm, body_ar: e.target.value })} placeholder="النص بالعربي..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">Ù…Ø¹Ù„ÙˆÙ…Ø§Øª Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ</p>
+                          <input value={guidanceForm.title_ar} onChange={e => setGuidanceForm({ ...guidanceForm, title_ar: e.target.value })} placeholder="Ø§Ù„Ø¹Ù†ÙˆØ§Ù† Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <textarea value={guidanceForm.body_ar} onChange={e => setGuidanceForm({ ...guidanceForm, body_ar: e.target.value })} placeholder="Ø§Ù„Ù†Øµ Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠ..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
                         </div>
                       </div>
                       <button
@@ -711,26 +727,92 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                   <div className="rounded-[2.5rem] border border-white/5 bg-app-card p-6 md:p-10 shadow-2xl">
                     <h3 className="mb-8 text-2xl font-bold text-app-text">{dailyForm.id ? 'Edit Daily' : 'Create Daily'}</h3>
                     <div className="grid gap-5">
-                      <select value={dailyForm.category} onChange={e => setDailyForm({ ...dailyForm, category: e.target.value as any })} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text focus:border-app-accent/50">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-2">{t.uploadImage}</label>
+                        <div className="relative group aspect-video rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-app-accent/50">
+                          {dailyForm.image_url ? (
+                            <>
+                              <img src={dailyForm.image_url} className="h-full w-full object-cover" />
+                              <button onClick={() => setDailyForm({ ...dailyForm, image_url: '' })} className="absolute top-4 right-4 p-3 bg-black/60 rounded-2xl text-white hover:bg-black/80 transition-all"><X className="h-5 w-5" /></button>
+                            </>
+                          ) : (
+                            <label className="cursor-pointer flex flex-col items-center p-6 text-center">
+                              <Upload className="h-8 w-8 text-app-muted mb-2" />
+                              <span className="text-xs font-bold text-app-muted">Tap to upload daily cover image</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = await handleImageUpload(file, 'daily');
+                                  if (url) setDailyForm({ ...dailyForm, image_url: url });
+                                }
+                              }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                      <select
+                        value={dailyForm.category}
+                        onChange={e => {
+                          const nextCategory = e.target.value as ContentCategory;
+                          setDailyForm({ ...dailyForm, category: nextCategory, source_type: getDailyDefaultSourceType(nextCategory) });
+                        }}
+                        className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text focus:border-app-accent/50"
+                      >
                         <option value="hadith">Hadith</option>
                         <option value="dua">Dua</option>
                         <option value="inspiration">Inspiration</option>
                       </select>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <select
+                          value={dailyForm.source_type}
+                          onChange={e => setDailyForm({ ...dailyForm, source_type: e.target.value as SourceType })}
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text focus:border-app-accent/50"
+                        >
+                          <option value="quran">Quran</option>
+                          <option value="hadith">Hadith</option>
+                          <option value="athar">Athar</option>
+                          <option value="scholar">Scholar</option>
+                        </select>
+                        <input
+                          value={dailyForm.source_reference}
+                          onChange={e => setDailyForm({ ...dailyForm, source_reference: e.target.value })}
+                          placeholder="Source reference"
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        />
+                      </div>
                       <div className="space-y-4">
                         <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
                           <p className="text-[10px] font-black uppercase text-app-accent mb-2">English Version</p>
                           <input value={dailyForm.title} onChange={e => setDailyForm({ ...dailyForm, title: e.target.value })} placeholder="Title" className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
-                          <textarea value={dailyForm.english_text} onChange={e => setDailyForm({ ...dailyForm, english_text: e.target.value })} placeholder="Text Content..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none" />
+                          <div className="mt-3">
+                            <RichTextEditor value={dailyForm.english_text} onChange={value => setDailyForm({ ...dailyForm, english_text: value })} placeholder="Text Content..." dir="ltr" />
+                          </div>
                         </div>
                         <div className="rounded-2xl bg-white/5 p-4 border border-white/5">
-                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">النسخة العربية</p>
-                          <input value={dailyForm.title_ar} onChange={e => setDailyForm({ ...dailyForm, title_ar: e.target.value })} placeholder="العنوان" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
-                          <textarea value={dailyForm.arabic_text} onChange={e => setDailyForm({ ...dailyForm, arabic_text: e.target.value })} placeholder="نص المحتوى..." rows={3} className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <p className="text-[10px] font-black uppercase text-indigo-400 mb-2 text-right">Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</p>
+                          <input value={dailyForm.title_ar} onChange={e => setDailyForm({ ...dailyForm, title_ar: e.target.value })} placeholder="Ø§Ù„Ø¹Ù†ÙˆØ§Ù†" className="w-full bg-transparent p-2 text-sm text-app-text outline-none text-right" />
+                          <div className="mt-3">
+                            <RichTextEditor value={dailyForm.arabic_text} onChange={value => setDailyForm({ ...dailyForm, arabic_text: value })} placeholder="نص المحتوى..." dir="rtl" />
+                          </div>
                         </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <input
+                          value={dailyForm.transliteration}
+                          onChange={e => setDailyForm({ ...dailyForm, transliteration: e.target.value })}
+                          placeholder="Transliteration (optional)"
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        />
+                        <input
+                          value={dailyForm.authenticity_notes}
+                          onChange={e => setDailyForm({ ...dailyForm, authenticity_notes: e.target.value })}
+                          placeholder="Authenticity / notes"
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        />
                       </div>
                       <button
                         onClick={() => void saveDaily()}
-                        disabled={saving || (!dailyForm.title && !dailyForm.title_ar)}
+                        disabled={saving || (!dailyForm.title && !dailyForm.title_ar) || !dailyForm.source_reference.trim()}
                         className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 transition-all uppercase tracking-[0.2em] text-xs disabled:opacity-50"
                       >
                         {saving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Save Daily Content'}
@@ -759,9 +841,9 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
               <div className="grid gap-6">
                 <div className="flex items-center justify-between rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
                   <div>
-                    <h3 className="text-2xl font-bold text-app-text">{lang === 'en' ? 'Quiz Questions' : 'أسئلة الاختبار'}</h3>
+                    <h3 className="text-2xl font-bold text-app-text">{lang === 'en' ? 'Quiz Questions' : 'Ø£Ø³Ø¦Ù„Ø© Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±'}</h3>
                     <p className="mt-1 text-xs font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'Create, edit, and remove saved questions' : 'إنشاء وتعديل وحذف الأسئلة المحفوظة'}
+                      {lang === 'en' ? 'Create, edit, and remove saved questions' : 'Ø¥Ù†Ø´Ø§Ø¡ ÙˆØªØ¹Ø¯ÙŠÙ„ ÙˆØ­Ø°Ù Ø§Ù„Ø£Ø³Ø¦Ù„Ø© Ø§Ù„Ù…Ø­ÙÙˆØ¸Ø©'}
                     </p>
                   </div>
                   <button
@@ -772,40 +854,40 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                     className="flex items-center gap-2 rounded-2xl bg-app-accent px-5 py-3 text-xs font-black uppercase tracking-widest text-app-bg shadow-lg shadow-app-accent/20"
                   >
                     <Plus className="h-4 w-4" />
-                    {lang === 'en' ? 'New Question' : 'سؤال جديد'}
+                    {lang === 'en' ? 'New Question' : 'Ø³Ø¤Ø§Ù„ Ø¬Ø¯ÙŠØ¯'}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <StatCard icon={MessageSquare} label={lang === 'en' ? 'Questions' : 'الأسئلة'} value={quizStats.total} color="text-cyan-400" />
-                  <StatCard icon={CheckCircle2} label={lang === 'en' ? 'Verified' : 'الموثق'} value={`${quizStats.verified}/${quizStats.total}`} color="text-emerald-400" />
-                  <StatCard icon={Languages} label={lang === 'en' ? 'Both Languages' : 'كلتا اللغتين'} value={quizStats.bilingual} color="text-indigo-400" />
-                  <StatCard icon={Layers} label={lang === 'en' ? 'Avg Options' : 'متوسط الخيارات'} value={quizStats.averageOptions} color="text-amber-400" />
+                  <StatCard icon={MessageSquare} label={lang === 'en' ? 'Questions' : 'Ø§Ù„Ø£Ø³Ø¦Ù„Ø©'} value={quizStats.total} color="text-cyan-400" />
+                  <StatCard icon={CheckCircle2} label={lang === 'en' ? 'Verified' : 'Ø§Ù„Ù…ÙˆØ«Ù‚'} value={`${quizStats.verified}/${quizStats.total}`} color="text-emerald-400" />
+                  <StatCard icon={Languages} label={lang === 'en' ? 'Both Languages' : 'ÙƒÙ„ØªØ§ Ø§Ù„Ù„ØºØªÙŠÙ†'} value={quizStats.bilingual} color="text-indigo-400" />
+                  <StatCard icon={Layers} label={lang === 'en' ? 'Avg Options' : 'Ù…ØªÙˆØ³Ø· Ø§Ù„Ø®ÙŠØ§Ø±Ø§Øª'} value={quizStats.averageOptions} color="text-amber-400" />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Question Bank' : 'بنك الأسئلة'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Question Bank' : 'Ø¨Ù†Ùƒ Ø§Ù„Ø£Ø³Ø¦Ù„Ø©'}</p>
                     <div className="mt-4 grid gap-3 text-sm text-app-text">
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Published' : 'المنشور'}</span><span className="font-black">{quizStats.published}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Verified' : 'الموثق'}</span><span className="font-black">{quizStats.verified}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Visible in search' : 'نتائج البحث'}</span><span className="font-black">{filteredQuestions.length}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Published' : 'Ø§Ù„Ù…Ù†Ø´ÙˆØ±'}</span><span className="font-black">{quizStats.published}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Verified' : 'Ø§Ù„Ù…ÙˆØ«Ù‚'}</span><span className="font-black">{quizStats.verified}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Visible in search' : 'Ù†ØªØ§Ø¦Ø¬ Ø§Ù„Ø¨Ø­Ø«'}</span><span className="font-black">{filteredQuestions.length}</span></div>
                     </div>
                   </div>
                   <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Language Mix' : 'توزيع اللغات'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Language Mix' : 'ØªÙˆØ²ÙŠØ¹ Ø§Ù„Ù„ØºØ§Øª'}</p>
                     <div className="mt-4 grid gap-3 text-sm text-app-text">
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Both' : 'كلتاهما'}</span><span className="font-black">{quizStats.bilingual}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'English Only' : 'إنجليزي فقط'}</span><span className="font-black">{quizStats.englishOnly}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Arabic Only' : 'عربي فقط'}</span><span className="font-black">{quizStats.arabicOnly}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Both' : 'ÙƒÙ„ØªØ§Ù‡Ù…Ø§'}</span><span className="font-black">{quizStats.bilingual}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'English Only' : 'Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠ ÙÙ‚Ø·'}</span><span className="font-black">{quizStats.englishOnly}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Arabic Only' : 'Ø¹Ø±Ø¨ÙŠ ÙÙ‚Ø·'}</span><span className="font-black">{quizStats.arabicOnly}</span></div>
                     </div>
                   </div>
                   <div className="rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Option Health' : 'جودة الخيارات'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'en' ? 'Option Health' : 'Ø¬ÙˆØ¯Ø© Ø§Ù„Ø®ÙŠØ§Ø±Ø§Øª'}</p>
                     <div className="mt-4 grid gap-3 text-sm text-app-text">
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Average options' : 'متوسط الخيارات'}</span><span className="font-black">{quizStats.averageOptions}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? '4+ options' : '4+ خيارات'}</span><span className="font-black">{questions.filter((question) => question.options.length >= 4).length}</span></div>
-                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Minimum only' : 'الحد الأدنى فقط'}</span><span className="font-black">{questions.filter((question) => question.options.length === 2).length}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Average options' : 'Ù…ØªÙˆØ³Ø· Ø§Ù„Ø®ÙŠØ§Ø±Ø§Øª'}</span><span className="font-black">{quizStats.averageOptions}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? '4+ options' : '4+ Ø®ÙŠØ§Ø±Ø§Øª'}</span><span className="font-black">{questions.filter((question) => question.options.length >= 4).length}</span></div>
+                      <div className="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3"><span>{lang === 'en' ? 'Minimum only' : 'Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰ ÙÙ‚Ø·'}</span><span className="font-black">{questions.filter((question) => question.options.length === 2).length}</span></div>
                     </div>
                   </div>
                 </div>
@@ -833,7 +915,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                                 {question.difficulty}
                               </span>
                               <span className="rounded-xl bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                                {question.options.length} {lang === 'en' ? 'options' : 'خيارات'}
+                                {question.options.length} {lang === 'en' ? 'options' : 'Ø®ÙŠØ§Ø±Ø§Øª'}
                               </span>
                             </div>
                             <div className="grid gap-2">
@@ -876,7 +958,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
 
                   {!filteredQuestions.length && (
                     <div className="rounded-[2rem] border border-white/5 bg-app-card p-10 text-center text-app-muted">
-                      {lang === 'en' ? 'No quiz questions found.' : 'لا توجد أسئلة اختبار.'}
+                      {lang === 'en' ? 'No quiz questions found.' : 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø³Ø¦Ù„Ø© Ø§Ø®ØªØ¨Ø§Ø±.'}
                     </div>
                   )}
                 </div>
@@ -890,28 +972,28 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                     <h3 className="mb-2 text-2xl font-bold text-app-text flex items-center gap-3">
                       <Send className="h-6 w-6 text-app-accent" />
                       {broadcastForm.id
-                        ? (lang === 'en' ? 'Edit Notification' : 'تعديل الإشعار')
-                        : (lang === 'en' ? 'Create Notification' : 'إنشاء إشعار')
+                        ? (lang === 'en' ? 'Edit Notification' : 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±')
+                        : (lang === 'en' ? 'Create Notification' : 'Ø¥Ù†Ø´Ø§Ø¡ Ø¥Ø´Ø¹Ø§Ø±')
                       }
                     </h3>
                     <p className="mb-8 text-xs text-app-muted font-bold uppercase tracking-widest">
-                      {lang === 'en' ? 'Both languages are optional — fill in one or both' : 'كلا اللغتين اختياريتان — أدخل واحدة أو كلتيهما'}
+                      {lang === 'en' ? 'Both languages are optional â€” fill in one or both' : 'ÙƒÙ„Ø§ Ø§Ù„Ù„ØºØªÙŠÙ† Ø§Ø®ØªÙŠØ§Ø±ÙŠØªØ§Ù† â€” Ø£Ø¯Ø®Ù„ ÙˆØ§Ø­Ø¯Ø© Ø£Ùˆ ÙƒÙ„ØªÙŠÙ‡Ù…Ø§'}
                     </p>
 
                     <div className="grid gap-5">
                       {/* Type selector */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
-                          {lang === 'en' ? 'Notification Type' : 'نوع الإشعار'}
+                          {lang === 'en' ? 'Notification Type' : 'Ù†ÙˆØ¹ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±'}
                         </label>
                         <select
                           value={broadcastForm.type}
                           onChange={(e) => setBroadcastForm({ ...broadcastForm, type: e.target.value as any })}
                           className="w-full rounded-2xl bg-white/5 border border-white/10 p-4 text-sm text-app-text outline-none focus:border-app-accent/50"
                         >
-                          <option value="hadith">📜 Hadith</option>
-                          <option value="dua">🤲 Dua</option>
-                          <option value="general">📢 General</option>
+                          <option value="hadith">ðŸ“œ Hadith</option>
+                          <option value="dua">ðŸ¤² Dua</option>
+                          <option value="general">ðŸ“¢ General</option>
                         </select>
                       </div>
 
@@ -927,7 +1009,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           )}
                         >
                           <Send className="h-3.5 w-3.5" />
-                          {lang === 'en' ? 'Send Now' : 'أرسل الآن'}
+                          {lang === 'en' ? 'Send Now' : 'Ø£Ø±Ø³Ù„ Ø§Ù„Ø¢Ù†'}
                         </button>
                         <button
                           onClick={() => setBroadcastForm({ ...broadcastForm, sendNow: false })}
@@ -939,7 +1021,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           )}
                         >
                           <Clock className="h-3.5 w-3.5" />
-                          {lang === 'en' ? 'Schedule' : 'جدولة'}
+                          {lang === 'en' ? 'Schedule' : 'Ø¬Ø¯ÙˆÙ„Ø©'}
                         </button>
                       </div>
 
@@ -949,7 +1031,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1 flex items-center gap-2">
                               <Calendar className="h-3.5 w-3.5" />
-                              {lang === 'en' ? 'Select Date' : 'اختر التاريخ'}
+                              {lang === 'en' ? 'Select Date' : 'Ø§Ø®ØªØ± Ø§Ù„ØªØ§Ø±ÙŠØ®'}
                             </label>
                             <input
                               type="date"
@@ -962,7 +1044,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase tracking-widest text-app-muted ml-1 flex items-center gap-2">
                               <Clock className="h-3.5 w-3.5" />
-                              {lang === 'en' ? 'Select Time' : 'اختر الوقت'}
+                              {lang === 'en' ? 'Select Time' : 'Ø§Ø®ØªØ± Ø§Ù„ÙˆÙ‚Øª'}
                             </label>
                             <input
                               type="time"
@@ -972,59 +1054,59 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                             />
                           </div>
                           <p className="col-span-2 text-[10px] text-amber-400/70 font-bold ml-1">
-                            ⚠️ {lang === 'en'
+                            âš ï¸ {lang === 'en'
                               ? 'App must be open or reopened after the scheduled time to deliver the notification.'
-                              : 'يجب أن يكون التطبيق مفتوحاً أو يُعاد فتحه بعد الوقت المجدول لإرسال الإشعار.'}
+                              : 'ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø§Ù„ØªØ·Ø¨ÙŠÙ‚ Ù…ÙØªÙˆØ­Ø§Ù‹ Ø£Ùˆ ÙŠÙØ¹Ø§Ø¯ ÙØªØ­Ù‡ Ø¨Ø¹Ø¯ Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ù…Ø¬Ø¯ÙˆÙ„ Ù„Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±.'}
                           </p>
                         </div>
                       )}
 
                       {/* Language sections */}
                       <div className="space-y-3">
-                        {/* English — Optional */}
+                        {/* English â€” Optional */}
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
                           <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-app-accent">🇬🇧 English</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-app-accent">ðŸ‡¬ðŸ‡§ English</span>
                             <span className="text-[10px] font-bold text-app-muted/60 uppercase tracking-widest">
-                              {lang === 'en' ? '(optional)' : '(اختياري)'}
+                              {lang === 'en' ? '(optional)' : '(Ø§Ø®ØªÙŠØ§Ø±ÙŠ)'}
                             </span>
                           </div>
                           <div className="px-4 pb-4 space-y-2">
                             <input
                               value={broadcastForm.title_en}
                               onChange={e => setBroadcastForm({ ...broadcastForm, title_en: e.target.value })}
-                              placeholder={lang === 'en' ? 'Notification title...' : 'عنوان الإشعار...'}
+                              placeholder={lang === 'en' ? 'Notification title...' : 'Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±...'}
                               className="w-full bg-transparent border-b border-white/5 py-2 text-sm text-app-text outline-none focus:border-app-accent/30 transition-colors"
                             />
                             <textarea
                               value={broadcastForm.body_en}
                               onChange={e => setBroadcastForm({ ...broadcastForm, body_en: e.target.value })}
-                              placeholder={lang === 'en' ? 'Notification body...' : 'نص الإشعار...'}
+                              placeholder={lang === 'en' ? 'Notification body...' : 'Ù†Øµ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±...'}
                               rows={3}
                               className="w-full bg-transparent py-2 text-sm text-app-text outline-none resize-none"
                             />
                           </div>
                         </div>
 
-                        {/* Arabic — Optional */}
+                        {/* Arabic â€” Optional */}
                         <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
                           <div className="flex items-center gap-2 px-4 pt-4 pb-2 justify-end flex-row-reverse">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">🇸🇦 العربية</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">ðŸ‡¸ðŸ‡¦ Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</span>
                             <span className="text-[10px] font-bold text-app-muted/60 uppercase tracking-widest">
-                              {lang === 'en' ? '(optional)' : '(اختياري)'}
+                              {lang === 'en' ? '(optional)' : '(Ø§Ø®ØªÙŠØ§Ø±ÙŠ)'}
                             </span>
                           </div>
                           <div className="px-4 pb-4 space-y-2 text-right" dir="rtl">
                             <input
                               value={broadcastForm.title_ar}
                               onChange={e => setBroadcastForm({ ...broadcastForm, title_ar: e.target.value })}
-                              placeholder="عنوان الإشعار..."
+                              placeholder="Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±..."
                               className="w-full bg-transparent border-b border-white/5 py-2 text-sm text-app-text outline-none focus:border-app-accent/30 transition-colors text-right"
                             />
                             <textarea
                               value={broadcastForm.body_ar}
                               onChange={e => setBroadcastForm({ ...broadcastForm, body_ar: e.target.value })}
-                              placeholder="نص الإشعار..."
+                              placeholder="Ù†Øµ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±..."
                               rows={3}
                               className="w-full bg-transparent py-2 text-sm text-app-text outline-none resize-none text-right"
                             />
@@ -1038,11 +1120,11 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           <p className="text-[10px] font-black uppercase tracking-widest text-app-accent mb-2">Preview</p>
                           <div className="flex items-start gap-3">
                             <div className="h-10 w-10 rounded-xl bg-app-accent/20 flex items-center justify-center text-lg shrink-0">
-                              {broadcastForm.type === 'hadith' ? '📜' : broadcastForm.type === 'dua' ? '🤲' : '📢'}
+                              {broadcastForm.type === 'hadith' ? 'ðŸ“œ' : broadcastForm.type === 'dua' ? 'ðŸ¤²' : 'ðŸ“¢'}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-app-text">{broadcastForm.title_en || broadcastForm.title_ar || '—'}</p>
-                              <p className="text-xs text-app-muted mt-0.5">{broadcastForm.body_en || broadcastForm.body_ar || '—'}</p>
+                              <p className="text-sm font-bold text-app-text">{broadcastForm.title_en || broadcastForm.title_ar || 'â€”'}</p>
+                              <p className="text-xs text-app-muted mt-0.5">{broadcastForm.body_en || broadcastForm.body_ar || 'â€”'}</p>
                             </div>
                           </div>
                         </div>
@@ -1061,10 +1143,10 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                         {saving
                           ? <Loader2 className="h-5 w-5 animate-spin" />
                           : broadcastForm.id
-                            ? <><Pencil className="h-4 w-4" /> {lang === 'en' ? 'Save Changes' : 'حفظ التغييرات'}</>
+                            ? <><Pencil className="h-4 w-4" /> {lang === 'en' ? 'Save Changes' : 'Ø­ÙØ¸ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª'}</>
                             : broadcastForm.sendNow
-                              ? <><Send className="h-4 w-4" /> {lang === 'en' ? 'Send Now to All Users' : 'أرسل الآن لجميع المستخدمين'}</>
-                              : <><Calendar className="h-4 w-4" /> {lang === 'en' ? 'Schedule Notification' : 'جدولة الإشعار'}</>}
+                              ? <><Send className="h-4 w-4" /> {lang === 'en' ? 'Send Now to All Users' : 'Ø£Ø±Ø³Ù„ Ø§Ù„Ø¢Ù† Ù„Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†'}</>
+                              : <><Calendar className="h-4 w-4" /> {lang === 'en' ? 'Schedule Notification' : 'Ø¬Ø¯ÙˆÙ„Ø© Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±'}</>}
                       </button>
 
                       {broadcastForm.id && (
@@ -1080,10 +1162,10 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between px-1 mb-2">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                      {lang === 'en' ? 'Sent & Scheduled' : 'المُرسلة والمجدولة'}
+                      {lang === 'en' ? 'Sent & Scheduled' : 'Ø§Ù„Ù…ÙØ±Ø³Ù„Ø© ÙˆØ§Ù„Ù…Ø¬Ø¯ÙˆÙ„Ø©'}
                     </p>
                     <button onClick={() => void refreshData(true)} className="text-[10px] font-black uppercase text-app-accent hover:underline">
-                      {lang === 'en' ? 'Refresh' : 'تحديث'}
+                      {lang === 'en' ? 'Refresh' : 'ØªØ­Ø¯ÙŠØ«'}
                     </button>
                   </div>
                   <div className="rounded-3xl border border-white/5 bg-white/5 p-8 text-center flex flex-col items-center gap-2">
@@ -1116,7 +1198,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                           <div key={b.id} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[2rem] border border-white/5 bg-app-card p-6 shadow-xl">
                             <div className="flex items-center gap-4">
                               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-app-accent border border-white/5 text-2xl">
-                                {b.type === 'hadith' ? '📜' : b.type === 'dua' ? '🤲' : '📢'}
+                                {b.type === 'hadith' ? 'ðŸ“œ' : b.type === 'dua' ? 'ðŸ¤²' : 'ðŸ“¢'}
                               </div>
                               <div>
                                 <h4 className="text-sm font-bold text-app-text leading-tight w-full max-w-[200px] md:max-w-[300px] truncate">
@@ -1131,8 +1213,8 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                                 )}>
                                   {isScheduled ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                                   {isScheduled
-                                    ? (lang === 'en' ? 'Scheduled: ' : 'مجدول: ')
-                                    : (lang === 'en' ? 'Sent: ' : 'أُرسل: ')}
+                                    ? (lang === 'en' ? 'Scheduled: ' : 'Ù…Ø¬Ø¯ÙˆÙ„: ')
+                                    : (lang === 'en' ? 'Sent: ' : 'Ø£ÙØ±Ø³Ù„: ')}
                                   {new Date(b.send_at).toLocaleString()}
                                 </p>
                               </div>
@@ -1167,7 +1249,7 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (!confirm(lang === 'en' ? 'Delete this notification?' : 'حذف هذا الإشعار؟')) return;
+                                  if (!confirm(lang === 'en' ? 'Delete this notification?' : 'Ø­Ø°Ù Ù‡Ø°Ø§ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±ØŸ')) return;
                                   try {
                                     await postService.deleteBroadcastNotification(b.id);
                                     setBroadcasts(prev => prev.filter(x => x.id !== b.id));
@@ -1241,3 +1323,4 @@ const StatCard = ({ icon: Icon, label, value, color }: { icon: any; label: strin
     </div>
   </div>
 );
+

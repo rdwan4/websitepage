@@ -187,6 +187,11 @@ const stripSeriesFields = (post: Partial<Post>): Partial<Post> => {
   return rest;
 };
 
+const stripSourceFields = (post: Partial<Post>): Partial<Post> => {
+  const { source_type, source_reference, ...rest } = post as any;
+  return rest;
+};
+
 const isSeriesColumnsMissingError = (error: any) => {
   const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
   return (
@@ -196,6 +201,13 @@ const isSeriesColumnsMissingError = (error: any) => {
     text.includes('parent_post_id')
   );
 };
+
+const isSourceColumnsMissingError = (error: any) => {
+  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return text.includes('source_reference') || text.includes('source_type');
+};
+
+const POSTS_SOURCE_SETUP_MESSAGE = 'The posts table is missing source columns. Run `supabase_add_post_source_fields.sql` in the Supabase SQL editor, then refresh the app.';
 const DEFAULT_CATEGORIES: Array<Pick<Category, 'name' | 'name_ar' | 'slug'>> = [
   { name: 'Inspiration', name_ar: '\u0625\u0644\u0647\u0627\u0645', slug: 'inspiration' },
   { name: 'Hadith', name_ar: '\u062d\u062f\u064a\u062b', slug: 'hadith' },
@@ -525,8 +537,14 @@ export const postService = {
     };
 
     let { data, error } = await supabase.from('posts').insert(payload).select().single();
+    if (error && isSourceColumnsMissingError(error)) {
+      throw new Error(POSTS_SOURCE_SETUP_MESSAGE);
+    }
     if (error && isSeriesColumnsMissingError(error)) {
       ({ data, error } = await supabase.from('posts').insert(stripSeriesFields(payload)).select().single());
+    }
+    if (error && isSourceColumnsMissingError(error)) {
+      throw new Error(POSTS_SOURCE_SETUP_MESSAGE);
     }
     if (error) throw error;
     return data;
@@ -540,6 +558,9 @@ export const postService = {
       .select()
       .single();
 
+    if (error && isSourceColumnsMissingError(error)) {
+      throw new Error(POSTS_SOURCE_SETUP_MESSAGE);
+    }
     if (error && isSeriesColumnsMissingError(error)) {
       ({ data, error } = await supabase
         .from('posts')
@@ -547,6 +568,9 @@ export const postService = {
         .eq('id', postId)
         .select()
         .single());
+    }
+    if (error && isSourceColumnsMissingError(error)) {
+      throw new Error(POSTS_SOURCE_SETUP_MESSAGE);
     }
 
     if (error) throw error;
