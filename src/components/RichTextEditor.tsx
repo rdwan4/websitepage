@@ -51,6 +51,11 @@ const EditorToolbar = ({
     return null;
   }
 
+  const runDirectCommand = (command: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => {
+    command(editor.chain().focus()).run();
+    rememberSelection();
+  };
+
   const captureSelectionBeforeMenu = () => {
     rememberSelection();
   };
@@ -65,25 +70,25 @@ const EditorToolbar = ({
       </div>
       <div className="rich-editor-toolbar overflow-x-auto px-3 pb-3">
         <div className="flex min-w-max flex-wrap items-center gap-2">
-          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBold())}>
+          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBold())}>
             Bold
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleItalic())}>
+          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleItalic())}>
             Italic
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBulletList())}>
+          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBulletList())}>
             List
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBlockquote())}>
+          <ToolbarButton onClick={() => runDirectCommand((chain) => chain.toggleBlockquote())}>
             Quote
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runWithSelection((chain) => chain.toggleHeading({ level: 2 }))}
+            onClick={() => runDirectCommand((chain) => chain.toggleHeading({ level: 2 }))}
           >
             H2
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runWithSelection((chain) => chain.toggleHeading({ level: 3 }))}
+            onClick={() => runDirectCommand((chain) => chain.toggleHeading({ level: 3 }))}
           >
             H3
           </ToolbarButton>
@@ -153,7 +158,7 @@ const EditorToolbar = ({
                 aria-label={`Set color ${color}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onPointerDown={(event) => event.preventDefault()}
-                onClick={() => runWithSelection((chain) => chain.setColor(color))}
+                onClick={() => runDirectCommand((chain) => chain.setColor(color))}
                 className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                 style={{ backgroundColor: color }}
               />
