@@ -355,6 +355,18 @@ export const PostDetailPage = ({ lang }: { lang: 'en' | 'ar' }) => {
               </div>
             )}
 
+            {post.source_reference && (
+              <div className={cn('mb-16 rounded-[2rem] border border-white/5 bg-white/[0.03] p-6', lang === 'ar' && 'text-right')}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                  {lang === 'ar' ? 'المصدر' : 'Source'}
+                </p>
+                <p className="mt-3 text-sm text-app-text/90">
+                  {post.source_type ? `${post.source_type.toUpperCase()} - ` : ''}
+                  {post.source_reference}
+                </p>
+              </div>
+            )}
+
             {/* Post Interaction (Likes/Share) */}
             <div className={cn("flex items-center gap-6 py-8 border-t border-white/5", lang === 'ar' && "flex-row-reverse")}>
               <button

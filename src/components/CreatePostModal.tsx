@@ -19,7 +19,7 @@ import { postService } from '../services/postService';
 import { getVideoThumbnailUrl } from '../lib/media';
 import { splitCombinedPostValue, splitCombinedTextValue } from '../lib/postContent';
 import { RichTextEditor } from './RichTextEditor';
-import { Category, ContentCategory, Post, PostType } from '../types';
+import { Category, ContentCategory, Post, PostType, SourceType } from '../types';
 
 type Language = 'en' | 'ar';
 
@@ -76,6 +76,14 @@ const toSeriesSlug = (value: string) =>
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s+/g, '-');
 
+const getDefaultSourceType = (category?: Category | null): SourceType => {
+  const key = toCategoryKey(category?.slug || category?.name || category?.name_ar);
+
+  if (key === 'hadith') return 'hadith';
+  if (key === 'dua') return 'quran';
+  return 'scholar';
+};
+
 const buildDraftKey = (
   categoryFilter: CategoryFilterMode,
   initialCategorySlug?: string | null,
@@ -123,6 +131,8 @@ export const CreatePostModal = ({
   const [secondaryTitle, setSecondaryTitle] = useState('');
   const [secondaryContent, setSecondaryContent] = useState('');
   const [secondaryExcerpt, setSecondaryExcerpt] = useState('');
+  const [sourceType, setSourceType] = useState<SourceType>('hadith');
+  const [sourceReference, setSourceReference] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
@@ -144,6 +154,8 @@ export const CreatePostModal = ({
     ? categories.find((category) => category.slug === initialCategorySlug)
     : null;
   const selectedCategory = lockedCategory || categories.find((category) => category.id === categoryId);
+  const selectedCategoryKey = toCategoryKey(selectedCategory?.slug || selectedCategory?.name || selectedCategory?.name_ar);
+  const showsSourceFields = sidebarCategoryOrder.includes(selectedCategoryKey as ContentCategory);
   const activeAccept = typeUploadAccept[type] || '';
   const canUploadForType = Boolean(activeAccept);
   const draftKey = useMemo(
@@ -222,6 +234,8 @@ export const CreatePostModal = ({
       setSecondaryTitle(titleParts.secondary);
       setSecondaryContent(contentParts.secondary);
       setSecondaryExcerpt(excerptParts.secondary);
+      setSourceType(postToEdit.source_type || getDefaultSourceType(categories.find((category) => category.id === postToEdit.category_id)));
+      setSourceReference(postToEdit.source_reference || '');
       setCategoryId(postToEdit.category_id || '');
       setImageUrl(postToEdit.image_url || '');
       setMediaUrl(postToEdit.media_url || '');
@@ -244,6 +258,8 @@ export const CreatePostModal = ({
     setSecondaryTitle('');
     setSecondaryContent('');
     setSecondaryExcerpt('');
+    setSourceType(getDefaultSourceType(initialCategory));
+    setSourceReference('');
     setCategoryId(initialCategory?.id || '');
     setImageUrl('');
     setMediaUrl('');
@@ -276,6 +292,8 @@ export const CreatePostModal = ({
       setSecondaryTitle(parsed.secondaryTitle || '');
       setSecondaryContent(parsed.secondaryContent || '');
       setSecondaryExcerpt(parsed.secondaryExcerpt || '');
+      setSourceType(parsed.sourceType || getDefaultSourceType(lockedCategory || categories.find((category) => category.id === parsed.categoryId) || categories[0]));
+      setSourceReference(parsed.sourceReference || '');
       setCategoryId(lockedCategory?.id || parsed.categoryId || categoryId || '');
       setImageUrl(parsed.imageUrl || '');
       setMediaUrl(parsed.mediaUrl || '');
@@ -298,8 +316,12 @@ export const CreatePostModal = ({
           postLanguage,
           title,
           content,
+          excerpt,
           secondaryTitle,
           secondaryContent,
+          secondaryExcerpt,
+          sourceType,
+          sourceReference,
           categoryId: lockedCategory?.id || categoryId,
           imageUrl,
           mediaUrl,
@@ -315,6 +337,7 @@ export const CreatePostModal = ({
     categoryId,
     content,
     draftKey,
+    excerpt,
     imageUrl,
     isOpen,
     lessonOrder,
@@ -323,8 +346,11 @@ export const CreatePostModal = ({
     postLanguage,
     postToEdit,
     secondaryContent,
+    secondaryExcerpt,
     secondaryTitle,
     seriesTitle,
+    sourceReference,
+    sourceType,
     title,
     type,
   ]);
@@ -384,8 +410,12 @@ export const CreatePostModal = ({
     setPostLanguage(lang === 'ar' ? 'ar' : 'en');
     setTitle('');
     setContent('');
+    setExcerpt('');
     setSecondaryTitle('');
     setSecondaryContent('');
+    setSecondaryExcerpt('');
+    setSourceType(getDefaultSourceType(fallbackCategory));
+    setSourceReference('');
     setCategoryId(fallbackCategory?.id || '');
     setImageUrl('');
     setMediaUrl('');
@@ -420,6 +450,13 @@ export const CreatePostModal = ({
     const normalizedSecondaryTitle = secondaryTitle.trim();
     const normalizedSecondaryContent = secondaryContent.trim();
     const normalizedSecondaryExcerpt = secondaryExcerpt.trim();
+    const normalizedSourceReference = sourceReference.trim();
+
+    if (showsSourceFields && !normalizedSourceReference) {
+      setLoading(false);
+      setError(lang === 'en' ? 'Please add the source reference for this post.' : 'يرجى إضافة المصدر لهذا المنشور.');
+      return;
+    }
 
     const finalTitle = postLanguage === 'both' && normalizedSecondaryTitle
       ? `${normalizedPrimaryTitle} / ${normalizedSecondaryTitle}`
@@ -442,6 +479,8 @@ export const CreatePostModal = ({
       post_type: type,
       image_url: imageUrl || (type === 'video' ? getVideoThumbnailUrl(mediaUrl) : null),
       media_url: mediaUrl,
+      source_type: normalizedSourceReference ? sourceType : null,
+      source_reference: normalizedSourceReference || null,
       series_title: seriesTitle.trim() || null,
       series_slug: seriesTitle.trim() ? toSeriesSlug(seriesTitle) : null,
       lesson_order: Math.max(1, lessonOrder || 1),
@@ -600,6 +639,42 @@ export const CreatePostModal = ({
                   </div>
 
                   <div className="space-y-4">
+                    {showsSourceFields && (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <label className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                            {lang === 'en' ? 'Source Type' : 'نوع المصدر'}
+                          </label>
+                          <select
+                            value={sourceType}
+                            onChange={(e) => setSourceType(e.target.value as SourceType)}
+                            className="w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none"
+                          >
+                            <option value="quran">Quran</option>
+                            <option value="hadith">Hadith</option>
+                            <option value="athar">Athar</option>
+                            <option value="scholar">Scholar</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
+                            {lang === 'en' ? 'Source Reference' : 'المصدر'}
+                          </label>
+                          <input
+                            required={showsSourceFields}
+                            value={sourceReference}
+                            onChange={(e) => setSourceReference(e.target.value)}
+                            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                            className={cn(
+                              'w-full rounded-xl border border-white/10 bg-app-bg px-4 py-3 text-sm text-app-text focus:border-app-accent/50 focus:outline-none',
+                              lang === 'ar' && 'text-right'
+                            )}
+                            placeholder={lang === 'en' ? 'Example: Sunan Ibn Majah 2340' : 'مثال: سنن ابن ماجه 2340'}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-3">
                       <label className="mb-0.5 block text-[10px] font-black uppercase tracking-widest text-app-muted ml-1">
                         {lang === 'en' ? 'Article Content' : 'محتوى المقال'}

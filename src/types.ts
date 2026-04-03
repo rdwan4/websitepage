@@ -29,6 +29,8 @@ export interface Post {
   created_at: string;
   category?: Category;
   post_type: PostType;
+  source_type?: SourceType | null;
+  source_reference?: string | null;
   media_url?: string;
   attachments?: string[];
   series_slug?: string | null;
