@@ -23,6 +23,37 @@ const ALLOWED_COLORS = [
   '#f472b6',
 ];
 
+const clampRgbChannel = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+
+const rgbToHex = (red: number, green: number, blue: number) =>
+  `#${[red, green, blue]
+    .map((channel) => clampRgbChannel(channel).toString(16).padStart(2, '0'))
+    .join('')}`;
+
+const normalizeAllowedColor = (value: string) => {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (ALLOWED_COLORS.includes(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  const rgbMatch = normalizedValue.match(
+    /^rgba?\(\s*(\d{1,3})(?:\.\d+)?\s*,\s*(\d{1,3})(?:\.\d+)?\s*,\s*(\d{1,3})(?:\.\d+)?(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?)\s*)?\)$/
+  );
+
+  if (!rgbMatch) {
+    return null;
+  }
+
+  const [, red, green, blue, alpha] = rgbMatch;
+  if (alpha !== undefined && Number(alpha) === 0) {
+    return null;
+  }
+
+  const hexColor = rgbToHex(Number(red), Number(green), Number(blue));
+  return ALLOWED_COLORS.includes(hexColor) ? hexColor : null;
+};
+
 const ALLOWED_FONT_FAMILIES = [
   'var(--app-font-sans)',
   'var(--app-font-serif)',
@@ -70,8 +101,8 @@ const sanitizeInlineStyle = (styleValue: string) => {
     if (!name || !value) return;
 
     if (name === 'color') {
-      const normalizedColor = value.toLowerCase();
-      if (ALLOWED_COLORS.includes(normalizedColor)) {
+      const normalizedColor = normalizeAllowedColor(value);
+      if (normalizedColor) {
         safeRules.push(`color: ${normalizedColor}`);
       }
     }
