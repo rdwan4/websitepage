@@ -28,6 +28,7 @@ import {
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { CreateQuizQuestionModal } from '../components/CreateQuizQuestionModal';
+import { RichTextEditor } from '../components/RichTextEditor';
 import {
   BroadcastAdminMetrics,
   BroadcastNotification,
@@ -70,9 +71,19 @@ const text = {
   ar: { title: 'لوحة الإدارة', subtitle: 'مركز التحكم الشامل', users: 'المستخدمون', guidance: 'الهداية', daily: 'المحتوى', community: 'المجتمع', broadcast: 'البث', overview: 'إحصائيات', search: 'بحث...', save: 'حفظ التغييرات', create: 'إنشاء جديد', edit: 'تعديل', delete: 'حذف', setAdmin: 'ترقية', setUser: 'تخفيض', published: 'منشور', verified: 'موثق', uploadImage: 'رفع وسائط', approve: 'قبول', reject: 'رفض', cancelEditing: 'إلغاء التعديل' },
 };
 
+const toCategoryKey = (value?: string | null) => (value || '').trim().toLowerCase();
+
+const getPostDefaultSourceType = (category?: Category | null): SourceType => {
+  const key = toCategoryKey(category?.slug || category?.name || category?.name_ar);
+
+  if (key === 'hadith') return 'hadith';
+  if (key === 'dua') return 'quran';
+  return 'scholar';
+};
+
 const emptyGuidance: GuidanceForm = { id: '', slug: '', title_en: '', title_ar: '', summary_en: '', summary_ar: '', body_en: '', body_ar: '', image_url: '', accent_label_en: '', accent_label_ar: '', source_reference: '', source_type: 'quran', category: 'reflection', position: 0, is_published: true };
 const emptyDaily: DailyForm = { id: '', category: 'hadith', title: '', title_ar: '', english_text: '', arabic_text: '', transliteration: '', source_type: 'hadith', source_reference: '', authenticity_notes: '', image_url: '', tags: '', is_published: true, is_verified: true };
-const emptyCommunity: CommunityForm = { title: '', content: '', image_url: '', category_id: '', post_type: 'image', is_approved: true };
+const emptyCommunity: CommunityForm = { title: '', content: '', image_url: '', category_id: '', post_type: 'image', is_approved: true, source_type: 'scholar', source_reference: '' };
 const getEmptyBroadcast = (): BroadcastForm => ({
   type: 'general',
   title_en: '',
@@ -283,11 +294,25 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
   });
 
   const saveCommunityPost = () => runSave(async () => {
+    const normalizedSourceReference = typeof communityForm.source_reference === 'string'
+      ? communityForm.source_reference.trim()
+      : '';
+
+    const payload: CommunityForm = {
+      ...communityForm,
+      title: (communityForm.title || '').trim(),
+      content: communityForm.content || '',
+      source_type: normalizedSourceReference
+        ? (communityForm.source_type || getPostDefaultSourceType(categories.find((category) => category.id === communityForm.category_id)))
+        : null,
+      source_reference: normalizedSourceReference || null,
+    };
+
     if (communityForm.id) {
-      const saved = await postService.updatePost(communityForm.id, communityForm);
+      const saved = await postService.updatePost(communityForm.id, payload);
       setPosts(prev => [saved, ...prev.filter(p => p.id !== saved.id)]);
     } else {
-      const saved = await postService.createPost(communityForm);
+      const saved = await postService.createPost(payload);
       setPosts(prev => [saved, ...prev]);
     }
     setCommunityForm(emptyCommunity);
@@ -400,6 +425,11 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
     }
   });
 
+  const selectedCommunityCategory = useMemo(
+    () => categories.find((category) => category.id === communityForm.category_id) || null,
+    [categories, communityForm.category_id]
+  );
+
   return (
     <div className="min-h-screen bg-app-bg pt-32 pb-20 md:pt-40">
       <div className="container mx-auto px-4 md:px-6">
@@ -495,14 +525,62 @@ export const AdminDashboard = ({ lang }: { lang: 'en' | 'ar' }) => {
                         </div>
                       </div>
                       <div className="grid gap-4">
-                        <select value={communityForm.category_id} onChange={e => setCommunityForm({ ...communityForm, category_id: e.target.value })} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50">
+                        <select
+                          value={communityForm.category_id || ''}
+                          onChange={e => {
+                            const nextCategoryId = e.target.value;
+                            const nextCategory = categories.find((category) => category.id === nextCategoryId) || null;
+
+                            setCommunityForm({
+                              ...communityForm,
+                              category_id: nextCategoryId,
+                              source_type: communityForm.source_reference
+                                ? communityForm.source_type
+                                : getPostDefaultSourceType(nextCategory),
+                            });
+                          }}
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        >
                           <option value="">Choose Section...</option>
                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <input value={communityForm.title} onChange={e => setCommunityForm({ ...communityForm, title: e.target.value })} placeholder="Title" className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50" />
-                        <textarea value={communityForm.content} onChange={e => setCommunityForm({ ...communityForm, content: e.target.value })} placeholder="Body content..." rows={5} className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50" />
+                        <input
+                          value={communityForm.title || ''}
+                          onChange={e => setCommunityForm({ ...communityForm, title: e.target.value })}
+                          placeholder="Title"
+                          className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                        />
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <select
+                            value={communityForm.source_type || getPostDefaultSourceType(selectedCommunityCategory)}
+                            onChange={e => setCommunityForm({ ...communityForm, source_type: e.target.value as SourceType })}
+                            className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                          >
+                            <option value="quran">Quran</option>
+                            <option value="hadith">Hadith</option>
+                            <option value="athar">Athar</option>
+                            <option value="scholar">Scholar</option>
+                          </select>
+                          <input
+                            value={communityForm.source_reference || ''}
+                            onChange={e => setCommunityForm({ ...communityForm, source_reference: e.target.value })}
+                            placeholder="Source reference..."
+                            className="w-full rounded-2xl bg-white/5 border border-white/10 p-5 text-sm text-app-text outline-none focus:border-app-accent/50"
+                          />
+                        </div>
+                        <div className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
+                          <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-app-muted">
+                            Rich Content
+                          </p>
+                          <RichTextEditor
+                            value={communityForm.content || ''}
+                            onChange={(value) => setCommunityForm({ ...communityForm, content: value })}
+                            placeholder="Body content..."
+                            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                          />
+                        </div>
                       </div>
-                      <button onClick={() => void saveCommunityPost()} disabled={saving || !communityForm.title} className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 active:scale-95 disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs">
+                      <button onClick={() => void saveCommunityPost()} disabled={saving || !(communityForm.title || '').trim()} className="mt-4 w-full rounded-2xl bg-app-accent py-5 font-black text-app-bg shadow-xl shadow-app-accent/20 active:scale-95 disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs">
                         {saving ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : (communityForm.id ? 'Save Changes' : 'Publish Content')}
                       </button>
                       {communityForm.id && <button onClick={() => setCommunityForm(emptyCommunity)} className="text-[10px] font-black uppercase text-app-muted hover:text-white transition-colors text-center mt-2">Cancel Editing</button>}
@@ -1163,5 +1241,3 @@ const StatCard = ({ icon: Icon, label, value, color }: { icon: any; label: strin
     </div>
   </div>
 );
-
-
