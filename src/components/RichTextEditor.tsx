@@ -43,7 +43,7 @@ const EditorToolbar = ({
 }: {
   editor: Editor | null;
   rememberSelection: () => void;
-  runWithSelection: (command: (editor: Editor) => void) => void;
+  runWithSelection: (command: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => void;
 }) => {
   const [customFontSize, setCustomFontSize] = useState('16');
 
@@ -65,25 +65,25 @@ const EditorToolbar = ({
       </div>
       <div className="rich-editor-toolbar overflow-x-auto px-3 pb-3">
         <div className="flex min-w-max flex-wrap items-center gap-2">
-          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBold().run())}>
+          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBold())}>
             Bold
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleItalic().run())}>
+          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleItalic())}>
             Italic
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBulletList().run())}>
+          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBulletList())}>
             List
           </ToolbarButton>
-          <ToolbarButton onClick={() => runWithSelection((instance) => instance.chain().toggleBlockquote().run())}>
+          <ToolbarButton onClick={() => runWithSelection((chain) => chain.toggleBlockquote())}>
             Quote
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runWithSelection((instance) => instance.chain().toggleHeading({ level: 2 }).run())}
+            onClick={() => runWithSelection((chain) => chain.toggleHeading({ level: 2 }))}
           >
             H2
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => runWithSelection((instance) => instance.chain().toggleHeading({ level: 3 }).run())}
+            onClick={() => runWithSelection((chain) => chain.toggleHeading({ level: 3 }))}
           >
             H3
           </ToolbarButton>
@@ -94,7 +94,7 @@ const EditorToolbar = ({
             onChange={(event) => {
               const fontFamily = event.target.value;
               if (!fontFamily) return;
-              runWithSelection((instance) => instance.chain().setFontFamily(fontFamily).run());
+              runWithSelection((chain) => chain.setFontFamily(fontFamily));
               event.target.value = '';
             }}
             className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
@@ -113,7 +113,7 @@ const EditorToolbar = ({
             onChange={(event) => {
               const fontSize = event.target.value;
               if (!fontSize) return;
-              runWithSelection((instance) => instance.chain().setFontSize(fontSize).run());
+              runWithSelection((chain) => chain.setFontSize(fontSize));
               event.target.value = '';
             }}
             className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
@@ -139,7 +139,7 @@ const EditorToolbar = ({
             <ToolbarButton
               onClick={() => {
                 const nextSize = Math.max(8, Math.min(96, Number(customFontSize) || 16));
-                runWithSelection((instance) => instance.chain().setFontSize(`${nextSize}px`).run());
+                runWithSelection((chain) => chain.setFontSize(`${nextSize}px`));
               }}
             >
               Px
@@ -153,7 +153,7 @@ const EditorToolbar = ({
                 aria-label={`Set color ${color}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onPointerDown={(event) => event.preventDefault()}
-                onClick={() => runWithSelection((instance) => instance.chain().setColor(color).run())}
+                onClick={() => runWithSelection((chain) => chain.setColor(color))}
                 className="h-6 w-6 rounded-full border-2 border-transparent transition-all hover:border-white"
                 style={{ backgroundColor: color }}
               />
@@ -214,18 +214,17 @@ export const RichTextEditor = ({
   }, [editor]);
 
   const runWithSelection = useCallback(
-    (command: (editor: Editor) => void) => {
+    (command: (chain: ReturnType<Editor['chain']>) => ReturnType<Editor['chain']>) => {
       if (!editor) return;
 
       const savedSelection = savedSelectionRef.current;
-      const chain = editor.chain().focus(undefined, { scrollIntoView: false });
+      let chain = editor.chain().focus(undefined, { scrollIntoView: false });
 
       if (savedSelection) {
-        chain.setTextSelection(savedSelection);
+        chain = chain.setTextSelection(savedSelection);
       }
 
-      chain.run();
-      command(editor);
+      command(chain).run();
       rememberSelection();
     },
     [editor, rememberSelection]
