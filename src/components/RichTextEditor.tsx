@@ -31,7 +31,7 @@ const ToolbarButton = ({
       event.preventDefault();
       onPress();
     }}
-    className="rounded-lg bg-white/5 px-3 py-1 text-xs font-black uppercase tracking-widest text-app-text transition-all"
+    className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-app-text transition-all hover:border-app-accent/40 hover:bg-white/10"
   >
     {children}
   </button>
@@ -63,14 +63,14 @@ const EditorToolbar = ({
 
   return (
     <div className="border-b border-white/10 bg-white/[0.03]">
-      <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <span className="text-[10px] font-black uppercase tracking-[0.25em] text-app-accent">
           Text Tools
         </span>
         <span className="text-[10px] text-app-muted">Select a word or line, then style it</span>
       </div>
-      <div className="rich-editor-toolbar overflow-x-auto px-3 pb-3">
-        <div className="flex min-w-max flex-wrap items-center gap-2">
+      <div className="rich-editor-toolbar px-3 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
           <ToolbarButton onPress={() => runDirectCommand((chain) => chain.toggleBold())}>
             Bold
           </ToolbarButton>
@@ -103,7 +103,7 @@ const EditorToolbar = ({
               runWithSelection((chain) => chain.setFontFamily(fontFamily));
               event.target.value = '';
             }}
-            className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
+            className="min-w-[76px] rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
           >
             <option value="">Font</option>
             {FONT_OPTIONS.map((font) => (
@@ -122,7 +122,7 @@ const EditorToolbar = ({
               runWithSelection((chain) => chain.setFontSize(fontSize));
               event.target.value = '';
             }}
-            className="rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
+            className="min-w-[72px] rounded-lg border border-white/10 bg-app-bg px-2 py-1 text-xs text-app-text outline-none"
           >
             <option value="">Size</option>
             {FONT_SIZE_OPTIONS.map((size) => (
@@ -140,7 +140,7 @@ const EditorToolbar = ({
               onPointerDown={captureSelectionBeforeMenu}
               onTouchStart={captureSelectionBeforeMenu}
               onChange={(event) => setCustomFontSize(event.target.value)}
-              className="w-12 bg-transparent text-xs text-app-text outline-none"
+            className="w-12 bg-transparent text-xs text-app-text outline-none"
             />
             <ToolbarButton
               onPress={() => {
@@ -254,9 +254,9 @@ export const RichTextEditor = ({
   }, [editor, value]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-app-bg">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-app-bg">
       <EditorToolbar editor={editor} rememberSelection={rememberSelection} runWithSelection={runWithSelection} />
-      <div className="max-h-[260px] overflow-y-auto">
+      <div className="max-h-[240px] overflow-y-auto">
         <EditorContent editor={editor} />
       </div>
     </div>

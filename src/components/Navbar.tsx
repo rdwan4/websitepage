@@ -139,7 +139,7 @@ export const Navbar = ({
             </Link>
           ))}
           {profile?.role === 'admin' && (
-            <Link to="/admin" className="flex items-center gap-2 rounded-xl bg-app-accent/10 px-4 py-2 text-[13px] font-black text-app-accent border border-app-accent/20"><Shield className="h-4 w-4" />{t.nav.admin}</Link>
+            <Link to="/admin" className="flex items-center gap-2 rounded-xl bg-app-accent/10 px-4 py-2 text-[13px] font-black text-app-accent border border-app-accent/20"><LayoutDashboard className="h-4 w-4" />{t.nav.admin}</Link>
           )}
         </div>
 
