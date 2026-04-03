@@ -219,7 +219,7 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
                 </div>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 items-start md:grid-cols-2 lg:grid-cols-3 gap-8">
               <AnimatePresence mode="popLayout">
                 {/* Daily Entries (Inspiration, Hadith, Dua) */}
                 {currentTab !== 'others' && dailyEntries.map((entry, idx) => (
@@ -230,7 +230,7 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="p-8 rounded-[3rem] bg-app-card border border-white/5 shadow-xl group hover:border-app-accent/20 transition-all"
+                    className="self-start p-8 rounded-[3rem] bg-app-card border border-white/5 shadow-xl group hover:border-app-accent/20 transition-all"
                   >
                      {entry.image_url && (
                        <div className="mb-6 overflow-hidden rounded-[2rem] border border-white/5">
@@ -285,7 +285,7 @@ export const DailyGuidancePage = ({ lang }: { lang: 'en' | 'ar' }) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="overflow-hidden rounded-[3rem] bg-app-card border border-white/5 shadow-xl group"
+                    className="self-start overflow-hidden rounded-[3rem] bg-app-card border border-white/5 shadow-xl group"
                   >
                     {item.image_url && (
                         <div className="aspect-video overflow-hidden">
